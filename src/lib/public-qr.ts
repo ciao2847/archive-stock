@@ -1,4 +1,4 @@
-import { QR_TOKEN_PATTERN } from "@/lib/config";
+import { QR_TOKEN_PATTERN } from "@/constants";
 
 export type PublicPurchaseChannel = "shopee" | "line";
 

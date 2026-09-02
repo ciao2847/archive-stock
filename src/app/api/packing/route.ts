@@ -3,13 +3,13 @@ import { z } from "zod";
 import {
   PRODUCT_SKU_PATTERN,
   QR_TOKEN_PATTERN,
-} from "@/lib/config";
+} from "@/constants";
 import { extractQrToken } from "@/lib/public-qr";
-import { createClient } from "@/utils/supabase/server";
-
-const noStoreHeaders = {
-  "Cache-Control": "private, no-store, max-age=0",
-};
+import {
+  apiFailure,
+  apiSuccess,
+  requireApiUser,
+} from "@/lib/api/server-auth";
 
 const orderIdSchema = z.string().uuid();
 
@@ -37,34 +37,9 @@ type OrderItemRow = {
   products: { sku: string | null } | { sku: string | null }[] | null;
 };
 
-function success<T>(data: T, status = 200) {
-  return Response.json(
-    { success: true, data },
-    { status, headers: noStoreHeaders },
-  );
-}
-
-function failure(error: string, status: number) {
-  return Response.json(
-    { success: false, error },
-    { status, headers: noStoreHeaders },
-  );
-}
-
 function getProductSku(products: OrderItemRow["products"]) {
   if (Array.isArray(products)) return products[0]?.sku ?? null;
   return products?.sku ?? null;
-}
-
-async function getAuthenticatedClient() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) return null;
-  return supabase;
 }
 
 export async function GET(request: NextRequest) {
@@ -72,19 +47,19 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("orderId"),
   );
   if (!parsedOrderId.success) {
-    return failure("訂單 ID 格式錯誤", 400);
+    return apiFailure("訂單 ID 格式錯誤", 400);
   }
 
-  const supabase = await getAuthenticatedClient();
-  if (!supabase) return failure("請先登入", 401);
+  const auth = await requireApiUser();
+  if (!auth.ok) return auth.response;
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from("order_items")
     .select("quantity,scanned_quantity,products(sku)")
     .eq("order_id", parsedOrderId.data);
 
-  if (error) return failure(`讀取核對進度失敗：${error.message}`, 400);
-  if (!data) return failure("找不到訂單商品資料", 404);
+  if (error) return apiFailure("讀取核對進度失敗", 400);
+  if (!data) return apiFailure("找不到訂單商品資料", 404);
 
   const scannedSkus = (data as unknown as OrderItemRow[]).flatMap((item) => {
     const sku = getProductSku(item.products);
@@ -96,21 +71,21 @@ export async function GET(request: NextRequest) {
     );
   });
 
-  return success(scannedSkus);
+  return apiSuccess(scannedSkus);
 }
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsedBody = requestSchema.safeParse(body);
   if (!parsedBody.success) {
-    return failure("請求內容格式錯誤", 400);
+    return apiFailure("請求內容格式錯誤", 400);
   }
 
-  const supabase = await getAuthenticatedClient();
-  if (!supabase) return failure("請先登入", 401);
+  const auth = await requireApiUser();
+  if (!auth.ok) return auth.response;
 
   if (parsedBody.data.action === "complete") {
-    const { data, error } = await supabase.rpc("complete_order_packing", {
+    const { data, error } = await auth.supabase.rpc("complete_order_packing", {
       p_order_id: parsedBody.data.orderId,
     });
 
@@ -119,17 +94,17 @@ export async function POST(request: Request) {
         error.code === "PGRST202"
           ? "完成包裝功能尚未安裝，請先執行 complete-order-packing-migration.sql。"
           : `完成包裝失敗：${error.message}`;
-      return failure(message, error.code === "PGRST202" ? 503 : 400);
+      return apiFailure(message, error.code === "PGRST202" ? 503 : 400);
     }
 
-    return success({ completed: Boolean(data) });
+    return apiSuccess({ completed: Boolean(data) });
   }
 
   const value = extractQrToken(parsedBody.data.value);
   const isProductSku = PRODUCT_SKU_PATTERN.test(value);
   const isQrToken = QR_TOKEN_PATTERN.test(value);
   if (!isProductSku && !isQrToken) {
-    return success({
+    return apiSuccess({
       result: {
         valid: false,
         reason: "invalid_scan_value",
@@ -139,25 +114,25 @@ export async function POST(request: Request) {
   }
 
   const response = isProductSku
-    ? await supabase.rpc("consume_product_sku", {
+    ? await auth.supabase.rpc("consume_product_sku", {
         p_sku: value.toUpperCase(),
         p_order_id: parsedBody.data.orderId,
       })
-    : await supabase.rpc("consume_product_qr", {
+    : await auth.supabase.rpc("consume_product_qr", {
         p_token: value,
         p_order_id: parsedBody.data.orderId,
       });
 
   if (response.error) {
-    return failure(`核對失敗：${response.error.message}`, 400);
+    return apiFailure("核對失敗", 400);
   }
 
   const parsedResult = scanResultSchema.safeParse(response.data?.[0]);
   if (!parsedResult.success) {
-    return failure("核對結果格式錯誤", 500);
+    return apiFailure("核對結果格式錯誤", 500);
   }
 
-  return success({
+  return apiSuccess({
     result: parsedResult.data,
     method: isProductSku ? "manual_sku" : "qr",
   });

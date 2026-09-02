@@ -14,7 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Product, Order } from "@/lib/types";
-import { PACKING_SCAN_ERROR_MESSAGES } from "@/lib/config";
+import { PACKING_SCAN_ERROR_MESSAGES } from "@/constants";
 import {
   completePackingOrder,
   fetchPackingProgress,

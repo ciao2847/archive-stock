@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, Save, X } from "lucide-react";
-import { SALES_CHANNELS } from "@/lib/config";
+import { SALES_CHANNELS } from "@/constants";
 import { createClient } from "@/utils/supabase/client";
-import { DEFAULT_VALUES, toNumber } from "@/lib/defaults";
+import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { DataState } from "./DataState";
 
 type Item = {

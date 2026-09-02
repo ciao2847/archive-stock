@@ -3,9 +3,10 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { LoaderCircle, MapPin, Plus, Warehouse } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { LOCATION_CODE_PATTERN } from "@/lib/config";
-import { DEFAULT_VALUES } from "@/lib/defaults";
+import { LOCATION_CODE_PATTERN } from "@/constants";
+import { DEFAULT_VALUES } from "@/constants";
 import { DataState } from "./DataState";
+import { FormInput, FormLabel, FormPrimaryButton } from "./FormControls";
 
 type LocationRow = {
   id: string;
@@ -97,36 +98,36 @@ export function LocationManager() {
 
   return (
     <div className="grid grid-cols-[340px_1fr] items-start gap-4 max-xl:grid-cols-1">
-      <section className="card h-max [&_form]:px-6 [&_form]:pb-6 [&_label]:mb-3 [&_label]:block [&_label]:text-[12px] [&_label]:font-semibold [&_input]:mt-2 [&_input]:block [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:p-3 [&_input]:outline-none max-lg:[&_input]:text-[16px] [&_.primary]:mt-3 [&_.primary]:w-full">
+      <section className="card h-max">
         <div className="card-head">
           <div>
             <h2>建立新庫位</h2>
             <p>格式：櫃－層－格，例如 A-03-02</p>
           </div>
         </div>
-        <form onSubmit={addLocation}>
-          <label>
+        <form className="px-6 pb-6" onSubmit={addLocation}>
+          <FormLabel>
             庫位代碼
-            <input
+            <FormInput
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="A-03-02"
               required
             />
-          </label>
-          <label>
+          </FormLabel>
+          <FormLabel>
             說明（選填）
-            <input
+            <FormInput
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A 櫃第三層第二格"
             />
-          </label>
+          </FormLabel>
           {error && <div className="login-error">{error}</div>}
-          <button className="primary" disabled={saving}>
+          <FormPrimaryButton disabled={saving}>
             {saving ? <LoaderCircle className="spin" /> : <Plus />}
             {saving ? "建立中…" : "新增庫位"}
-          </button>
+          </FormPrimaryButton>
         </form>
       </section>
       <section className="card location-list w-full self-start">
@@ -147,28 +148,34 @@ export function LocationManager() {
             </div>
           }
         >
-          <div className="grid grid-cols-2 gap-3 px-5 pb-5 max-lg:grid-cols-1 [&_article]:flex [&_article]:items-center [&_article]:gap-3 [&_article]:rounded-lg [&_article]:border [&_article]:border-line [&_article]:p-3 [&_article>span]:grid [&_article>span]:h-9 [&_article>span]:w-9 [&_article>span]:place-items-center [&_article>span]:rounded-lg [&_article>span]:bg-accent-soft [&_article>span]:text-rust [&_article>span_svg]:w-[18px] [&_article>div]:min-w-0 [&_article>div]:flex-1 [&_article>div_code]:text-[14px] [&_article>div_small]:mt-1 [&_article>div_small]:block [&_article>div_small]:text-[10px] [&_article>div_small]:text-muted [&_article>b]:text-right [&_article>b]:font-mono [&_article>b]:text-[18px] [&_article>b]:font-medium [&_article>b_small]:block [&_article>b_small]:font-sans [&_article>b_small]:text-[10px] [&_article>b_small]:text-muted">
+          <div className="grid grid-cols-2 gap-3 px-5 pb-5 max-lg:grid-cols-1">
             {locations?.map((item) => (
-              <article key={item.id}>
-                <span>
-                  <MapPin />
-                </span>
-                <div>
-                  <code>{item.code}</code>
-                  <small>
-                    {item.description ||
-                      `${item.cabinet} 櫃 · 第 ${item.shelf} 層 · 第 ${item.bin} 格`}
-                  </small>
-                </div>
-                <b>
-                  {item.count}
-                  <small>項商品</small>
-                </b>
-              </article>
+              <LocationCard item={item} key={item.id} />
             ))}
           </div>
         </DataState>
       </section>
     </div>
+  );
+}
+
+function LocationCard({ item }: { item: LocationRow }) {
+  return (
+    <article className="flex items-center gap-3 rounded-lg border border-line p-3">
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-accent-soft text-rust">
+        <MapPin className="w-[18px]" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <code className="text-[14px]">{item.code}</code>
+        <small className="mt-1 block text-[10px] text-muted">
+          {item.description ||
+            `${item.cabinet} 櫃 · 第 ${item.shelf} 層 · 第 ${item.bin} 格`}
+        </small>
+      </div>
+      <b className="text-right font-mono text-[18px] font-medium">
+        {item.count}
+        <small className="block font-sans text-[10px] text-muted">項商品</small>
+      </b>
+    </article>
   );
 }

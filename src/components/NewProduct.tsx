@@ -15,8 +15,8 @@ import {
   POSTER_FORMATS,
   POSTER_SIZES,
   PRODUCT_CATEGORIES,
-} from "@/lib/config";
-import { DEFAULT_VALUES, toNumber } from "@/lib/defaults";
+} from "@/constants";
+import { DEFAULT_VALUES, toNumber } from "@/constants";
 import {
   createProductImageVariants,
   PRODUCT_IMAGE_BUCKET,

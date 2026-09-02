@@ -1,5 +1,12 @@
 import type { Status } from "@/lib/types";
 
+export const API_ROUTES = {
+  getPacking: "/api/packing",
+  createOrder: "/api/orders",
+  order: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
+  product: (id: string) => `/api/products/${encodeURIComponent(id)}`,
+} as const;
+
 export const UI_BREAKPOINTS = {
   mobile: 600,
   tablet: 992,
@@ -15,7 +22,7 @@ export const PRODUCT_CATEGORIES = [
   "吊飾",
   "盲盒",
   "其他周邊",
-  '明信片',
+  "明信片",
 ] as const;
 export const COUNTRIES = ["韓國", "日本", "台灣", "香港", "大陸"] as const;
 export const POSTER_FORMATS = [
@@ -103,3 +110,19 @@ export const IMAGE_UPLOAD = {
 
 export const PRODUCT_IMAGE_BATCH_SIZE = 8;
 export const PRODUCT_IMAGE_URL_TTL_SECONDS = 60 * 60;
+
+export const DEFAULT_VALUES = {
+  amount: 0,
+  count: 0,
+  productStock: 1,
+  amountInput: "0",
+} as const;
+
+export function toNumber(
+  value: unknown,
+  fallback: number = DEFAULT_VALUES.amount,
+) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}

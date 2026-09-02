@@ -1,3 +1,5 @@
+import { API_ROUTES } from "@/constants";
+
 export type PackingScanResult = {
   valid: boolean;
   reason: string;
@@ -27,14 +29,14 @@ async function readApiResponse<T>(response: Response): Promise<T> {
 
 export async function fetchPackingProgress(orderId: string) {
   const response = await fetch(
-    `/api/packing?orderId=${encodeURIComponent(orderId)}`,
+    `${API_ROUTES.getPacking}?orderId=${encodeURIComponent(orderId)}`,
     { cache: "no-store" },
   );
   return readApiResponse<string[]>(response);
 }
 
 export async function scanPackingItem(orderId: string, value: string) {
-  const response = await fetch("/api/packing", {
+  const response = await fetch(API_ROUTES.getPacking, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "scan", orderId, value }),
@@ -43,7 +45,7 @@ export async function scanPackingItem(orderId: string, value: string) {
 }
 
 export async function completePackingOrder(orderId: string) {
-  const response = await fetch("/api/packing", {
+  const response = await fetch(API_ROUTES.getPacking, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "complete", orderId }),

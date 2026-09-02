@@ -3,9 +3,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Check, ClipboardPlus, LoaderCircle, Search, X } from "lucide-react";
 import { Product } from "@/lib/types";
-import { createClient } from "@/utils/supabase/client";
-import { SALES_CHANNELS, isProductAvailable } from "@/lib/config";
-import { DEFAULT_VALUES, toNumber } from "@/lib/defaults";
+import { SALES_CHANNELS, isProductAvailable } from "@/constants";
+import { DEFAULT_VALUES, toNumber } from "@/constants";
+import { createOrder } from "@/lib/api/orders";
 import { DataState } from "./DataState";
 
 /** 新增訂單表單。 */
@@ -86,54 +86,27 @@ export function NewOrder({
     }
     setSaving(true);
     setError("");
-    const supabase = createClient();
-    let orderId: string | null = null;
     try {
-      const customerResult = await supabase
-        .from("customers")
-        .insert({
-          name: customer.trim(),
-          nickname: nickname.trim() || null,
-          contact: contact.trim() || null,
-        })
-        .select("id")
-        .single();
-      if (customerResult.error) throw customerResult.error;
-      const orderResult = await supabase
-        .from("orders")
-        .insert({
-          customer_id: customerResult.data.id,
-          payment_status: payment,
-          status: "pending",
-          notes: notes.trim() || null,
-          sales_channel: salesChannel,
-          discount: toNumber(discount),
-          shipping_income: toNumber(shippingIncome),
-          platform_fee: toNumber(platformFee),
-          seller_shipping_cost: toNumber(sellerShippingCost),
-        })
-        .select("id")
-        .single();
-      if (orderResult.error) throw orderResult.error;
-      orderId = orderResult.data.id;
-      const itemResult = await supabase.from("order_items").insert(
-        selectedProducts.map((product) => ({
-          order_id: orderId,
-          product_id: product.dbId!,
+      await createOrder({
+        customerName: customer.trim(),
+        customerNickname: nickname.trim(),
+        customerContact: contact.trim(),
+        paymentStatus: payment,
+        notes: notes.trim(),
+        salesChannel,
+        discount: toNumber(discount),
+        shippingIncome: toNumber(shippingIncome),
+        platformFee: toNumber(platformFee),
+        sellerShippingCost: toNumber(sellerShippingCost),
+        items: selectedProducts.map((product) => ({
+          productId: product.dbId!,
           quantity: 1,
-          unit_price: toNumber(prices[product.dbId!] ?? product.price),
+          unitPrice: toNumber(prices[product.dbId!] ?? product.price),
         })),
-      );
-      if (itemResult.error) throw itemResult.error;
-      const reserveResult = await supabase
-        .from("products")
-        .update({ status: "reserved" })
-        .in("id", selected);
-      if (reserveResult.error) throw reserveResult.error;
+      });
       onCreated();
       onClose();
     } catch (caught) {
-      if (orderId) await supabase.from("orders").delete().eq("id", orderId);
       setError(caught instanceof Error ? caught.message : "訂單建立失敗");
     } finally {
       setSaving(false);
@@ -206,12 +179,16 @@ export function NewOrder({
               />
             </Field>
           </div>
-          <div className="mt-7 flex items-end justify-between [&>span]:font-mono [&>span]:text-[13px] [&>span]:font-medium [&>span]:text-rust [&_h3]:mb-1 [&_h3]:mt-0 [&_p]:m-0 [&_p]:text-[11px] [&_p]:text-muted">
+          <div className="mt-7 flex items-end justify-between">
             <div>
-              <h3>選擇訂購商品</h3>
-              <p>只顯示目前在庫的商品</p>
+              <h3 className="mb-1 mt-0">選擇訂購商品</h3>
+              <p className="m-0 text-[11px] text-muted">
+                只顯示目前在庫的商品
+              </p>
             </div>
-            <span>{selected.length} 件</span>
+            <span className="font-mono text-[13px] font-medium text-rust">
+              {selected.length} 件
+            </span>
           </div>
           <div className="order-product-search">
             <Search />

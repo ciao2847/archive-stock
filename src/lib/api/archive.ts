@@ -1,10 +1,11 @@
 import {
   FINANCIAL_ORDER_STATUSES,
   PRODUCT_STATUS_LABELS,
-} from "@/lib/config";
-import { DEFAULT_VALUES, toNumber } from "@/lib/defaults";
+} from "@/constants";
+import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { getSignedImageUrls } from "@/lib/product-images";
 import type { AccountData, Product } from "@/lib/types";
+import { archiveOrder } from "@/lib/api/orders";
 import { createClient } from "@/utils/supabase/client";
 
 type WorkRow = {
@@ -216,8 +217,5 @@ export async function fetchAccountApi(): Promise<AccountData> {
 }
 
 export async function archiveOrderApi(orderId: string): Promise<void> {
-  const { error } = await createClient().rpc("archive_order", {
-    p_order_id: orderId,
-  });
-  if (error) throw new Error(error.message);
+  await archiveOrder(orderId);
 }

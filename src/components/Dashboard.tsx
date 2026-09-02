@@ -29,7 +29,7 @@ import { EditOrderAmount } from "./EditOrderAmount";
 import {
   PACKING_ORDER_STATUSES,
   isOrderPackable,
-} from "@/lib/config";
+} from "@/constants";
 import { ResponsiveTable, type TableColumn } from "./ResponsiveTable";
 import { DataState } from "./DataState";
 import { useProductsData } from "@/hooks/useProductsData";
@@ -405,7 +405,7 @@ export function Dashboard() {
                 >
                   <OrderTable
                   orders={orders}
-                  onEditAmount={setEditingOrder}
+                  onEditAmount={isAdmin ? setEditingOrder : undefined}
                   onDelete={
                     isAdmin
                       ? async (order) => {
@@ -831,7 +831,7 @@ function OrderTable({
   return (
     <ResponsiveTable
       columns={ORDER_COLUMNS}
-      wrapperClassName="lg:!overflow-visible max-md:!mx-0 max-md:!overflow-hidden max-md:!rounded-[10px]"
+      wrapperClassName="!overflow-visible max-md:!mx-0 max-md:!rounded-[10px]"
       tableClassName="max-md:!min-w-0"
       theadClassName="max-md:hidden"
       tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"

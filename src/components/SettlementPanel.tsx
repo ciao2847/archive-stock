@@ -9,7 +9,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { toNumber } from "@/lib/defaults";
+import { toNumber } from "@/constants";
 import { ResponsiveTable, type TableColumn } from "./ResponsiveTable";
 type Settlement = {
   id: string;
@@ -138,25 +138,33 @@ export function SettlementPanel() {
       </section>
       <section className="card p-5">
         <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
-          <label className="field flex-1">
+          <label className="field min-w-0 flex-1 max-sm:w-full">
             <span>開始日期</span>
-            <input
-              type="date"
-              className="cursor-pointer"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker()}
-            />
+            <span className="settlement-date-control">
+              <span className={start ? undefined : "text-muted"}>
+                {start || "選擇開始日期"}
+              </span>
+              <input
+                type="date"
+                aria-label="開始日期"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </span>
           </label>
-          <label className="field flex-1">
+          <label className="field min-w-0 flex-1 max-sm:w-full">
             <span>結束日期</span>
-            <input
-              type="date"
-              className="cursor-pointer"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker()}
-            />
+            <span className="settlement-date-control">
+              <span className={end ? undefined : "text-muted"}>
+                {end || "選擇結束日期"}
+              </span>
+              <input
+                type="date"
+                aria-label="結束日期"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+              />
+            </span>
           </label>
           <button
             className="primary h-10 max-sm:w-full"

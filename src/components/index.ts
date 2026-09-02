@@ -2,6 +2,7 @@ export { Dashboard } from "./Dashboard";
 export { DataState } from "./DataState";
 export { EditOrderAmount } from "./EditOrderAmount";
 export { EditProduct } from "./EditProduct";
+export { FormInput, FormLabel, FormPrimaryButton } from "./FormControls";
 export { ImageLightbox } from "./ImageLightbox";
 export { LocationManager } from "./LocationManager";
 export { NewOrder } from "./NewOrder";

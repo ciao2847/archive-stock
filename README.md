@@ -10,6 +10,15 @@ npm run dev
 
 瀏覽 `http://localhost:3000`。Supabase 專案建立後，先在 SQL Editor 執行 `supabase/schema.sql` 與需要的 migration，再填入 `.env.local`。
 
+安全訂單流程與角色型 RLS 需另外套用：
+
+```text
+supabase/migrations/20260902070506_secure_order_workflow.sql
+```
+
+這份 migration 會新增訂單／客戶的 `created_by`、收緊寫入與刪除 policy，
+並建立原子化的 `create_order_with_items` RPC。部署新版前端前應先套用此 migration。
+
 主要流程：商品建檔 → 永久 ID → QR 標籤 → 建立訂單 → 掃碼核對 → 完成包裝。
 
 ## 資料流程

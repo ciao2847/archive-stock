@@ -3,14 +3,17 @@ import {
   IconCheck,
   IconExternalLink,
   IconMessageCircle,
-  IconPhoto,
   IconQrcode,
   IconShieldX,
   IconShoppingBag,
 } from "@tabler/icons-react";
 import { BrandLogo } from "@/components/BrandLogo";
-import { ORDER_STATUS_LABELS } from "@/lib/config";
-import { fetchPublicQrLanding } from "@/lib/api/public-qr";
+import { PublicRecommendationGrid } from "@/components/PublicRecommendationGrid";
+import { ORDER_STATUS_LABELS } from "@/constants";
+import {
+  fetchPublicQrLanding,
+  type PublicQrLanding,
+} from "@/lib/api/public-qr";
 import {
   PUBLIC_PURCHASE_LINKS,
   resolvePublicPurchaseChannel,
@@ -36,13 +39,29 @@ export default async function PublicQrPage({
   const queryChannel = Array.isArray(query.channel)
     ? query.channel[0]
     : query.channel;
+  const isPreview = token === "preview";
 
-  let landing = null;
+  let landing: PublicQrLanding | null = isPreview
+    ? {
+        orderNo: "ORDER-000128",
+        qrStatus: "used",
+        orderStatus: "packed",
+        salesChannel: queryChannel === "line" ? "line" : "shopee",
+        recommendations: [
+          { sku: "A000021", name: "電影原版收藏海報" },
+          { sku: "A000047", name: "限定版藝術卡組" },
+          { sku: "A000083", name: "影展紀念明信片" },
+          { sku: "A000105", name: "電影角色壓克力吊飾" },
+        ],
+      }
+    : null;
   let loadFailed = false;
-  try {
-    landing = await fetchPublicQrLanding(token, queryChannel);
-  } catch {
-    loadFailed = true;
+  if (!isPreview) {
+    try {
+      landing = await fetchPublicQrLanding(token, queryChannel);
+    } catch {
+      loadFailed = true;
+    }
   }
 
   const channel = resolvePublicPurchaseChannel(
@@ -60,13 +79,18 @@ export default async function PublicQrPage({
 
   return (
     <main className="min-h-screen bg-white pb-9 text-main md:pb-12 xl:pb-14">
-       <header className="mb-7 flex justify-center md:mb-9">
+        <header className="mb-7 flex justify-center md:mb-9">
           <BrandLogo className="justify-center" preload size="small" />
         </header>
 
       <div className="mx-auto w-full max-w-[375px] px-4 md:max-w-[768px] md:px-5 xl:max-w-[800px]">
        
         <section className="rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:px-8 md:py-9">
+          {isPreview && (
+            <span className="mb-4 inline-flex rounded-full bg-[#f1f5f9] px-3 py-1 text-[11px] font-semibold text-muted">
+              頁面預覽
+            </span>
+          )}
           <span
             className={`mx-auto mb-4 grid size-12 place-items-center ${isCompletedPurchase && !loadFailed ? "text-[#15803d]" : "text-[#c4382b]"}`}
           >
@@ -120,45 +144,19 @@ export default async function PublicQrPage({
 
         {landing && (
           <section className="mt-9 md:mt-11">
-            <div className="mb-5">
-              <h2 className="m-0 text-[18px] md:text-[20px]">猜你喜歡</h2>
+            <div className="mb-5 text-center">
+              <h2 className="m-0 text-[18px] md:text-[20px]">
+                猜你喜歡
+              </h2>
               <p className="mb-0 mt-1 text-[14px] text-muted">
-                {isShopee
-                  ? "在蝦皮賣場還有更多商品等你選購"
-                  : "喜歡的商品可以透過官方 LINE 詢問"}
+                為你隨機挑選目前仍有庫存的商品
               </p>
             </div>
             {(recommendations?.length ?? 0) > 0 ? (
-              <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-                {recommendations?.map((product) => (
-                  <article
-                    className="relative block min-w-0 overflow-hidden rounded-[16px] border-[0.5px] border-[#d6d9de] bg-transparent text-main"
-                    key={product.sku}
-                  >
-                    <div className="aspect-square overflow-hidden border-b-[0.5px] border-[#d6d9de]">
-                      {product.imageUrl ? (
-                        <img
-                          className="h-full w-full object-cover"
-                          src={product.imageUrl}
-                          alt={`${product.name} 商品圖片`}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <span className="grid h-full w-full place-items-center text-muted">
-                          <IconPhoto size={31} stroke={ICON_STROKE} aria-hidden="true" />
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="m-0 line-clamp-2 min-h-[58px] px-4 py-3 text-[14px] leading-5 md:min-h-[66px] md:px-4 md:text-[16px] md:leading-6">
-                      {product.name}
-                    </h3>
-                  </article>
-                ))}
-              </div>
+              <PublicRecommendationGrid recommendations={recommendations ?? []} />
             ) : (
-              <div className="rounded-[16px] border-[0.5px] border-[#d6d9de] p-6 text-[14px] text-muted">
-                目前沒有其他在庫推薦商品，歡迎從下方回到原購買通路查看。
+              <div className="rounded-[16px] border-[0.5px] border-[#d6d9de] p-6 text-center text-[14px] text-muted">
+                目前沒有其他在庫推薦商品。
               </div>
             )}
           </section>

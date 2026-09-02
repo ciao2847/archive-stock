@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { LoaderCircle, Save, X } from "lucide-react";
 import { Product } from "@/lib/types";
 import { createClient } from "@/utils/supabase/client";
-import { toNumber } from "@/lib/defaults";
+import { toNumber } from "@/constants";
 import {
   COUNTRIES,
   LOCATION_CODE_PATTERN,
@@ -11,7 +11,7 @@ import {
   POSTER_FORMATS,
   POSTER_SIZES,
   PRODUCT_CATEGORIES,
-} from "@/lib/config";
+} from "@/constants";
 /** 編輯商品表單。 */
 export function EditProduct({
   product,

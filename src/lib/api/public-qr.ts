@@ -1,6 +1,6 @@
 import "server-only";
 
-import { QR_TOKEN_PATTERN } from "@/lib/config";
+import { QR_TOKEN_PATTERN } from "@/constants";
 import { createClient } from "@/utils/supabase/server";
 
 export type PublicRecommendation = {

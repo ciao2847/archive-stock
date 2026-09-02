@@ -3,7 +3,7 @@ import {
   fetchOrdersApi,
   type OrderRow,
 } from "@/lib/api/archive";
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/config";
+import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/constants";
 import type { Order } from "@/lib/types";
 import {
   createAsyncDataState,

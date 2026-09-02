@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Product } from "@/lib/types";
+import { deleteProduct as deleteProductApi } from "@/lib/api/products";
 import { ImageLightbox } from "./ImageLightbox";
 import { createClient } from "@/utils/supabase/client";
 import { EditProduct } from "./EditProduct";
@@ -58,42 +59,17 @@ export function ProductPanel({
       return;
 
     setDeleting(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc("delete_inventory_product", {
-      p_product_id: p.dbId,
-    });
-
-    if (error) {
-      setDeleting(false);
-      const message = error.message;
+    try {
+      const result = await deleteProductApi(p.dbId);
+      await onUpdated();
+      onClose();
       window.alert(
-        error.code === "PGRST202"
-          ? "刪除功能尚未安裝，請先執行 delete-product-migration.sql。"
-          : message.includes("product has order history")
-            ? "此商品已有訂單紀錄，為保留出貨歷史不能刪除。"
-            : message.includes("product has packing history")
-              ? "此商品已有包貨掃描紀錄，為保留核對歷史不能刪除。"
-              : message.includes("product has settlement history")
-                ? "此商品已列入財務結算，不能刪除。"
-                : `刪除失敗：${message}`,
+        result.imageCleanupWarning || `${p.id} 已成功刪除。`,
       );
-      return;
+    } catch (error) {
+      setDeleting(false);
+      window.alert(error instanceof Error ? error.message : "商品刪除失敗");
     }
-
-    const imagePaths = Array.isArray(data)
-      ? data.filter((path): path is string => typeof path === "string")
-      : undefined;
-    const storageResult = imagePaths?.length
-      ? await supabase.storage.from("product-images").remove(imagePaths)
-      : undefined;
-
-    await onUpdated();
-    onClose();
-    window.alert(
-      storageResult?.error
-        ? `${p.id} 已刪除，但原圖片清除失敗：${storageResult.error.message}`
-        : `${p.id} 已成功刪除。`,
-    );
   }
 
   return (
@@ -127,11 +103,11 @@ export function ProductPanel({
             <span>{p.work}</span>
           )}
         </button>
-        <div className="flex items-start justify-between px-7 [&_h2]:mb-1 [&_h2]:mt-3 [&_h2]:text-[24px] [&_p]:m-0 [&_p]:text-muted">
+        <div className="flex items-start justify-between px-7">
           <div>
             <span className="pill green">{p.status}</span>
-            <h2>{p.work}</h2>
-            <p>{p.name}</p>
+            <h2 className="mb-1 mt-3 text-[24px]">{p.work}</h2>
+            <p className="m-0 text-muted">{p.name}</p>
           </div>
           <button
             className="icon-btn"
@@ -141,25 +117,25 @@ export function ProductPanel({
             <Pencil size={18} />
           </button>
         </div>
-        <div className="mx-7 my-6 grid grid-cols-2 rounded-lg border border-line bg-white max-sm:grid-cols-1 [&>div]:border-b [&>div]:border-line [&>div]:p-3 [&>div:nth-child(odd)]:border-r max-sm:[&>div:nth-child(odd)]:border-r-0 [&>div:nth-last-child(-n+2)]:border-b-0 [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted">
-          <Spec k="商品類型" v={p.category} />
-          <Spec k="國家 / 來源" v={`${p.country} · ${p.source}`} />
-          <Spec k="版本 / 影廳" v={p.format || "—"} />
-          <Spec k="尺寸" v={p.size || "—"} />
-          <Spec k="工藝" v={p.crafts?.join(" ＋ ") || "—"} />
+        <div className="mx-7 my-6 grid grid-cols-2 rounded-lg border border-line bg-white max-sm:grid-cols-1">
+          <Spec className="border-b border-r max-sm:border-r-0" k="商品類型" v={p.category} />
+          <Spec className="border-b" k="國家 / 來源" v={`${p.country} · ${p.source}`} />
+          <Spec className="border-b border-r max-sm:border-r-0" k="版本 / 影廳" v={p.format || "—"} />
+          <Spec className="border-b" k="尺寸" v={p.size || "—"} />
+          <Spec className="border-r max-sm:border-b max-sm:border-r-0" k="工藝" v={p.crafts?.join(" ＋ ") || "—"} />
           <Spec k="庫存數量" v={`${p.stock} 件`} />
         </div>
-        <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3 [&_p]:m-0 [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted">
-          <small>辨識特徵</small>
-          <p>{p.feature || "尚未填寫"}</p>
+        <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3">
+          <small className="mb-1 block text-[11px] text-muted">辨識特徵</small>
+          <p className="m-0">{p.feature || "尚未填寫"}</p>
         </div>
-        <div className="mx-7 my-4 flex items-center gap-3 rounded-lg border border-line bg-white p-3 [&>div]:flex-1 [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-rust [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[17px] [&_strong]:font-medium">
+        <div className="mx-7 my-4 flex items-center gap-3 rounded-lg border border-line bg-white p-3">
           <MapPin />
-          <div>
-            <small>目前庫位</small>
-            <strong>{p.location}</strong>
+          <div className="flex-1">
+            <small className="mb-1 block text-[11px] text-muted">目前庫位</small>
+            <strong className="font-mono text-[17px] font-medium">{p.location}</strong>
           </div>
-          <button>移動庫位</button>
+          <button className="border-0 bg-transparent text-rust">移動庫位</button>
         </div>
         {p.dbId && <QrLabels productId={p.dbId} sku={p.id} />}
         {isAdmin && (
@@ -234,11 +210,11 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
       loadingText="正在讀取 QR Code…"
       className="mx-7 my-4"
       emptyContent={
-      <div className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-3 [&_p]:text-[11px] [&_p]:text-muted [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium">
+      <div className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start">
         <div>
-          <small>商品 QR Code</small>
-          <strong>尚無可用標籤</strong>
-          <p>請先執行 QR token migration。</p>
+          <small className="mb-1 block text-[11px] text-muted">商品 QR Code</small>
+          <strong className="block font-mono text-[18px] font-medium">尚無可用標籤</strong>
+          <p className="mb-3 mt-1 text-[11px] text-muted">請先執行 QR token migration。</p>
         </div>
       </div>
       }
@@ -246,10 +222,11 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
       <div>
       {labels?.map((label, index) => (
         <div
-          className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-3 [&_p]:text-[11px] [&_p]:text-muted [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium"
+          className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start"
           key={label.token}
         >
           <QRCodeSVG
+            className="max-sm:h-[90px] max-sm:w-[90px]"
             value={
               publicOrigin
                 ? buildPublicQrUrl(label.token, publicOrigin)
@@ -259,9 +236,9 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
             level="M"
           />
           <div>
-            <small>商品 QR Code · 第 {index + 1} 件</small>
-            <strong>{sku}</strong>
-            <p>
+            <small className="mb-1 block text-[11px] text-muted">商品 QR Code · 第 {index + 1} 件</small>
+            <strong className="block font-mono text-[18px] font-medium">{sku}</strong>
+            <p className="mb-3 mt-1 text-[11px] text-muted">
               批次 {label.batch_code || "未指定"} · 使用後顯示購買通路
             </p>
             <button className="outline" onClick={() => window.print()}>
@@ -288,10 +265,10 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function Spec({ k, v }: { k: string; v: string }) {
+function Spec({ k, v, className = "" }: { k: string; v: string; className?: string }) {
   return (
-    <div>
-      <small>{k}</small>
+    <div className={`border-line p-3 ${className}`}>
+      <small className="mb-1 block text-[11px] text-muted">{k}</small>
       <b>{v}</b>
     </div>
   );
