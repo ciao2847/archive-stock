@@ -1,0 +1,359 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 打包頁面 | Packing Page
+// ============================================================================
+
+// 打包頂部 | Packing Top
+.packing-top {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  margin-bottom: 26px;
+
+  > span:last-child {
+    margin-left: auto;
+  }
+
+  h1 {
+    font: 500 24px var(--font-mono);
+    margin: 4px 0;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    margin-bottom: 15px;
+  }
+}
+
+// 打包網格 | Packing Grid
+.packing-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+
+  @media (max-width: $breakpoint-md) {
+    display: block;
+  }
+}
+
+// 客戶資訊 | Customer Info
+.customer {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: $spacing-3;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  padding: 16px 20px;
+  border-radius: $radius-xl;
+
+  small {
+    color: var(--color-muted);
+  }
+
+  h2 {
+    margin: 4px 0;
+  }
+
+  em {
+    color: var(--color-rust);
+    font-style: normal;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    h2 {
+      font-size: 18px;
+    }
+  }
+}
+
+// 掃描器 | Scanner
+.scanner {
+  height: 385px;
+  border-radius: $radius-xl;
+  background: var(--color-main);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+
+  &:before {
+    content: "";
+    position: absolute;
+    inset: 30px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+  }
+
+  > svg {
+    color: var(--color-accent);
+  }
+
+  h2 {
+    margin: 15px 0 5px;
+  }
+
+  p {
+    color: #aaa;
+    margin: 0 0 22px;
+  }
+
+  &.ok {
+    background: #325f4a;
+  }
+
+  &.bad {
+    background: #8b372e;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    height: 340px;
+
+    &.camera-active:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(#0004, rgba(0, 0, 0, 0.06) 35%, rgba(0, 0, 0, 0.06) 65%, #0004);
+      pointer-events: none;
+    }
+  }
+
+  @media (max-width: 600px) {
+    height: min(340px, 46dvh);
+  }
+}
+
+// 掃描視訊 | Scanner Video
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+// 掃描角 | Scanner Corners
+.corners {
+  position: absolute;
+  inset: 50px;
+  border: 2px solid rgba(255, 255, 255, 0.375);
+  border-left-color: transparent;
+  border-right-color: transparent;
+  display: grid;
+  place-items: center;
+
+  svg {
+    opacity: 0.08;
+    width: 100px;
+    height: 100px;
+  }
+
+  @media (max-width: 600px) {
+    inset: 38px;
+  }
+}
+
+// 相機主動狀態 | Camera Active State
+.camera-active .corners {
+  z-index: 2;
+  border-color: #fff;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
+// 相機狀態 | Camera Status
+.camera-status {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  text-align: center;
+
+  p {
+    color: #fff !important;
+    margin: 0 0 8px !important;
+    text-shadow: 0 1px 4px #000;
+  }
+}
+
+// 相機錯誤 | Camera Error
+.camera-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e3b8af;
+  background: #f6dfda;
+  color: #96382d;
+  border-radius: $radius-lg;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+
+  svg {
+    width: 17px;
+    flex: none;
+  }
+}
+
+// 反饋訊息 | Feedback
+.feedback {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+
+  > svg {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+// 打包項目 | Packing Items
+.packing-items {
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: $radius-xl;
+  height: max-content;
+  overflow: hidden;
+
+  @media (max-width: $breakpoint-md) {
+    margin-top: $spacing-3;
+  }
+}
+
+// 打包項目列 | Pack Item
+.pack-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 20px;
+  border-top: 1px solid var(--color-line);
+
+  &.checked {
+    background: var(--color-secondary-soft);
+  }
+
+  > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  b,
+  small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  b {
+    margin: 3px 0;
+  }
+
+  small {
+    color: var(--color-muted);
+  }
+
+  @media (max-width: 600px) {
+    padding: 13px 12px;
+    gap: 8px;
+
+    .thumb {
+      width: 34px;
+      height: 40px;
+    }
+
+    .done-label,
+    .wait-label {
+      flex: none;
+    }
+  }
+}
+
+// 複選框 | Checkbox
+.check {
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  border: 1px solid #c9c8c1;
+  display: grid;
+  place-items: center;
+
+  svg {
+    width: 14px;
+  }
+}
+
+.checked .check {
+  background: var(--color-green);
+  color: #fff;
+}
+
+// 打包完成訊息 | Packing Success
+.packing-success {
+  text-align: center;
+  max-width: 520px;
+  margin: 90px auto;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  padding: 48px;
+  border-radius: $radius-xl;
+
+  > span {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--color-secondary-soft);
+    color: var(--color-green);
+    margin: auto;
+
+    svg {
+      width: 42px;
+      height: 42px;
+    }
+  }
+
+  h1 {
+    margin: 22px 0 7px;
+  }
+
+  p {
+    color: var(--color-muted);
+  }
+
+  > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    text-align: left;
+    padding: 18px;
+    margin: 25px 0;
+    background: var(--color-paper);
+    gap: 10px;
+
+    span {
+      text-align: right;
+    }
+  }
+
+  @media (max-width: $breakpoint-md) {
+    margin: 30px auto;
+    padding: 30px 20px;
+
+    .primary {
+      min-height: 44px;
+    }
+  }
+}
+
+// 完成幫助文本 | Complete Help
+.complete-help {
+  text-align: center;
+  color: #999;
+  font-size: 11px;
+  margin: 0 0 20px;
+}

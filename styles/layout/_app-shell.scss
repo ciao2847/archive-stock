@@ -1,0 +1,105 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 應用外殼 | App Shell
+// ============================================================================
+
+.app-shell {
+  min-height: 100vh;
+}
+
+// 只位移後台側邊欄旁的主內容，公開頁面不套用
+.app-shell > main {
+  margin-left: 238px;
+  min-height: 100vh;
+
+  @media (max-width: $breakpoint-md) {
+    margin-left: 0;
+  }
+}
+
+// 內容容器 | Content Container
+.content {
+  padding: 36px;
+  max-width: 1280px;
+  margin: auto;
+
+  @media (max-width: $breakpoint-md) {
+    padding: 22px 15px;
+  }
+}
+
+// 頁面標題 | Page Title
+.page-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 30px;
+
+  h1,
+  .packing-top h1 {
+    font-size: 31px;
+    margin: 7px 0 4px;
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-muted);
+  }
+
+  @media (max-width: $breakpoint-md) {
+    align-items: flex-start;
+
+    h1 {
+      font-size: 26px;
+    }
+
+    .primary {
+      font-size: 0;
+      padding: 11px;
+
+      svg {
+        margin: 0;
+      }
+    }
+  }
+}
+
+// 眉頁文本 | Eyebrow Text
+.eyebrow {
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+// 網格佈局 | Grid Layouts
+.grid-main {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: $spacing-4;
+  margin-bottom: $spacing-4;
+
+  @media (max-width: $breakpoint-md) {
+    grid-template-columns: 1fr;
+
+    > .card {
+      margin-bottom: $spacing-3;
+    }
+  }
+}
+
+// 打包隊列標題 | Packing Queue Heading
+.packing-queue-heading {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+}
+
+// 備選樣式
+@media (max-width: $breakpoint-md) {
+  .grid-main {
+    display: block;
+  }
+}

@@ -1,0 +1,258 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 表單元件 | Form Components
+// ============================================================================
+
+// 表單網格 | Form Grid
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-3;
+  margin-top: 22px;
+}
+
+// 表單欄位 | Form Field
+.field {
+  display: block;
+
+  &.wide {
+    grid-column: 1/-1;
+  }
+
+  > span {
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: $spacing-1;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    background: var(--color-white);
+    border-radius: $radius-md;
+    padding: 10px;
+    outline: 0;
+    font: 13px var(--font-sans);
+  }
+
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  > em {
+    color: #b33d2d;
+    font-size: 10px;
+  }
+}
+
+// 上傳區域 | Upload Area
+.upload {
+  height: 120px;
+  border: 1px dashed #aaa79d;
+  border-radius: $radius-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  cursor: pointer;
+
+  b {
+    color: var(--color-ink);
+    margin: $spacing-1;
+  }
+
+  span {
+    font-size: 11px;
+  }
+}
+
+// 上傳預覽 | Upload Preview
+.upload-preview {
+  height: 154px;
+  border: 1px solid var(--color-line);
+  border-radius: $radius-lg;
+  background: var(--color-white);
+  display: flex;
+  gap: $spacing-4;
+  padding: 10px;
+  overflow: hidden;
+
+  > img {
+    width: 112px;
+    height: 132px;
+    object-fit: cover;
+    border-radius: $radius-md;
+    background: var(--color-light);
+  }
+}
+
+.upload-preview-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+
+  > b {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 8px 0 2px;
+  }
+
+  > small {
+    color: var(--color-muted);
+    margin-bottom: $spacing-3;
+  }
+
+  > div {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+  }
+}
+
+.upload-success {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-green);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.image-change {
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.image-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: #a44334;
+  padding: 7px 0;
+}
+
+.upload-error {
+  color: #b33d2d;
+  font-size: 11px;
+  margin: 7px 2px 0;
+}
+
+// 標籤選擇 | Checkbox Chips
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+
+  label {
+    border: 1px solid var(--color-line);
+    background: var(--color-white);
+    padding: 7px 9px;
+    border-radius: $radius-md;
+    font-size: 12px;
+  }
+
+  input {
+    width: auto;
+    margin-right: 5px;
+  }
+}
+
+// 表單按鈕組 | Form Actions
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 25px;
+}
+
+// 訂單商品搜尋 | Order Product Search
+.order-product-search {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-line);
+  background: var(--color-white);
+  border-radius: $radius-lg;
+  margin: 12px 0;
+  padding: 0 11px;
+
+  svg {
+    width: 17px;
+    color: var(--color-muted);
+  }
+
+  input {
+    border: 0;
+    background: transparent;
+    outline: 0;
+    padding: 11px;
+    width: 100%;
+  }
+}
+
+// 手動輸入 | Manual Input
+.manual {
+  display: flex;
+  margin-top: 12px;
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: $radius-lg;
+  background: var(--color-white);
+  padding-left: 12px;
+
+  input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    padding: 13px;
+    outline: 0;
+  }
+
+  button {
+    align-self: stretch;
+    border: 0;
+    border-left: 1px solid var(--color-line);
+    padding: 0 18px;
+    background: transparent;
+  }
+}
+
+// 響應式調整
+@media (max-width: $breakpoint-md) {
+  .form-grid {
+    grid-template-columns: 1fr;
+
+    .field.wide {
+      grid-column: auto;
+    }
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .search input,
+  .manual input,
+  .order-product-search input,
+  .login-card form input,
+  .location-create input {
+    font-size: 16px;
+  }
+
+  .manual button,
+  .card-head > button,
+  .order-row .outline {
+    min-height: 44px;
+  }
+}

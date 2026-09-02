@@ -1,0 +1,79 @@
+@use "variables" as *;
+
+// ============================================================================
+// 重置和基礎樣式 | Resets & Base Styles
+// ============================================================================
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-default);
+  font-family: var(--font-sans), sans-serif;
+  font-size: 14px;
+}
+
+h1,
+h2,
+h3,
+h4,
+b,
+strong,
+code,
+input,
+select,
+textarea {
+  color: var(--color-main);
+}
+
+.sidebar b,
+.sidebar strong,
+.sidebar button,
+.scanner h2 {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  transition: $transition-duration;
+}
+
+// 無障礙焦點 | Accessibility Focus
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: none;
+}
+
+// 禁用按鈕 | Disabled Buttons
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+// Print 樣式 | Print Styles
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .qr-card,
+  .qr-card * {
+    visibility: visible;
+  }
+
+  .qr-card {
+    position: fixed;
+    left: 0;
+    top: 0;
+    border: 0;
+  }
+}

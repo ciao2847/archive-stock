@@ -1,0 +1,96 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 抽屜面板 | Drawer Panel
+// ============================================================================
+
+// 蒙層疊加 | Overlay
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.53);
+  z-index: $z-overlay;
+  backdrop-filter: blur(2px);
+}
+
+// 抽屜面板 | Drawer
+.drawer {
+  position: fixed;
+  z-index: $z-drawer;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  width: min(510px, 100%);
+  background: var(--color-paper);
+  overflow-y: auto;
+  box-shadow: $shadow-lg;
+  padding-bottom: max(30px, env(safe-area-inset-bottom));
+
+  @media (max-width: $breakpoint-md) {
+    width: 100%;
+  }
+
+  form {
+    padding: 22px 26px;
+
+    @media (max-width: 600px) {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+  }
+}
+
+// 抽屜頭部 | Drawer Head
+.drawer-head {
+  height: 78px;
+  border-bottom: 1px solid var(--color-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+
+  h2 {
+    font: 500 19px var(--font-mono);
+    margin: 4px 0;
+  }
+}
+
+// 新增抽屜表單 | New Drawer Form
+.new-drawer form {
+  padding: 22px 26px;
+
+  @media (max-width: 600px) {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+// 訂單抽屜表單 | Order Drawer Form
+.order-drawer form {
+  padding: 22px 26px;
+}
+
+// 表單操作 (抽屜粘性) | Form Actions (Sticky in Drawer)
+.drawer .form-actions {
+  position: sticky;
+  z-index: 5;
+  bottom: calc(-1 * max(30px, env(safe-area-inset-bottom)));
+  margin: 25px -26px 0;
+  padding: 14px 26px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-line);
+  background: rgba(241, 245, 249, 0.96);
+  backdrop-filter: blur(10px);
+
+  button {
+    min-height: 44px;
+    flex: 1;
+  }
+
+  @media (max-width: 600px) {
+    margin-left: -18px;
+    margin-right: -18px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}

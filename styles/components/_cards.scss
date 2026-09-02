@@ -1,0 +1,262 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 卡片和統計 | Cards & Stats
+// ============================================================================
+
+// 卡片容器 | Card Container
+.card {
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: $radius-xl;
+  overflow: hidden;
+}
+
+// 卡片頭部 | Card Head
+.card-head {
+  padding: 20px 22px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  h2 {
+    font-size: 17px;
+    margin: 0 0 4px;
+  }
+
+  p {
+    font-size: 12px;
+    color: var(--color-muted);
+    margin: 0;
+  }
+
+  > button {
+    background: none;
+    border: 0;
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+  }
+}
+
+// 統計卡片 | Stats Cards
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-3;
+  margin-bottom: $spacing-4;
+
+  article {
+    background: var(--color-white);
+    border: 1px solid var(--color-line);
+    border-radius: $radius-xl;
+    padding: 20px;
+    display: flex;
+    gap: $spacing-3;
+  }
+
+  small,
+  em {
+    display: block;
+    color: var(--color-muted);
+    font-style: normal;
+  }
+
+  strong {
+    font: 500 27px var(--font-mono);
+    display: block;
+    margin: 4px 0;
+  }
+
+  em {
+    font-size: 11px;
+  }
+}
+
+// 統計圖示 | Stat Icon
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-lg;
+
+  svg {
+    width: 20px;
+  }
+
+  &.rust {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+
+  &.gold {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  &.green {
+    background: var(--color-secondary-soft);
+    color: var(--color-secondary-strong);
+  }
+
+  &.blue {
+    background: #e8edf2;
+    color: var(--color-main);
+  }
+}
+
+// 活動卡片 | Activity Card
+.activity {
+  padding-bottom: 5px;
+}
+
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: 12px 22px;
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+
+    &.green {
+      background: var(--color-secondary);
+    }
+
+    &.rust {
+      background: var(--color-accent);
+    }
+
+    &.blue {
+      background: var(--color-primary-hover);
+    }
+  }
+
+  div {
+    flex: 1;
+  }
+
+  small {
+    display: block;
+    color: var(--color-muted);
+    font-size: 11px;
+    margin-top: 3px;
+  }
+
+  time {
+    font-size: 10px;
+    color: #aaa;
+  }
+}
+
+// 徽章/藥丸 | Pills/Badges
+.pill {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: $radius-full;
+  white-space: nowrap;
+
+  &.amber {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  &.green {
+    background: var(--color-secondary-soft);
+    color: var(--color-secondary-strong);
+  }
+
+  &.blue {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-hover);
+  }
+}
+
+// 訂單列行 | Order Row
+.order-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 22px;
+  border-top: 1px solid var(--color-line);
+
+  > div {
+    flex: 1;
+  }
+}
+
+.order-index {
+  font: 500 10px var(--font-mono);
+  color: #aaa;
+}
+
+// 標籤和狀態 | Labels & Status
+.done-label,
+.wait-label {
+  font-size: 10px;
+}
+
+.done-label {
+  color: var(--color-green);
+}
+
+.wait-label {
+  color: #aaa;
+}
+
+// 資料錯誤提示 | Data Error Message
+.data-error {
+  background: #f6dfda;
+  color: #91382c;
+  border: 1px solid #e8bdb5;
+  padding: 12px 14px;
+  border-radius: $radius-lg;
+  margin-bottom: $spacing-3;
+}
+
+// 緊湊空狀態 | Compact Empty State
+.compact-empty {
+  padding: 28px;
+}
+
+// 響應式調整
+@media (max-width: $breakpoint-md) {
+  .stats {
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-2;
+
+    article {
+      padding: 14px;
+      display: block;
+    }
+
+    em {
+      display: none;
+    }
+  }
+
+  .stat-icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: $spacing-1;
+  }
+
+  .stats strong {
+    font-size: 22px;
+  }
+
+  .activity {
+    display: none;
+  }
+
+  .order-row {
+    padding: 14px;
+
+    .pill {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "庫藏 Archive",
+  "short_name": "庫藏",
+  "description": "收藏品入庫、QR 標籤與掃碼出貨",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F1F5F9",
+  "theme_color": "#1C2A3A",
+  "icons": [
+    {
+      "src": "/brand/archive-favicon-v3-192.png?v=3",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/archive-favicon-v3-512.png?v=3",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

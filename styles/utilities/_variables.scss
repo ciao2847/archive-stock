@@ -1,0 +1,95 @@
+// ============================================================================
+// 全域變數 | Global Variables
+// ============================================================================
+
+// 顏色系統 | Color System
+:root {
+  // 主色調 | Primary Colors
+  --color-primary: #5a87b1;
+  --color-primary-hover: #4b769e;
+  --color-primary-soft: #e7eff7;
+
+  // 次要色 | Secondary Colors
+  --color-secondary: #86b7b1;
+  --color-secondary-strong: #547f7b;
+  --color-secondary-soft: #e8f3f2;
+
+  // 強調色 | Accent Colors
+  --color-accent: #ffb997;
+  --color-accent-hover: #f3a47f;
+  --color-accent-strong: #b85f41;
+  --color-accent-soft: #fff0e8;
+
+  // 中性色 | Neutral Colors
+  --color-main: #1c2a3a;
+  --color-default: #6b7280;
+  --color-light: #f1f5f9;
+  --color-white: #ffffff;
+  --color-line: #d8e0e8;
+
+  // 語意別名 | Semantic Aliases
+  --color-ink: var(--color-main);
+  --color-muted: var(--color-default);
+  --color-paper: var(--color-light);
+  --color-rust: var(--color-accent-strong);
+  --color-green: var(--color-secondary-strong);
+  --color-gold: var(--color-secondary);
+}
+
+// 字體 | Typography
+:root {
+  --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+}
+
+// 間距系統 | Spacing System (8px 倍數 | 8px multiples)
+$spacing-0: 0;
+$spacing-1: 4px;
+$spacing-2: 8px;
+$spacing-3: 12px;
+$spacing-4: 16px;
+$spacing-5: 20px;
+$spacing-6: 24px;
+$spacing-7: 28px;
+
+// 常用間距別名 | Common Spacing Aliases
+$spacing-xs: $spacing-2;
+$spacing-sm: $spacing-3;
+$spacing-md: $spacing-4;
+$spacing-lg: $spacing-5;
+$spacing-xl: $spacing-6;
+$spacing-2xl: $spacing-6 * 1.5;
+
+// 圓角 | Border Radius
+$radius-sm: 4px;
+$radius-md: 6px;
+$radius-lg: 8px;
+$radius-xl: 9px;
+$radius-full: 20px;
+
+// 陰影 | Shadows
+$shadow-sm: 0 3px 8px rgba(255, 185, 151, 0.26);
+$shadow-md: 0 5px 12px rgba(255, 185, 151, 0.34);
+$shadow-lg: -20px 0 60px rgba(17, 17, 17, 0.075);
+$shadow-xl: 0 25px 80px rgba(0, 0, 0, 0.05);
+
+// 動畫 | Animations
+$transition-fast: 0.16s ease;
+$transition-normal: 0.2s ease;
+$transition-duration: color 0.16s ease, background-color 0.16s ease,
+  border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease,
+  opacity 0.16s ease;
+
+// 響應式斷點 | Breakpoints (mobile-first)
+$breakpoint-sm: 375px;
+// Tailwind `md` starts at 992px. Keep SCSS max-width rules just below it so
+// mobile and desktop declarations never apply at the same viewport width.
+$breakpoint-md: 991.98px;
+$breakpoint-lg: 1280px;
+
+// Z-index 堆疊 | Z-index Stack
+$z-sidebar: 40;
+$z-header: 20;
+$z-nav-overlay: 30;
+$z-overlay: 80;
+$z-drawer: 90;

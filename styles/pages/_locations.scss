@@ -1,0 +1,34 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 位置頁面 | Locations Page
+// ============================================================================
+
+// 危險區域 | Danger Zone
+.danger {
+  color: #9e382d;
+  border-color: #ddbcb6;
+
+  svg {
+    width: 17px;
+  }
+}
+
+// 動畫效果 | Animations
+// ============================================================================
+
+// 旋轉動畫 | Spin Animation
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 返回圖形 | Back Chevron
+.back-chevron {
+  transform: rotate(180deg);
+}

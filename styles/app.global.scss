@@ -1,0 +1,52 @@
+// ============================================================================
+// 全域 SCSS 主入口 | Global SCSS Main Entry
+// ============================================================================
+// 此檔案使用 8px 倍數網格間距、mobile-first 響應式設計
+// 混合 Bootstrap utilities + Tailwind CSS 最佳實踐
+
+// 1. 變數和設定 | Variables & Configuration
+// ============================================================================
+@use "utilities/variables" as *;
+
+// 2. 重置和基礎 | Resets & Base Styles
+// ============================================================================
+@use "utilities/resets";
+
+// 3. 佈局系統 | Layout System
+// ============================================================================
+@use "layout/app-shell";
+@use "layout/sidebar";
+@use "layout/header";
+@use "layout/drawer";
+
+// 4. 元件庫 | Component Library
+// ============================================================================
+@use "components/buttons";
+@use "components/cards";
+@use "components/forms";
+@use "components/tables";
+
+// 5. 頁面特定樣式 | Page-specific Styles
+// ============================================================================
+@use "pages/packing";
+@use "pages/login";
+@use "pages/locations";
+
+// ============================================================================
+// 全域媒體查詢 | Global Media Queries
+// ============================================================================
+
+// 平板及以上 (≥992px) | Tablet and up
+@media (min-width: 992px) {
+  // 桌面優先樣式在此處添加
+}
+
+// 行動裝置到平板 (375px - 992px) | Mobile to tablet
+@media (max-width: $breakpoint-md) and (min-width: $breakpoint-sm) {
+  // 中等尺寸優化在此處
+}
+
+// 小型行動裝置 (<375px) | Small mobile
+@media (max-width: $breakpoint-sm) {
+  // 小屏幕特定樣式在此處
+}

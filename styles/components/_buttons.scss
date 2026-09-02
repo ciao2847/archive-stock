@@ -1,0 +1,213 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 按鈕元件 | Button Components
+// ============================================================================
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+// 按鈕基礎類 | Base Button Classes
+.primary,
+.outline,
+.scan-button {
+  border: 0;
+  border-radius: $radius-lg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  font-weight: 600;
+}
+
+// 主按鈕 | Primary Button
+.primary {
+  background: var(--color-accent);
+  color: var(--color-main);
+  padding: 11px 16px;
+  box-shadow: $shadow-sm;
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      background: var(--color-accent-hover);
+      box-shadow: $shadow-md;
+      transform: translateY(-1px);
+    }
+  }
+
+  &:not(:disabled):active {
+    transform: scale(0.98);
+  }
+}
+
+// 邊框按鈕 | Outline Button
+.outline {
+  background: transparent;
+  border: 1px solid var(--color-line);
+  padding: 7px 11px;
+  color: var(--color-ink);
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-soft);
+      transform: translateY(-1px);
+    }
+  }
+
+  &:not(:disabled):active {
+    transform: scale(0.98);
+  }
+}
+
+// 圖示按鈕 | Icon Button
+.icon-btn {
+  border: 1px solid var(--color-line);
+  background: transparent;
+  width: 38px;
+  height: 38px;
+  border-radius: $radius-lg;
+  display: grid;
+  place-items: center;
+
+  svg {
+    width: 19px;
+  }
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-soft);
+      transform: translateY(-1px);
+    }
+  }
+
+  @media (max-width: $breakpoint-md) {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+// 掃描按鈕 | Scan Button
+.scan-button {
+  z-index: 2;
+  background: var(--color-light);
+  padding: 11px 16px;
+  color: var(--color-main);
+
+  @media (hover: hover) {
+    &:not(:disabled):hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-soft);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+// 完成按鈕 | Complete Button
+.complete {
+  margin: 20px 20px 6px;
+  width: calc(100% - 40px);
+  border: 0;
+  border-radius: $radius-lg;
+  padding: 13px;
+  background: var(--color-accent);
+  color: var(--color-main);
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  gap: $spacing-2;
+
+  &:disabled {
+    background: #d7d5cf;
+    color: #999;
+    cursor: not-allowed;
+  }
+}
+
+// 相機關閉按鈕 | Camera Close Button
+.camera-close {
+  border: 1px solid rgba(255, 255, 255, 0.53);
+  border-radius: $radius-lg;
+  background: rgba(17, 17, 17, 0.67);
+  color: #fff;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+
+  svg {
+    width: 17px;
+  }
+}
+
+// 側邊欄按鈕 | Sidebar Button
+.sidebar nav button,
+.side-section button {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: 12px 14px;
+  border-radius: $radius-lg;
+  margin: 3px 0;
+  text-align: left;
+  cursor: pointer;
+  font: 500 14px var(--font-sans);
+
+  @media (hover: hover) {
+    &:not(.active):hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+  }
+
+  &.active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  em {
+    margin-left: auto;
+    background: var(--color-accent);
+    color: var(--color-main);
+    border-radius: $radius-full;
+    padding: 1px 7px;
+    font-style: normal;
+    font-size: 11px;
+  }
+}
+
+// 設定檔按鈕 | Profile Button  
+.profile {
+  width: 100%;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
+  color: inherit;
+  padding: 18px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+
+  > svg {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+  }
+}

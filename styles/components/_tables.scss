@@ -1,0 +1,329 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 表格元件 | Table Components
+// ============================================================================
+
+// 表格容器 | Table Wrapper
+.table-wrap {
+  overflow-x: auto;
+
+  &.card {
+    border: 1px solid var(--color-line);
+    border-radius: $radius-xl;
+    background-clip: padding-box;
+  }
+}
+
+// 表格基礎 | Table Base
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 760px;
+}
+
+// Keep product headers and body cells on one shared column grid. Without a
+// colgroup, long product names can squeeze the trailing columns on tablets.
+.product-table {
+  table-layout: fixed;
+
+  .product-column {
+    width: 42%;
+  }
+
+  .id-column {
+    width: 12%;
+  }
+
+  .type-column {
+    width: 15%;
+  }
+
+  .location-column {
+    width: 10%;
+  }
+
+  .stock-column {
+    width: 7%;
+  }
+
+  .status-column {
+    width: 8%;
+  }
+
+  .action-column {
+    width: 6%;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: center;
+  }
+
+  th:nth-child(4),
+  td:nth-child(4) {
+    text-align: center;
+  }
+
+  th:last-child {
+    white-space: nowrap;
+  }
+
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  // The desktop sidebar appears at 992px, leaving less than the table's
+  // default 760px minimum width until the viewport reaches about 1060px.
+  @media (min-width: 992px) and (max-width: 1060px) {
+    min-width: 0;
+
+    .product-column {
+      width: 40%;
+    }
+
+    .location-column {
+      width: 11%;
+    }
+
+    .status-column {
+      width: 9%;
+    }
+
+    th,
+    td {
+      padding-right: 8px;
+      padding-left: 8px;
+    }
+
+    th {
+      white-space: nowrap;
+    }
+  }
+
+  @media (max-width: 790px) {
+    table-layout: auto;
+    width: 100%;
+    min-width: 0;
+    display: block;
+
+    colgroup,
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: block;
+      width: 100%;
+    }
+
+    tr {
+      width: 100%;
+    }
+
+    td {
+      width: auto;
+      overflow-wrap: normal;
+    }
+
+    code,
+    .location {
+      white-space: nowrap;
+    }
+  }
+}
+
+// 表格頭 | Table Header
+th {
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--color-default);
+  background: var(--color-light);
+  padding: 10px 16px;
+}
+
+thead {
+  th:first-child {
+    border-top-left-radius: $radius-xl;
+  }
+
+  th:last-child {
+    border-top-right-radius: $radius-xl;
+  }
+}
+
+tbody tr:last-child {
+  td:first-child {
+    border-bottom-left-radius: $radius-xl;
+  }
+
+  td:last-child {
+    border-bottom-right-radius: $radius-xl;
+  }
+}
+
+// 表格格子 | Table Cell
+td {
+  border-top: 1px solid var(--color-line);
+  padding: 12px 16px;
+
+  > small {
+    display: block;
+    color: var(--color-muted);
+    font-size: 11px;
+    margin-top: 3px;
+  }
+}
+
+// 表格列互動 | Table Row Interaction
+tbody tr {
+  transition: 0.15s;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+// 商品欄位 | Product Cell
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  > div {
+    min-width: 0;
+  }
+}
+
+// 縮圖 | Thumbnail
+.thumb {
+  width: 39px;
+  height: 46px;
+  border-radius: $radius-sm;
+  color: rgba(255, 255, 255, 0.8);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  flex: none;
+}
+
+// 位置標籤 | Location Badge
+.location,
+code {
+  font: 500 12px var(--font-mono);
+}
+
+.location {
+  background: var(--color-light);
+  padding: 4px 7px;
+  border-radius: $radius-sm;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+// 文本樣式 | Text Styles
+.plain {
+  font-weight: 500;
+}
+
+// 空狀態 | Empty State
+.empty {
+  padding: 60px;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+// 訂單商品列表 | Order Product List
+.order-product-list {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--color-line);
+  border-radius: $radius-lg;
+  background: var(--color-white);
+
+  > button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+    background: transparent;
+    padding: 11px;
+    text-align: left;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &.selected {
+      background: var(--color-secondary-soft);
+    }
+
+    > div {
+      flex: 1;
+      min-width: 0;
+    }
+
+    b,
+    small {
+      display: block;
+    }
+
+    small {
+      color: var(--color-muted);
+      font-size: 10px;
+      margin-top: 3px;
+    }
+
+    > strong {
+      font: 500 11px var(--font-mono);
+      white-space: nowrap;
+    }
+  }
+}
+
+// 訂單商品複選框 | Order Product Checkbox
+.order-product-check {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #c7c6bf;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+
+  svg {
+    width: 13px;
+  }
+}
+
+.selected .order-product-check {
+  background: var(--color-green);
+  color: #fff;
+  border-color: var(--color-green);
+}
+
+// 訂單錯誤 | Order Error
+.order-error {
+  margin-top: 13px;
+}
+
+// 響應式調整
+@media (max-width: $breakpoint-md) {
+  .order-product-list > button {
+    min-height: 68px;
+
+    > strong {
+      display: none;
+    }
+
+    b,
+    small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

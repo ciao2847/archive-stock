@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Tailwind CSS Configuration
+   ============================================================================
+   Using Tailwind v4 new configuration method
+   Define responsive breakpoints, color system, custom theme values */
+
+@theme {
+  /* Breakpoints (mobile-first) */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  /* Color System */
+  --color-primary: #5a87b1;
+  --color-primary-hover: #4b769e;
+  --color-primary-soft: #e7eff7;
+
+  --color-secondary: #86b7b1;
+  --color-secondary-strong: #547f7b;
+  --color-secondary-soft: #e8f3f2;
+
+  --color-accent: #ffb997;
+  --color-accent-hover: #f3a47f;
+  --color-accent-strong: #b85f41;
+  --color-accent-soft: #fff0e8;
+
+  --color-main: #1c2a3a;
+  --color-default: #6b7280;
+  --color-light: #f1f5f9;
+  --color-white: #ffffff;
+  --color-line: #d8e0e8;
+
+  /* Semantic Aliases */
+  --color-ink: var(--color-main);
+  --color-muted: var(--color-default);
+  --color-paper: var(--color-light);
+  --color-rust: var(--color-accent-strong);
+  --color-green: var(--color-secondary-strong);
+  --color-gold: var(--color-secondary);
+
+  /* Typography */
+  --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+
+  /* Spacing System (8px multiples) */
+  --spacing-0: 0;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+
+  /* Full Width & Height */
+  --width-full: 100%;
+  --height-full: 100%;
+  --height-screen: 100vh;
+
+  /* Z-index Stack */
+  --z-10: 10;
+  --z-20: 20;
+  --z-30: 30;
+  --z-40: 40;
+  --z-80: 80;
+  --z-90: 90;
+}
+
+/* ============================================================================
+   Tailwind Custom Layers
+   ============================================================================ */
+
+@layer base {
+  /* Base element styles */
+  body {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Tailwind component aliases (optional)
+     Common buttons, cards, etc can be defined here */
+}
+
+@layer utilities {
+  /* Custom utility classes */
+
+  /* Width Utilities */
+  .w-100 {
+    @apply w-full;
+  }
+
+  .w-auto {
+    @apply w-auto;
+  }
+
+  /* Flexbox Utilities */
+  .d-flex {
+    @apply flex;
+  }
+
+  .d-grid {
+    @apply grid;
+  }
+
+  /* Responsive Grid */
+  .grid-1 {
+    @apply grid-cols-1;
+  }
+
+  .grid-2 {
+    @apply grid-cols-2;
+  }
+
+  .grid-3 {
+    @apply grid-cols-3;
+  }
+
+  .grid-4 {
+    @apply grid-cols-4;
+  }
+
+  /* Color Utilities */
+  .bg-primary {
+    @apply bg-[#5a87b1];
+  }
+
+  .bg-accent {
+    @apply bg-[#ffb997];
+  }
+
+  .bg-green {
+    @apply bg-[#547f7b];
+  }
+
+  .text-primary {
+    @apply text-[#5a87b1];
+  }
+
+  .text-accent {
+    @apply text-[#ffb997];
+  }
+
+  .text-muted {
+    @apply text-[#6b7280];
+  }
+
+  /* Border Radius Utilities */
+  .rounded-sm {
+    @apply rounded-[4px];
+  }
+
+  .rounded-md {
+    @apply rounded-[6px];
+  }
+
+  .rounded-lg {
+    @apply rounded-[8px];
+  }
+
+  .rounded-xl {
+    @apply rounded-[9px];
+  }
+
+  /* Shadow Utilities */
+  .shadow-sm {
+    @apply shadow-[0_3px_8px_rgba(255,185,151,0.26)];
+  }
+
+  .shadow-md {
+    @apply shadow-[0_5px_12px_rgba(255,185,151,0.34)];
+  }
+
+  .shadow-lg {
+    @apply shadow-[-20px_0_60px_rgba(17,17,17,0.075)];
+  }
+
+  /* Transition Utilities */
+  .trs-all {
+    @apply transition-all duration-100;
+  }
+
+  .trs-colors {
+    @apply transition-colors duration-100;
+  }
+
+  /* Spacing Fine-tuning */
+  .py-sm {
+    @apply py-[8px];
+  }
+
+  .py-md {
+    @apply py-[16px];
+  }
+
+  .py-lg {
+    @apply py-[24px];
+  }
+
+  .px-sm {
+    @apply px-[8px];
+  }
+
+  .px-md {
+    @apply px-[16px];
+  }
+
+  .px-lg {
+    @apply px-[24px];
+  }
+
+}
+/*    - Tailwind: md:px-[24px]、text-[#3c3c3c]、group-hover:* 等*/
+/* 4. 自訂尺寸用 Tailwind 任意值: text-[13px]、w-[238px] 等*/
+/* 5. 複雜佈局用 SCSS mixin，簡單 utility 用 Tailwind*/

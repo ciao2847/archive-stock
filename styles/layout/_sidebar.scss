@@ -1,0 +1,116 @@
+@use "../utilities/variables" as *;
+
+// ============================================================================
+// 側邊欄 | Sidebar
+// ============================================================================
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 238px;
+  background: var(--color-main);
+  color: #fff;
+  padding: $spacing-5 $spacing-3;
+  z-index: $z-sidebar;
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: $breakpoint-md) {
+    transform: translateX(-100%);
+    transition: 0.2s;
+
+    &.open {
+      transform: none;
+    }
+  }
+}
+
+// 品牌區域 | Brand Area
+.brand {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: 0 $spacing-2 25px;
+}
+
+
+
+.brand strong {
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+
+.brand small,
+.profile small {
+  display: block;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.62);
+  margin-top: 2px;
+}
+
+// 導航菜單 | Navigation Menu
+.sidebar nav {
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  padding-top: 17px;
+}
+
+// 側邊欄區段 | Side Section
+.side-section {
+  margin-top: 27px;
+
+  > span {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    padding: 0 14px;
+  }
+
+  button.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+}
+
+// 頭像 | Avatar
+.avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  color: var(--color-main);
+  display: grid;
+  place-items: center;
+  font: 500 14px var(--font-mono);
+}
+
+// 選單切換 (行動裝置) | Menu Toggle (Mobile)
+.icon-btn.menu {
+  display: none;
+
+  @media (max-width: $breakpoint-md) {
+    display: grid;
+  }
+}
+
+.close-mobile {
+  display: none !important;
+
+  @media (max-width: $breakpoint-md) {
+    display: grid !important;
+    margin-left: auto;
+    border-color: #555;
+  }
+}
+
+// 導航層疊 | Navigation Overlay
+// This element also has the shared `.overlay` class (z-index: 80). Use the
+// combined selector so the navigation backdrop stays below the sidebar.
+.overlay.nav-overlay {
+  z-index: $z-nav-overlay;
+  display: none;
+
+  @media (max-width: $breakpoint-md) {
+    display: block;
+  }
+}
