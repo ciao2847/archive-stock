@@ -83,13 +83,13 @@ export function EditOrderAmount({
       setFee(String(order.platform_fee));
       setSellerShipping(String(order.seller_shipping_cost));
       setItems(
-        (itemRows || []).map((item: any) => ({
+        itemRows?.map((item: any) => ({
           id: item.id,
           sku: item.products?.sku || "—",
           name: item.products?.name || "未命名商品",
           quantity: item.quantity,
           unitPrice: String(item.unit_price),
-        })),
+        })) ?? [],
       );
       setLoading(false);
     })();
@@ -218,15 +218,15 @@ export function EditOrderAmount({
             </div>
             <section className="mt-5 space-y-3">
               <h3 className="text-[14px]">商品成交單價</h3>
-              {items.map((item) => (
+              {items?.map((item) => (
                 <label className="flex items-center gap-3" key={item.id}>
                   <span className="min-w-0 flex-1">
                     <code>{item.sku}</code>
                     <b className="block truncate">{item.name}</b>
                   </span>
-                  <span className="text-[12px] text-[var(--color-default)]">NT$</span>
+                  <span className="text-[12px] text-default">NT$</span>
                   <input
-                    className="w-28 rounded-md border border-[var(--color-line)] bg-white p-2 text-right text-[16px]"
+                    className="w-28 rounded-md border border-line bg-white p-2 text-right text-[16px]"
                     type="number"
                     min="0"
                     value={item.unitPrice}
@@ -258,7 +258,7 @@ export function EditOrderAmount({
                 <span>客人訂單金額</span>
                 <b>NT$ {total.toLocaleString()}</b>
               </p>
-              <p className="m-0 flex justify-between text-[var(--color-secondary-strong)]">
+              <p className="m-0 flex justify-between text-secondary-strong">
                 <span>預計實收</span>
                 <b>NT$ {net.toLocaleString()}</b>
               </p>

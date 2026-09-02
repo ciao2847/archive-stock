@@ -33,12 +33,12 @@ export function BrandLogo({
       />
       <div className="min-w-0">
         <strong
-          className={`block text-[20px] tracking-[0.12em] ${inverse ? "text-white" : "text-[var(--color-main)]"}`}
+          className={`block text-[20px] tracking-[0.12em] ${inverse ? "text-white" : "text-main"}`}
         >
           庫藏
         </strong>
         <small
-          className={`mt-[2px] block font-mono text-[10px] tracking-[0.16em] ${inverse ? "text-white/60" : "text-[var(--color-muted)]"}`}
+          className={`mt-1 block font-mono text-[10px] tracking-[0.16em] ${inverse ? "text-white/60" : "text-muted"}`}
         >
           ARCHIVE STOCK
         </small>

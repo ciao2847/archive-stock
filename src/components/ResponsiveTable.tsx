@@ -45,8 +45,8 @@ export function ResponsiveTable({
             (hideHeaderOnMobile ? "max-sm:hidden" : undefined)
           }
         >
-          <tr className="border-b border-b-[var(--color-line)]">
-            {columns.map((column) => (
+          <tr className="border-b border-b-line">
+            {columns?.map((column) => (
               <th className={column.className} key={column.key}>
                 {column.label}
               </th>

@@ -15,6 +15,7 @@ export const PRODUCT_CATEGORIES = [
   "吊飾",
   "盲盒",
   "其他周邊",
+  '明信片',
 ] as const;
 export const COUNTRIES = ["韓國", "日本", "台灣", "香港", "大陸"] as const;
 export const POSTER_FORMATS = [
@@ -86,6 +87,7 @@ export const QR_TOKEN_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const PACKING_SCAN_ERROR_MESSAGES: Record<string, string> = {
+  invalid_scan_value: "請輸入 A000004 格式的商品 ID 或掃描 QR Code",
   invalid_sku: "找不到這個商品 ID",
   invalid_token: "QR Code 無效",
   token_used: "這張 QR Code 已經使用過",

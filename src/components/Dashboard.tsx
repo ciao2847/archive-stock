@@ -58,7 +58,7 @@ const PRODUCT_COLUMNS: TableColumn[] = [
   {
     key: "action",
     label: "操作",
-    className: "sticky right-0 z-10 bg-[var(--color-light)]",
+    className: "sticky right-0 z-10 bg-light",
   },
 ];
 
@@ -191,7 +191,7 @@ export function Dashboard() {
           </button>
         </div>
         <nav>
-          {nav.map((n) => (
+          {nav?.map((n) => (
             <button
               key={n.id}
               className={view === n.id ? "active" : ""}
@@ -522,7 +522,7 @@ function Overview({
                 .filter((p) => p.status === "在庫")
                 .reduce((sum, p) => sum + p.stock, 0)}
             </strong>
-            <em>共 {new Set(products.map((p) => p.category)).size} 種分類</em>
+            <em>共 {new Set(products?.map((p) => p.category)).size} 種分類</em>
           </div>
         </article>
         <article>
@@ -576,7 +576,7 @@ function Overview({
             {waiting.length === 0 ? (
               <div className="empty compact-empty">目前沒有等待包貨的訂單</div>
             ) : (
-              waiting.slice(0, 2).map((order, index) => (
+              waiting?.slice(0, 2)?.map((order, index) => (
                 <div className="order-row" key={order.dbId}>
                   <span className="order-index">
                     {String(index + 1).padStart(2, "0")}
@@ -635,7 +635,7 @@ function Overview({
                     className={
                       finance.profit < 0
                         ? "text-red-700"
-                        : "text-[var(--color-secondary-strong)]"
+                        : "text-secondary-strong"
                     }
                   >
                     NT$ {finance.profit.toLocaleString()}
@@ -700,7 +700,7 @@ function ProductTable({
       wrapperClassName="max-lg:!mx-0 max-md:!mb-0 max-md:!overflow-hidden"
       tableClassName={`product-table max-md:!min-w-0 ${
           compact
-            ? "[&_thead_tr]:border-t [&_thead_tr]:border-t-[var(--color-line)] [&_thead_th:first-child]:!rounded-tl-none [&_thead_th:last-child]:!rounded-tr-none"
+            ? "[&_thead_tr]:border-t [&_thead_tr]:border-t-line [&_thead_th:first-child]:!rounded-tl-none [&_thead_th:last-child]:!rounded-tr-none"
             : ""
         }`}
       tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"
@@ -721,9 +721,9 @@ function ProductTable({
         ) : undefined
       }
     >
-          {items.map((p) => (
+          {items?.map((p) => (
             <tr
-              className={`${onSelect ? "cursor-pointer" : ""} max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_18px] max-md:gap-x-[10px] max-md:border-t max-md:border-[var(--color-line)] max-md:px-[14px] max-md:py-3`}
+              className={`${onSelect ? "cursor-pointer" : ""} max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_18px] max-md:gap-x-3 max-md:border-t max-md:border-line max-md:px-4 max-md:py-3`}
               key={p.id}
               onClick={() => onSelect?.(p)}
             >
@@ -744,7 +744,7 @@ function ProductTable({
                       {p.work}
                     </b>
                     <small className="max-md:hidden">{p.name}</small>
-                    <div className="mt-[6px] hidden items-center gap-2 max-md:flex">
+                    <div className="mt-2 hidden items-center gap-2 max-md:flex">
                       <code>{p.id}</code>
                       <span className="location">{p.location}</span>
                     </div>
@@ -771,7 +771,7 @@ function ProductTable({
                   {p.status}
                 </span>
               </td>
-              <td className="max-md:col-start-3 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0 max-md:text-[var(--color-muted)]">
+              <td className="max-md:col-start-3 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0 max-md:text-muted">
                 <ChevronRight size={17} />
               </td>
             </tr>
@@ -841,9 +841,9 @@ function OrderTable({
         ) : undefined
       }
     >
-          {orders.map((order) => (
+          {orders?.map((order) => (
             <tr
-              className="hover:!bg-transparent max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_auto_44px] max-md:gap-x-2 max-md:gap-y-[10px] max-md:border-t max-md:border-[var(--color-line)] max-md:px-[15px] max-md:py-[14px]"
+              className="hover:!bg-transparent max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_auto_44px] max-md:gap-x-2 max-md:gap-y-3 max-md:border-t max-md:border-line max-md:px-4 max-md:py-4"
               key={order.dbId}
             >
               <td className="max-md:hidden">
@@ -853,13 +853,13 @@ function OrderTable({
                 <b className="max-md:block max-md:truncate max-md:text-[15px]">
                   {order.customer}
                 </b>
-                <code className="mt-1 hidden text-[10px] text-[var(--color-muted)] max-md:block">
+                <code className="mt-1 hidden text-[10px] text-muted max-md:block">
                   {order.id}
                 </code>
               </td>
               <td className="max-md:hidden">{order.createdAt}</td>
               <td className="hidden max-md:col-start-1 max-md:col-end-5 max-md:row-start-2 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:!border-0 max-md:!p-0">
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-light)] px-2 py-1 text-[11px] text-[var(--color-default)]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-light px-2 py-1 text-[11px] text-default">
                   <Boxes className="hidden max-md:block" size={13} />
                   {order.itemIds.length} 件
                 </span>
@@ -890,7 +890,7 @@ function OrderTable({
                 {order.status}
               </td>
               <td
-                className={`${openMenuId === order.dbId ? "z-30" : "z-10"} relative w-[132px] bg-[var(--color-white)] text-center max-md:col-start-4 max-md:row-start-1 max-md:w-auto max-md:self-start max-md:text-right max-md:!border-0 max-md:!p-0`}
+                className={`${openMenuId === order.dbId ? "z-30" : "z-10"} relative w-[132px] bg-white text-center max-md:col-start-4 max-md:row-start-1 max-md:w-auto max-md:self-start max-md:text-right max-md:!border-0 max-md:!p-0`}
               >
                 <div
                   className="relative"
@@ -911,11 +911,11 @@ function OrderTable({
                     {/* 操作 */}
                   </button>
                   {openMenuId === order.dbId && (
-                    <div className="absolute top-full right-0 z-30 mt-1 min-w-36 overflow-hidden rounded-lg border border-[var(--color-line)] bg-white p-1 text-left shadow-xl">
+                    <div className="absolute top-full right-0 z-30 mt-1 min-w-36 overflow-hidden rounded-lg border border-line bg-white p-1 text-left shadow-xl">
                       {onEditAmount && (
                         <button
                           type="button"
-                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-[10px] text-left hover:bg-[var(--color-light)]"
+                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
                           onClick={(event) => {
                             event.stopPropagation();
                             setOpenMenuId(null);
@@ -929,7 +929,7 @@ function OrderTable({
                       {onDelete && (
                         <button
                           type="button"
-                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-[10px] text-left text-red-700 hover:bg-red-50"
+                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left text-red-700 hover:bg-red-50"
                           onClick={(event) => {
                             event.stopPropagation();
                             setOpenMenuId(null);
@@ -942,7 +942,7 @@ function OrderTable({
                       )}
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-[10px] text-left hover:bg-[var(--color-light)]"
+                        className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
                         onClick={(event) => {
                           event.stopPropagation();
                           setOpenMenuId(null);

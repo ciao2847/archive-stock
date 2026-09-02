@@ -111,14 +111,14 @@ export function ProductPanel({
         </div>
         <button
           type="button"
-          className={`relative m-[22px] grid h-[185px] w-[calc(100%-44px)] place-items-center rounded-[9px] border-0 text-[30px] tracking-[0.15em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1875)] ${p.image ? "cursor-zoom-in overflow-hidden p-0" : ""}`}
+          className={`relative m-6 grid h-[185px] w-[calc(100%-48px)] place-items-center rounded-[9px] border-0 text-[30px] tracking-[0.15em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1875)] ${p.image ? "cursor-zoom-in overflow-hidden p-0" : ""}`}
           style={{ background: `linear-gradient(145deg,${p.accent},#1C2A3A)` }}
           onClick={() => p.image && setPreview(true)}
         >
           {p.image ? (
             <>
               <ProductImage src={p.image} alt={`${p.work} 商品主圖`} />
-              <span className="absolute bottom-3 right-3 flex items-center gap-[6px] rounded-full bg-black/65 px-3 py-[6px] text-[12px] tracking-normal text-white">
+              <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/65 px-3 py-2 text-[12px] tracking-normal text-white">
                 <ZoomIn size={15} />
                 點擊放大
               </span>
@@ -127,7 +127,7 @@ export function ProductPanel({
             <span>{p.work}</span>
           )}
         </button>
-        <div className="flex items-start justify-between px-[26px] [&_h2]:my-[10px_3px] [&_h2]:text-[24px] [&_p]:m-0 [&_p]:text-[var(--color-muted)]">
+        <div className="flex items-start justify-between px-7 [&_h2]:mb-1 [&_h2]:mt-3 [&_h2]:text-[24px] [&_p]:m-0 [&_p]:text-muted">
           <div>
             <span className="pill green">{p.status}</span>
             <h2>{p.work}</h2>
@@ -141,7 +141,7 @@ export function ProductPanel({
             <Pencil size={18} />
           </button>
         </div>
-        <div className="mx-[26px] my-[22px] grid grid-cols-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-white)] max-sm:grid-cols-1 [&>div]:border-b [&>div]:border-[var(--color-line)] [&>div]:p-3 [&>div:nth-child(odd)]:border-r max-sm:[&>div:nth-child(odd)]:border-r-0 [&>div:nth-last-child(-n+2)]:border-b-0 [&_small]:mb-[5px] [&_small]:block [&_small]:text-[11px] [&_small]:text-[var(--color-muted)]">
+        <div className="mx-7 my-6 grid grid-cols-2 rounded-lg border border-line bg-white max-sm:grid-cols-1 [&>div]:border-b [&>div]:border-line [&>div]:p-3 [&>div:nth-child(odd)]:border-r max-sm:[&>div:nth-child(odd)]:border-r-0 [&>div:nth-last-child(-n+2)]:border-b-0 [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted">
           <Spec k="商品類型" v={p.category} />
           <Spec k="國家 / 來源" v={`${p.country} · ${p.source}`} />
           <Spec k="版本 / 影廳" v={p.format || "—"} />
@@ -149,11 +149,11 @@ export function ProductPanel({
           <Spec k="工藝" v={p.crafts?.join(" ＋ ") || "—"} />
           <Spec k="庫存數量" v={`${p.stock} 件`} />
         </div>
-        <div className="mx-[26px] my-[14px] rounded-lg bg-[var(--color-primary-soft)] p-3 [&_p]:m-0 [&_small]:mb-[5px] [&_small]:block [&_small]:text-[11px] [&_small]:text-[var(--color-muted)]">
+        <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3 [&_p]:m-0 [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted">
           <small>辨識特徵</small>
           <p>{p.feature || "尚未填寫"}</p>
         </div>
-        <div className="mx-[26px] my-[14px] flex items-center gap-[13px] rounded-lg border border-[var(--color-line)] bg-[var(--color-white)] p-3 [&>div]:flex-1 [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-[var(--color-rust)] [&_small]:mb-[5px] [&_small]:block [&_small]:text-[11px] [&_small]:text-[var(--color-muted)] [&_strong]:font-mono [&_strong]:text-[17px] [&_strong]:font-medium">
+        <div className="mx-7 my-4 flex items-center gap-3 rounded-lg border border-line bg-white p-3 [&>div]:flex-1 [&_button]:border-0 [&_button]:bg-transparent [&_button]:text-rust [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[17px] [&_strong]:font-medium">
           <MapPin />
           <div>
             <small>目前庫位</small>
@@ -163,7 +163,7 @@ export function ProductPanel({
         </div>
         {p.dbId && <QrLabels productId={p.dbId} sku={p.id} />}
         {isAdmin && (
-          <div className="mx-[26px] my-[14px] flex items-center gap-[7px] text-[11px] text-[#6e716b]">
+          <div className="mx-7 my-4 flex items-center gap-2 text-[11px] text-[#6e716b]">
             <ShieldCheck size={18} />
             成本 NT$ {p.cost.toLocaleString()} 僅管理員可見
           </div>
@@ -171,7 +171,7 @@ export function ProductPanel({
         {isAdmin && (
           <button
             type="button"
-            className="outline danger mx-[22px] mt-3 flex w-[calc(100%-44px)] items-center justify-center gap-2"
+            className="outline danger mx-6 mt-3 flex w-[calc(100%-48px)] items-center justify-center gap-2"
             onClick={() => void deleteProduct()}
             disabled={deleting}
           >
@@ -232,9 +232,9 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
       loading={loading}
       isEmpty={labels.length === 0}
       loadingText="正在讀取 QR Code…"
-      className="mx-[26px] my-[14px]"
+      className="mx-7 my-4"
       emptyContent={
-      <div className="qr-card mx-[26px] my-[14px] flex items-center gap-5 rounded-lg border border-[var(--color-line)] bg-[var(--color-white)] p-[18px] max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-[10px] [&_p]:text-[11px] [&_p]:text-[var(--color-muted)] [&_small]:mb-[5px] [&_small]:block [&_small]:text-[11px] [&_small]:text-[var(--color-muted)] [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium">
+      <div className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-3 [&_p]:text-[11px] [&_p]:text-muted [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium">
         <div>
           <small>商品 QR Code</small>
           <strong>尚無可用標籤</strong>
@@ -244,9 +244,9 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
       }
     >
       <div>
-      {labels.map((label, index) => (
+      {labels?.map((label, index) => (
         <div
-          className="qr-card mx-[26px] my-[14px] flex items-center gap-5 rounded-lg border border-[var(--color-line)] bg-[var(--color-white)] p-[18px] max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-[10px] [&_p]:text-[11px] [&_p]:text-[var(--color-muted)] [&_small]:mb-[5px] [&_small]:block [&_small]:text-[11px] [&_small]:text-[var(--color-muted)] [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium"
+          className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start max-sm:[&_svg]:h-[90px] max-sm:[&_svg]:w-[90px] [&_p]:my-1 [&_p]:mb-3 [&_p]:text-[11px] [&_p]:text-muted [&_small]:mb-1 [&_small]:block [&_small]:text-[11px] [&_small]:text-muted [&_strong]:font-mono [&_strong]:text-[18px] [&_strong]:font-medium"
           key={label.token}
         >
           <QRCodeSVG
@@ -280,7 +280,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
   /* eslint-disable-next-line @next/next/no-img-element */
   return (
     <img
-      className="block h-full w-full bg-[var(--color-light)] object-contain"
+      className="block h-full w-full bg-light object-contain"
       src={src}
       alt={alt}
       decoding="async"

@@ -70,12 +70,12 @@ export function SettlementPanel() {
     if (loadError) setError(loadError.message);
     else
       setHistory(
-        (data || []).map((row) => ({
+        data?.map((row) => ({
           ...row,
           revenue: toNumber(row.revenue),
           cost: toNumber(row.cost),
           profit: toNumber(row.profit),
-        })),
+        })) ?? [],
       );
     setLoading(false);
   }, []);
@@ -108,14 +108,14 @@ export function SettlementPanel() {
   );
   if (loading)
     return (
-      <div className="card flex min-h-64 items-center justify-center gap-2 text-[var(--color-default)]">
+      <div className="card flex min-h-64 items-center justify-center gap-2 text-default">
         <LoaderCircle className="animate-spin" />
         載入結算資料…
       </div>
     );
   if (!allowed)
     return (
-      <div className="card flex min-h-64 flex-col items-center justify-center gap-3 text-[var(--color-default)]">
+      <div className="card flex min-h-64 flex-col items-center justify-center gap-3 text-default">
         <LockKeyhole size={38} />
         <b>只有管理員可以查看財務結算</b>
       </div>
@@ -171,7 +171,7 @@ export function SettlementPanel() {
             確認結算
           </button>
         </div>
-        <p className="mt-3 text-[12px] text-[var(--color-default)]">
+        <p className="mt-3 text-[12px] text-default">
           只會納入尚未結算的已包裝／已出貨訂單，以及尚未計入的批次成本。
         </p>
         {error && <div className="data-error mt-3">{error}</div>}
@@ -179,7 +179,7 @@ export function SettlementPanel() {
       <ResponsiveTable
         columns={SETTLEMENT_COLUMNS}
         tableClassName="max-sm:!min-w-0 max-sm:[&_td]:px-2 max-sm:[&_th]:px-2"
-        wrapperClassName="[&_thead_tr]:border-t [&_thead_tr]:border-t-[var(--color-line)] [&_thead_th:first-child]:!rounded-tl-none [&_thead_th:last-child]:!rounded-tr-none"
+        wrapperClassName="[&_thead_tr]:border-t [&_thead_tr]:border-t-line [&_thead_th:first-child]:!rounded-tl-none [&_thead_th:last-child]:!rounded-tr-none"
         header={
           <div className="card-head">
             <div>
@@ -194,7 +194,7 @@ export function SettlementPanel() {
           ) : undefined
         }
       >
-            {history.map((row) => (
+            {history?.map((row) => (
               <tr key={row.id}>
                 <td>
                   <code>{row.settlement_no}</code>
@@ -213,7 +213,7 @@ export function SettlementPanel() {
                     className={
                       row.profit < 0
                         ? "text-red-700"
-                        : "text-[var(--color-secondary-strong)]"
+                        : "text-secondary-strong"
                     }
                   >
                     NT$ {row.profit.toLocaleString()}
@@ -241,11 +241,11 @@ function Summary({
 }) {
   return (
     <article className="card flex items-center gap-4 p-5">
-      <span className="grid h-11 w-11 place-items-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+      <span className="grid h-11 w-11 place-items-center rounded-lg bg-primary-soft text-primary">
         {icon}
       </span>
       <div>
-        <small className="text-[var(--color-default)]">{label}</small>
+        <small className="text-default">{label}</small>
         <strong
           className={`mt-1 block text-[20px] ${negative ? "text-red-700" : ""}`}
         >

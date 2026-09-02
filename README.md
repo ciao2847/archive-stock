@@ -19,7 +19,7 @@ npm run dev
 ```text
 頁面／自訂 Hook
   → dispatch(createAsyncThunk)
-  → lib/api 呼叫 Supabase 並轉換資料
+  → src/lib/api 呼叫 Supabase 並轉換資料
   → dispatch(changeData)
   → Slice 依語系快取
   → useSelector 取得資料
@@ -27,10 +27,20 @@ npm run dev
 
 主要目錄：
 
-- `store/`：Store、`combineReducers`、Slice 與型別化 Redux hooks
-- `hooks/`：檢查語系快取，只有沒有資料時才發送請求
-- `lib/api/`：Supabase 查詢與回傳資料轉換
-- `app/providers.tsx`：在 App Router 根層提供 Redux Store
+- `src/app/`：Next.js App Router 的頁面、版型與 API Route
+- `src/components/`：共用 UI 元件與頁面組合元件
+- `src/hooks/`：檢查語系快取，只有沒有資料時才發送請求
+- `src/store/`：Store、`combineReducers`、Slice 與型別化 Redux hooks
+- `src/lib/api/`：Supabase 查詢與回傳資料轉換
+- `src/utils/`：Supabase 的 client、server 與 proxy 共用工具
+- `styles/`：全域、元件、版型與頁面 SCSS，以及 Tailwind 入口
+- `public/`：品牌圖檔與 PWA manifest 等靜態資源
+- `supabase/`：資料庫 schema 與 migrations
+
+專案使用 Next.js 16，因此路由入口採 `src/app/page.tsx` 與巢狀的
+`page.tsx`／`route.ts`，分別取代表格式中的 `index.js`、`Routes.js` 與
+集中式 API 路由。設定檔、`public/`、`styles/` 和資料庫腳本保留在根目錄，
+應用程式碼則集中於 `src/`。
 
 每份共用資料在 store 中只保留單一快取；自訂 Hook 只會在尚未載入資料時發送請求，也可透過 `refresh` 主動重新載入。
 

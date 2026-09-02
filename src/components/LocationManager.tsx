@@ -54,10 +54,10 @@ export function LocationManager() {
         );
     });
     setLocations(
-      (rows || []).map((row) => ({
+      rows?.map((row) => ({
         ...row,
         count: counts.get(row.id) ?? DEFAULT_VALUES.count,
-      })),
+      })) ?? [],
     );
     setLoading(false);
   }, []);
@@ -97,7 +97,7 @@ export function LocationManager() {
 
   return (
     <div className="grid grid-cols-[340px_1fr] items-start gap-4 max-xl:grid-cols-1">
-      <section className="card h-max [&_form]:px-[22px] [&_form]:pb-[22px] [&_label]:mb-3 [&_label]:block [&_label]:text-[12px] [&_label]:font-semibold [&_input]:mt-[6px] [&_input]:block [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-[var(--color-line)] [&_input]:bg-[var(--color-white)] [&_input]:p-[11px] [&_input]:outline-none max-lg:[&_input]:text-[16px] [&_.primary]:mt-3 [&_.primary]:w-full">
+      <section className="card h-max [&_form]:px-6 [&_form]:pb-6 [&_label]:mb-3 [&_label]:block [&_label]:text-[12px] [&_label]:font-semibold [&_input]:mt-2 [&_input]:block [&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-line [&_input]:bg-white [&_input]:p-3 [&_input]:outline-none max-lg:[&_input]:text-[16px] [&_.primary]:mt-3 [&_.primary]:w-full">
         <div className="card-head">
           <div>
             <h2>建立新庫位</h2>
@@ -147,8 +147,8 @@ export function LocationManager() {
             </div>
           }
         >
-          <div className="grid grid-cols-2 gap-[10px] px-5 pb-5 max-lg:grid-cols-1 [&_article]:flex [&_article]:items-center [&_article]:gap-3 [&_article]:rounded-lg [&_article]:border [&_article]:border-[var(--color-line)] [&_article]:p-3 [&_article>span]:grid [&_article>span]:h-9 [&_article>span]:w-9 [&_article>span]:place-items-center [&_article>span]:rounded-lg [&_article>span]:bg-[var(--color-accent-soft)] [&_article>span]:text-[var(--color-rust)] [&_article>span_svg]:w-[18px] [&_article>div]:min-w-0 [&_article>div]:flex-1 [&_article>div_code]:text-[14px] [&_article>div_small]:mt-1 [&_article>div_small]:block [&_article>div_small]:text-[10px] [&_article>div_small]:text-[var(--color-muted)] [&_article>b]:text-right [&_article>b]:font-mono [&_article>b]:text-[18px] [&_article>b]:font-medium [&_article>b_small]:block [&_article>b_small]:font-sans [&_article>b_small]:text-[10px] [&_article>b_small]:text-[var(--color-muted)]">
-            {locations.map((item) => (
+          <div className="grid grid-cols-2 gap-3 px-5 pb-5 max-lg:grid-cols-1 [&_article]:flex [&_article]:items-center [&_article]:gap-3 [&_article]:rounded-lg [&_article]:border [&_article]:border-line [&_article]:p-3 [&_article>span]:grid [&_article>span]:h-9 [&_article>span]:w-9 [&_article>span]:place-items-center [&_article>span]:rounded-lg [&_article>span]:bg-accent-soft [&_article>span]:text-rust [&_article>span_svg]:w-[18px] [&_article>div]:min-w-0 [&_article>div]:flex-1 [&_article>div_code]:text-[14px] [&_article>div_small]:mt-1 [&_article>div_small]:block [&_article>div_small]:text-[10px] [&_article>div_small]:text-muted [&_article>b]:text-right [&_article>b]:font-mono [&_article>b]:text-[18px] [&_article>b]:font-medium [&_article>b_small]:block [&_article>b_small]:font-sans [&_article>b_small]:text-[10px] [&_article>b_small]:text-muted">
+            {locations?.map((item) => (
               <article key={item.id}>
                 <span>
                   <MapPin />

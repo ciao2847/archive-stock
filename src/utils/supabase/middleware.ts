@@ -57,6 +57,22 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/auth") ||
     request.nextUrl.pathname.startsWith("/qr/");
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+
+  if (!data?.claims && isApiRoute) {
+    const unauthorizedResponse = NextResponse.json(
+      { success: false, error: "請先登入" },
+      { status: 401 },
+    );
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((cookie) => unauthorizedResponse.cookies.set(cookie));
+    unauthorizedResponse.headers.set(
+      "Cache-Control",
+      "private, no-store, max-age=0",
+    );
+    return unauthorizedResponse;
+  }
 
   if (!data?.claims && !isPublicRoute) {
     return redirectWithSessionCookies(request, supabaseResponse, "/login");

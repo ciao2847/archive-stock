@@ -14,20 +14,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { Product, Order } from "@/lib/types";
+import { PACKING_SCAN_ERROR_MESSAGES } from "@/lib/config";
 import {
-  PACKING_SCAN_ERROR_MESSAGES,
-  PRODUCT_SKU_PATTERN,
-  QR_TOKEN_PATTERN,
-} from "@/lib/config";
-import { createClient } from "@/utils/supabase/client";
+  completePackingOrder,
+  fetchPackingProgress,
+  scanPackingItem,
+} from "@/lib/api/packing";
 import { DataState } from "./DataState";
-import { extractQrToken } from "@/lib/public-qr";
-
-type PackingScanResult = {
-  valid: boolean;
-  reason: string;
-  sku: string | null;
-};
 
 /** 掃碼出貨面板。 */
 export function PackingPanel({
@@ -74,45 +67,27 @@ export function PackingPanel({
 
   const loadScanProgress = useCallback(async () => {
     setProgressLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("order_items")
-      .select("quantity,scanned_quantity,products(sku)")
-      .eq("order_id", order.dbId);
-
-    if (error) {
-      setCameraError(`讀取核對進度失敗：${error.message}`);
+    try {
+      const restored = await fetchPackingProgress(order.dbId);
+      scannedRef.current = restored;
+      setScanned(restored);
+    } catch (error) {
+      setCameraError(
+        error instanceof Error
+          ? error.message
+          : "讀取核對進度失敗，請重新整理後再試。",
+      );
+    } finally {
       setProgressLoading(false);
-      return;
     }
-
-    const restored = data?.flatMap((item: any) =>
-      Array.from(
-        {
-          length: Math.min(item.scanned_quantity, item.quantity),
-        },
-        () => item.products?.sku,
-      ).filter(Boolean),
-    );
-    if (!restored) {
-      setCameraError("讀取核對進度失敗，請重新整理後再試。");
-      setProgressLoading(false);
-      return;
-    }
-
-    scannedRef.current = restored;
-    setScanned(restored);
-    setProgressLoading(false);
   }, [order.dbId]);
 
   const scan = useCallback(
     async (raw: string) => {
       if (verifyingRef.current) return;
 
-      const value = extractQrToken(raw);
-      const isQrToken = QR_TOKEN_PATTERN.test(value);
-      const isProductSku = PRODUCT_SKU_PATTERN.test(value);
-      if (!isQrToken && !isProductSku) {
+      const value = raw.trim();
+      if (!value) {
         setFeedback("bad");
         setFeedbackMessage("請輸入 A000004 格式的商品 ID 或掃描 QR Code");
         navigator.vibrate?.([200, 100, 200]);
@@ -125,25 +100,15 @@ export function PackingPanel({
       setCameraError("");
 
       try {
-        const supabase = createClient();
-        const response = isProductSku
-          ? await supabase.rpc("consume_product_sku", {
-              p_sku: value.toUpperCase(),
-              p_order_id: order.dbId,
-            })
-          : await supabase.rpc("consume_product_qr", {
-              p_token: value,
-              p_order_id: order.dbId,
-            });
-        const result = response.data?.[0] as PackingScanResult | undefined;
+        const { result, method } = await scanPackingItem(order.dbId, value);
 
-        if (!response.error && result?.valid && result.sku) {
+        if (result.valid && result.sku) {
           const next = [...scannedRef.current, result.sku];
           scannedRef.current = next;
           setScanned(next);
           setFeedback("ok");
           setFeedbackMessage(
-            isProductSku ? "已使用商品 ID 人工核對" : "已加入本訂單",
+            method === "manual_sku" ? "已使用商品 ID 人工核對" : "已加入本訂單",
           );
           navigator.vibrate?.(100);
           return;
@@ -151,10 +116,13 @@ export function PackingPanel({
 
         setFeedback("bad");
         setFeedbackMessage(
-          response.error
-            ? `核對失敗：${response.error.message}`
-            : PACKING_SCAN_ERROR_MESSAGES[result?.reason || ""] ||
-                "此商品無法核對",
+          PACKING_SCAN_ERROR_MESSAGES[result.reason] || "此商品無法核對",
+        );
+        navigator.vibrate?.([200, 100, 200]);
+      } catch (error) {
+        setFeedback("bad");
+        setFeedbackMessage(
+          error instanceof Error ? error.message : "核對失敗，請稍後再試",
         );
         navigator.vibrate?.([200, 100, 200]);
       } finally {
@@ -167,20 +135,15 @@ export function PackingPanel({
 
   async function completePacking() {
     stopCamera();
-    const supabase = createClient();
-    const { error } = await supabase.rpc("complete_order_packing", {
-      p_order_id: order.dbId,
-    });
-    if (error) {
+    try {
+      await completePackingOrder(order.dbId);
+      setDone(true);
+      onCompleted?.();
+    } catch (error) {
       setCameraError(
-        error.code === "PGRST202"
-          ? "完成包裝功能尚未安裝，請先執行 complete-order-packing-migration.sql。"
-          : `完成包裝失敗：${error.message}`,
+        error instanceof Error ? error.message : "完成包裝失敗，請稍後再試",
       );
-      return;
     }
-    setDone(true);
-    onCompleted?.();
   }
 
   async function startCamera() {
@@ -409,7 +372,7 @@ export function PackingPanel({
             emptyText="這筆訂單沒有可包裝的商品"
             className="compact-empty"
           >
-            {order.itemIds.map((id, index) => {
+            {order.itemIds?.map((id, index) => {
             const product = products.find((item) => item.id === id)!;
             const occurrence = order.itemIds
               .slice(0, index + 1)

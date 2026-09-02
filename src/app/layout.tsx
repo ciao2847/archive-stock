@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import "../styles/tailwind.css";
-import "../styles/app.global.scss";
+import "../../styles/tailwind.css";
+import "../../styles/app.global.scss";
 import { StoreProvider } from "@/app/providers";
 
 export const metadata: Metadata = {

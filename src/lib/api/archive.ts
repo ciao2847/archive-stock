@@ -78,10 +78,10 @@ export async function fetchProductsApi(): Promise<Product[]> {
     ),
   ]);
   const costMap = new Map<string, number>(
-    (costRows ?? []).map((row: { product_id: string; cost: unknown }) => [
+    costRows?.map((row: { product_id: string; cost: unknown }) => [
       String(row.product_id),
       toNumber(row.cost),
-    ]),
+    ]) ?? [],
   );
 
   return rows.map((row) => {
