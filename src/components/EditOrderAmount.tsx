@@ -6,6 +6,7 @@ import { SALES_CHANNELS } from "@/constants";
 import { createClient } from "@/utils/supabase/client";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { DataState } from "./DataState";
+import { updateOrder } from "@/lib/api/orders";
 
 type Item = {
   id: string;
@@ -14,6 +15,28 @@ type Item = {
   quantity: number;
   unitPrice: string;
 };
+
+type CustomerRelation = {
+  name: string | null;
+  nickname: string | null;
+  contact: string | null;
+};
+
+type ProductRelation = {
+  sku: string | null;
+  name: string | null;
+};
+
+type OrderItemRelation = {
+  id: string;
+  quantity: number;
+  unit_price: number | string;
+  products: ProductRelation | ProductRelation[] | null;
+};
+
+function firstRelation<T>(value: T | T[] | null): T | null {
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
 
 /** 編輯訂單金額表單。 */
 export function EditOrderAmount({
@@ -72,10 +95,14 @@ export function EditOrderAmount({
         setLoading(false);
         return;
       }
+      const customer = firstRelation(
+        order.customers as CustomerRelation | CustomerRelation[] | null,
+      );
+      const typedItems = itemRows as unknown as OrderItemRelation[];
       setChannel(order.sales_channel);
-      setCustomerName((order.customers as any)?.name || "");
-      setNickname((order.customers as any)?.nickname || "");
-      setContact((order.customers as any)?.contact || "");
+      setCustomerName(customer?.name || "");
+      setNickname(customer?.nickname || "");
+      setContact(customer?.contact || "");
       setPayment(order.payment_status);
       setNotes(order.notes || "");
       setDiscount(String(order.discount));
@@ -83,10 +110,10 @@ export function EditOrderAmount({
       setFee(String(order.platform_fee));
       setSellerShipping(String(order.seller_shipping_cost));
       setItems(
-        itemRows?.map((item: any) => ({
+        typedItems.map((item) => ({
           id: item.id,
-          sku: item.products?.sku || "—",
-          name: item.products?.name || "未命名商品",
+          sku: firstRelation(item.products)?.sku || "—",
+          name: firstRelation(item.products)?.name || "未命名商品",
           quantity: item.quantity,
           unitPrice: String(item.unit_price),
         })) ?? [],
@@ -107,28 +134,25 @@ export function EditOrderAmount({
   async function save() {
     setSaving(true);
     setError("");
-    const { error: saveError } = await createClient().rpc(
-      "update_order_details",
-      {
-        p_order_id: orderId,
-        p_customer_name: customerName,
-        p_customer_nickname: nickname,
-        p_customer_contact: contact,
-        p_payment_status: payment,
-        p_notes: notes,
-        p_sales_channel: channel,
-        p_discount: toNumber(discount),
-        p_shipping_income: toNumber(shipping),
-        p_platform_fee: toNumber(fee),
-        p_seller_shipping_cost: toNumber(sellerShipping),
-        p_items: items.map((item) => ({
+    try {
+      await updateOrder(orderId, {
+        customerName,
+        customerNickname: nickname,
+        customerContact: contact,
+        paymentStatus: payment,
+        notes,
+        salesChannel: channel,
+        discount: toNumber(discount),
+        shippingIncome: toNumber(shipping),
+        platformFee: toNumber(fee),
+        sellerShippingCost: toNumber(sellerShipping),
+        items: items.map((item) => ({
           id: item.id,
-          unit_price: toNumber(item.unitPrice),
+          unitPrice: toNumber(item.unitPrice),
         })),
-      },
-    );
-    if (saveError) {
-      setError(saveError.message);
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "更新訂單失敗");
       setSaving(false);
       return;
     }

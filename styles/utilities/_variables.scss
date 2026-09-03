@@ -76,8 +76,12 @@ $shadow-xl: 0 25px 80px rgba(0, 0, 0, 0.05);
 // 動畫 | Animations
 $transition-fast: 0.16s ease;
 $transition-normal: 0.2s ease;
-$transition-duration: color 0.16s ease, background-color 0.16s ease,
-  border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease,
+$transition-duration:
+  color 0.16s ease,
+  background-color 0.16s ease,
+  border-color 0.16s ease,
+  box-shadow 0.16s ease,
+  transform 0.16s ease,
   opacity 0.16s ease;
 
 // 響應式斷點 | Breakpoints (mobile-first)

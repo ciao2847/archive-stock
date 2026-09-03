@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { LoaderCircle, MapPin, Plus, Warehouse } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { createLocation } from "@/lib/api/locations";
 import { LOCATION_CODE_PATTERN } from "@/constants";
 import { DEFAULT_VALUES } from "@/constants";
 import { DataState } from "./DataState";
@@ -74,24 +75,15 @@ export function LocationManager() {
       setError("庫位格式應為 A-03-02");
       return;
     }
-    const [cabinet, shelf, bin] = normalized.split("-");
     setSaving(true);
     setError("");
-    const { error } = await createClient()
-      .from("locations")
-      .insert({
-        code: normalized,
-        cabinet,
-        shelf: Number(shelf),
-        bin: Number(bin),
-        description: description.trim() || null,
-      });
-    if (error)
-      setError(error.code === "23505" ? "這個庫位已經存在" : error.message);
-    else {
+    try {
+      await createLocation({ code: normalized, description });
       setCode("");
       setDescription("");
       await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "新增庫位失敗");
     }
     setSaving(false);
   }

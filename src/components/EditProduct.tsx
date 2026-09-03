@@ -2,8 +2,8 @@
 import { FormEvent, useState } from "react";
 import { LoaderCircle, Save, X } from "lucide-react";
 import { Product } from "@/lib/types";
-import { createClient } from "@/utils/supabase/client";
 import { toNumber } from "@/constants";
+import { updateProduct } from "@/lib/api/products";
 import {
   COUNTRIES,
   LOCATION_CODE_PATTERN,
@@ -47,74 +47,31 @@ export function EditProduct({
     if (!product.dbId) return;
     setSaving(true);
     setError("");
-    const supabase = createClient();
     try {
-      let locationId: string | null = null;
       if (form.location) {
         const code = form.location.toUpperCase();
         if (!LOCATION_CODE_PATTERN.test(code))
           throw new Error("庫位格式需為 A-03-02");
-        const existing = await supabase
-          .from("locations")
-          .select("id")
-          .eq("code", code)
-          .maybeSingle();
-        if (existing.error) throw existing.error;
-        if (existing.data) locationId = existing.data.id;
-        else {
-          const [cabinet, shelf, bin] = code.split("-");
-          const created = await supabase
-            .from("locations")
-            .insert({ code, cabinet, shelf: Number(shelf), bin: Number(bin) })
-            .select("id")
-            .single();
-          if (created.error) throw created.error;
-          locationId = created.data.id;
-        }
       }
       const nextStock = Number(form.stock);
       if (!Number.isInteger(nextStock) || nextStock < 0)
         throw new Error("庫存數量必須是 0 以上的整數");
-      if (nextStock !== product.stock) {
-        const stockResult = await supabase.rpc("adjust_product_stock", {
-          p_product_id: product.dbId,
-          p_new_stock: nextStock,
-        });
-        if (stockResult.error) {
-          if (stockResult.error.code === "PGRST202")
-            throw new Error(
-              "庫存調整功能尚未安裝，請先執行 adjust-product-stock-migration.sql",
-            );
-          if (stockResult.error.message.includes("not enough active qr labels"))
-            throw new Error("部分庫存已被訂單核對，不能減少到這個數量");
-          throw stockResult.error;
-        }
-      }
-      const result = await supabase
-        .from("products")
-        .update({
-          name: form.name.trim(),
-          category: form.category,
-          country: form.country || null,
-          source: form.source || null,
-          location_id: locationId,
-          price: toNumber(form.price),
-          poster_format:
-            form.category === POSTER_CATEGORY ? form.format || null : null,
-          poster_size:
-            form.category === POSTER_CATEGORY ? form.size || null : null,
-          identifying_features: form.feature || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", product.dbId);
-      if (result.error) throw result.error;
-      if (isAdmin && toNumber(form.cost) !== product.cost) {
-        const costResult = await supabase.rpc("set_admin_product_cost", {
-          p_product_id: product.dbId,
-          p_cost: toNumber(form.cost),
-        });
-        if (costResult.error) throw costResult.error;
-      }
+      await updateProduct(product.dbId, {
+        name: form.name.trim(),
+        category: form.category,
+        country: form.country,
+        source: form.source,
+        location: form.location.toUpperCase(),
+        stock: nextStock,
+        price: toNumber(form.price),
+        cost:
+          isAdmin && toNumber(form.cost) !== product.cost
+            ? toNumber(form.cost)
+            : null,
+        format: form.category === POSTER_CATEGORY ? form.format : "",
+        size: form.category === POSTER_CATEGORY ? form.size : "",
+        feature: form.feature,
+      });
       await onUpdated();
       onClose();
     } catch (caught) {

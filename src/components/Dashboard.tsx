@@ -6,13 +6,11 @@ import {
   ClipboardList,
   LayoutDashboard,
   Menu,
-  MoreHorizontal,
   PackageCheck,
   Plus,
   QrCode,
   Search,
   Settings,
-  Trash2,
   Warehouse,
   WalletCards,
   X,
@@ -26,11 +24,7 @@ import { SystemSettings } from "./SystemSettings";
 import { NewOrder } from "./NewOrder";
 import { SettlementPanel } from "./SettlementPanel";
 import { EditOrderAmount } from "./EditOrderAmount";
-import {
-  PACKING_ORDER_STATUSES,
-  isOrderPackable,
-} from "@/constants";
-import { ResponsiveTable, type TableColumn } from "./ResponsiveTable";
+import { PACKING_ORDER_STATUSES, isOrderPackable } from "@/constants";
 import { DataState } from "./DataState";
 import { useProductsData } from "@/hooks/useProductsData";
 import { useOrdersData } from "@/hooks/useOrdersData";
@@ -38,6 +32,8 @@ import { useAccountData } from "@/hooks/useAccountData";
 import { useAppDispatch } from "@/store/hooks";
 import { archiveOrder } from "@/store/slices/ordersSlice";
 import { BrandLogo } from "./BrandLogo";
+import { OrderTable } from "./OrderTable";
+import { ProductTable } from "./ProductTable";
 
 type View =
   | "dashboard"
@@ -47,30 +43,6 @@ type View =
   | "locations"
   | "settlement"
   | "settings";
-
-const PRODUCT_COLUMNS: TableColumn[] = [
-  { key: "product", label: "商品", className: "sm:max-lg:!pl-4" },
-  { key: "id", label: "商品 ID" },
-  { key: "type", label: "類型 / 規格" },
-  { key: "location", label: "庫位" },
-  { key: "stock", label: "庫存" },
-  { key: "status", label: "狀態" },
-  {
-    key: "action",
-    label: "操作",
-    className: "sticky right-0 z-10 bg-light",
-  },
-];
-
-const ORDER_COLUMNS: TableColumn[] = [
-  { key: "order", label: "訂單" },
-  { key: "customer", label: "客人" },
-  { key: "date", label: "日期" },
-  { key: "items", label: "商品數" },
-  { key: "payment", label: "付款" },
-  { key: "status", label: "狀態" },
-  { key: "action", label: "操作", className: "w-[132px] text-center" },
-];
 
 const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
@@ -305,7 +277,6 @@ export function Dashboard() {
                 <PackingQueue
                   orders={orders}
                   onPack={(order) => setSelectedOrder(order)}
-                  onBack={() => setView("dashboard")}
                 />
               </DataState>
             )
@@ -391,7 +362,9 @@ export function Dashboard() {
                   loading={loading}
                   isEmpty={filtered.length === 0}
                   loadingText="正在讀取商品…"
-                  emptyText={query ? `找不到符合「${query}」的商品` : "目前沒有商品"}
+                  emptyText={
+                    query ? `找不到符合「${query}」的商品` : "目前沒有商品"
+                  }
                 >
                   <ProductTable items={filtered} onSelect={setSelected} />
                 </DataState>
@@ -404,38 +377,38 @@ export function Dashboard() {
                   emptyText="目前沒有正式訂單"
                 >
                   <OrderTable
-                  orders={orders}
-                  onEditAmount={isAdmin ? setEditingOrder : undefined}
-                  onDelete={
-                    isAdmin
-                      ? async (order) => {
-                          if (
-                            !window.confirm(
-                              `確定刪除訂單 ${order.id}？商品會恢復為在庫。`,
+                    orders={orders}
+                    onEditAmount={isAdmin ? setEditingOrder : undefined}
+                    onDelete={
+                      isAdmin
+                        ? async (order) => {
+                            if (
+                              !window.confirm(
+                                `確定刪除訂單 ${order.id}？商品會恢復為在庫。`,
+                              )
                             )
-                          )
-                            return;
-                          try {
-                            await dispatch(
-                              archiveOrder({ orderId: order.dbId }),
-                            ).unwrap();
-                            await loadAllData();
-                          } catch (error) {
-                            const message =
-                              typeof error === "string"
-                                ? error
-                                : error instanceof Error
-                                  ? error.message
-                                  : "未知錯誤";
-                            window.alert(`刪除失敗：${message}`);
+                              return;
+                            try {
+                              await dispatch(
+                                archiveOrder({ orderId: order.dbId }),
+                              ).unwrap();
+                              await loadAllData();
+                            } catch (error) {
+                              const message =
+                                typeof error === "string"
+                                  ? error
+                                  : error instanceof Error
+                                    ? error.message
+                                    : "未知錯誤";
+                              window.alert(`刪除失敗：${message}`);
+                            }
                           }
-                        }
-                      : undefined
-                  }
-                  onPack={(order) => {
-                    setSelectedOrder(order);
-                    setView("packing");
-                  }}
+                        : undefined
+                    }
+                    onPack={(order) => {
+                      setSelectedOrder(order);
+                      setView("packing");
+                    }}
                   />
                 </DataState>
               )}
@@ -683,301 +656,18 @@ function Overview({
     </>
   );
 }
-function ProductTable({
-  items,
-  onSelect,
-  compact,
-}: {
-  items: Product[];
-  onSelect?: (p: Product) => void;
-  compact?: boolean;
-}) {
-  return (
-    <ResponsiveTable
-      columns={PRODUCT_COLUMNS}
-      compact={compact}
-      hideHeaderOnMobile
-      wrapperClassName="max-lg:!mx-0 max-md:!mb-0 max-md:!overflow-hidden"
-      tableClassName={`product-table max-md:!min-w-0 ${
-          compact
-            ? "[&_thead_tr]:border-t [&_thead_tr]:border-t-line [&_thead_th:first-child]:!rounded-tl-none [&_thead_th:last-child]:!rounded-tr-none"
-            : ""
-        }`}
-      tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"
-      colGroup={
-        <colgroup>
-          <col className="product-column" />
-          <col className="id-column" />
-          <col className="type-column" />
-          <col className="location-column" />
-          <col className="stock-column" />
-          <col className="status-column" />
-          <col className="action-column" />
-        </colgroup>
-      }
-      empty={
-        items.length === 0 ? (
-          <div className="empty">找不到符合「搜尋條件」的商品</div>
-        ) : undefined
-      }
-    >
-          {items?.map((p) => (
-            <tr
-              className={`${onSelect ? "cursor-pointer" : ""} max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_18px] max-md:gap-x-3 max-md:border-t max-md:border-line max-md:px-4 max-md:py-3`}
-              key={p.id}
-              onClick={() => onSelect?.(p)}
-            >
-              <td className="md:max-lg:!pl-4 max-md:col-start-1 max-md:row-start-1 max-md:!min-w-0 max-md:!border-0 max-md:!p-0">
-                <div className="product-cell max-md:!min-w-0 max-md:!pr-0 [&>div]:min-w-0">
-                  <span
-                    className="thumb overflow-hidden"
-                    style={{ background: p.accent }}
-                  >
-                    {p.thumbnail ? (
-                      <ProductImage src={p.thumbnail} alt={`${p.work} 商品圖`} />
-                    ) : (
-                      p.work.slice(0, 1)
-                    )}
-                  </span>
-                  <div>
-                    <b className="max-md:block max-md:max-w-full max-md:truncate">
-                      {p.work}
-                    </b>
-                    <small className="max-md:hidden">{p.name}</small>
-                    <div className="mt-2 hidden items-center gap-2 max-md:flex">
-                      <code>{p.id}</code>
-                      <span className="location">{p.location}</span>
-                    </div>
-                  </div>
-                </div>
-              </td>
-              <td className="max-md:hidden">
-                <code>{p.id}</code>
-              </td>
-              <td className="max-md:hidden">
-                <b className="plain">{p.category}</b>
-                <small>
-                  {[p.format, p.size].filter(Boolean).join(" · ") || p.source}
-                </small>
-              </td>
-              <td className="max-md:hidden">
-                <span className="location">{p.location}</span>
-              </td>
-              <td className="max-md:hidden">{p.stock}</td>
-              <td className="max-md:col-start-2 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0">
-                <span
-                  className={`pill ${p.status === "在庫" ? "green" : "amber"}`}
-                >
-                  {p.status}
-                </span>
-              </td>
-              <td className="max-md:col-start-3 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0 max-md:text-muted">
-                <ChevronRight size={17} />
-              </td>
-            </tr>
-          ))}
-    </ResponsiveTable>
-  );
-}
-function ProductImage({ src, alt }: { src: string; alt: string }) {
-  /* eslint-disable-next-line @next/next/no-img-element */ return (
-    <img
-      className="block h-full w-full object-cover"
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
-function OrderTable({
-  orders,
-  onPack,
-  onEditAmount,
-  onDelete,
-}: {
-  orders: Order[];
-  onPack: (order: Order) => void;
-  onEditAmount?: (order: Order) => void;
-  onDelete?: (order: Order) => void | Promise<void>;
-}) {
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const canOperate = (order: Order) => {
-    if (isOrderPackable(order.status)) return true;
-    window.alert("此訂單已完成或已鎖定，不能再編輯、刪除或包貨。");
-    return false;
-  };
-
-  useEffect(() => {
-    if (!openMenuId || !window.matchMedia("(min-width: 601px)").matches) return;
-
-    const closeMenu = (event: PointerEvent) => {
-      if (!(event.target as Element).closest("[data-order-menu]")) {
-        setOpenMenuId(null);
-      }
-    };
-    const closeWithEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenMenuId(null);
-    };
-
-    document.addEventListener("pointerdown", closeMenu);
-    document.addEventListener("keydown", closeWithEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeMenu);
-      document.removeEventListener("keydown", closeWithEscape);
-    };
-  }, [openMenuId]);
-
-  return (
-    <ResponsiveTable
-      columns={ORDER_COLUMNS}
-      wrapperClassName="!overflow-visible max-md:!mx-0 max-md:!rounded-[10px]"
-      tableClassName="max-md:!min-w-0"
-      theadClassName="max-md:hidden"
-      tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"
-      empty={
-        orders.length === 0 ? (
-          <div className="empty">目前沒有正式訂單</div>
-        ) : undefined
-      }
-    >
-          {orders?.map((order) => (
-            <tr
-              className="hover:!bg-transparent max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_auto_44px] max-md:gap-x-2 max-md:gap-y-3 max-md:border-t max-md:border-line max-md:px-4 max-md:py-4"
-              key={order.dbId}
-            >
-              <td className="max-md:hidden">
-                <code>{order.id}</code>
-              </td>
-              <td className="max-md:col-start-1 max-md:col-end-4 max-md:row-start-1 max-md:min-w-0 max-md:self-center max-md:!border-0 max-md:!p-0">
-                <b className="max-md:block max-md:truncate max-md:text-[15px]">
-                  {order.customer}
-                </b>
-                <code className="mt-1 hidden text-[10px] text-muted max-md:block">
-                  {order.id}
-                </code>
-              </td>
-              <td className="max-md:hidden">{order.createdAt}</td>
-              <td className="hidden max-md:col-start-1 max-md:col-end-5 max-md:row-start-2 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:!border-0 max-md:!p-0">
-                <span className="inline-flex items-center gap-1 rounded-full bg-light px-2 py-1 text-[11px] text-default">
-                  <Boxes className="hidden max-md:block" size={13} />
-                  {order.itemIds.length} 件
-                </span>
-                <span
-                  className={`pill ml-auto inline-flex items-center gap-1 ${order.payment === "已付款" ? "green" : "amber"}`}
-                >
-                  <WalletCards size={13} />
-                  {order.payment}
-                </span>
-                <span
-                  className={`pill inline-flex items-center gap-1 ${order.status === "已包裝" ? "blue" : "amber"}`}
-                >
-                  <PackageCheck size={13} />
-                  {order.status}
-                </span>
-              </td>
-              <td className="max-md:hidden">
-                {order.itemIds.length} 件
-              </td>
-              <td className="max-md:hidden">
-                <span
-                  className={`pill ${order.payment === "已付款" ? "green" : "amber"}`}
-                >
-                  {order.payment}
-                </span>
-              </td>
-              <td className="max-md:hidden">
-                {order.status}
-              </td>
-              <td
-                className={`${openMenuId === order.dbId ? "z-30" : "z-10"} relative w-[132px] bg-white text-center max-md:col-start-4 max-md:row-start-1 max-md:w-auto max-md:self-start max-md:text-right max-md:!border-0 max-md:!p-0`}
-              >
-                <div
-                  className="relative"
-                  data-order-menu
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className="outline min-h-10 px-3 py-2 max-md:min-h-11"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setOpenMenuId((current) =>
-                        current === order.dbId ? null : order.dbId,
-                      );
-                    }}
-                  >
-                    <MoreHorizontal size={17} />
-                    {/* 操作 */}
-                  </button>
-                  {openMenuId === order.dbId && (
-                    <div className="absolute top-full right-0 z-30 mt-1 min-w-36 overflow-hidden rounded-lg border border-line bg-white p-1 text-left shadow-xl">
-                      {onEditAmount && (
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setOpenMenuId(null);
-                            if (canOperate(order)) onEditAmount(order);
-                          }}
-                        >
-                          <WalletCards size={15} />
-                          編輯訂單
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left text-red-700 hover:bg-red-50"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setOpenMenuId(null);
-                            if (canOperate(order)) void onDelete(order);
-                          }}
-                        >
-                          <Trash2 size={15} />
-                          刪除訂單
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setOpenMenuId(null);
-                          if (canOperate(order)) onPack(order);
-                        }}
-                      >
-                        <QrCode size={15} />
-                        開始包貨
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-    </ResponsiveTable>
-  );
-}
 function PackingQueue({
   orders,
   onPack,
-  onBack,
 }: {
   orders: Order[];
   onPack: (order: Order) => void;
-  onBack: () => void;
 }) {
   const waiting = orders.filter((order) => isOrderPackable(order.status));
   return (
     <div>
       <div className="page-title">
         <div className="packing-queue-heading">
-          {/* <button className="icon-btn" onClick={onBack} aria-label="返回總覽">
-              <ChevronRight className="back-chevron" />
-            </button> */}
           <div>
             <span className="eyebrow">掃碼出貨</span>
             <h1>選擇包貨訂單</h1>

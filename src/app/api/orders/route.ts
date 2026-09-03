@@ -1,10 +1,20 @@
 import { z } from "zod";
 import { SALES_CHANNELS } from "@/constants";
-import {
-  apiFailure,
-  apiSuccess,
-  requireApiUser,
-} from "@/lib/api/server-auth";
+import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
+
+export async function GET() {
+  const auth = await requireApiUser();
+  if (!auth.ok) return auth.response;
+  const { data, error } = await auth.supabase
+    .from("orders")
+    .select(
+      "id,order_no,payment_status,status,created_at,customers(name,nickname),order_items(quantity,scanned_quantity,products(sku))",
+    )
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  if (error) return apiFailure(error.message, 400, error.code);
+  return apiSuccess(data ?? []);
+}
 
 const salesChannels = SALES_CHANNELS.map((channel) => channel.value);
 const orderSchema = z.object({
@@ -13,7 +23,9 @@ const orderSchema = z.object({
   customerContact: z.string().trim().max(200),
   paymentStatus: z.enum(["paid", "pending"]),
   notes: z.string().trim().max(2000),
-  salesChannel: z.string().refine((value) => salesChannels.includes(value as never)),
+  salesChannel: z
+    .string()
+    .refine((value) => salesChannels.includes(value as never)),
   discount: z.number().finite().nonnegative(),
   shippingIncome: z.number().finite().nonnegative(),
   platformFee: z.number().finite().nonnegative(),

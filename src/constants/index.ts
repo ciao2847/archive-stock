@@ -3,6 +3,11 @@ import type { Status } from "@/lib/types";
 export const API_ROUTES = {
   getPacking: "/api/packing",
   createOrder: "/api/orders",
+  locations: "/api/locations",
+  settlements: "/api/settlements",
+  account: "/api/account",
+  products: "/api/products",
+  productImages: "/api/product-images",
   order: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
   product: (id: string) => `/api/products/${encodeURIComponent(id)}`,
 } as const;

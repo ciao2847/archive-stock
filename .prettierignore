@@ -1,0 +1,14 @@
+.next
+node_modules
+.agents
+.claude
+.gemini
+.github
+.next
+openspec
+playwright-report
+test-results
+tsconfig.json
+package-lock.json
+public
+supabase/legacy

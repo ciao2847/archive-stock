@@ -373,35 +373,38 @@ export function PackingPanel({
             className="compact-empty"
           >
             {order.itemIds?.map((id, index) => {
-            const product = products.find((item) => item.id === id)!;
-            const occurrence = order.itemIds
-              .slice(0, index + 1)
-              .filter((item) => item === id).length;
-            const checked =
-              scanned.filter((item) => item === id).length >= occurrence;
-            return (
-              <div
-                className={`pack-item ${checked ? "checked" : ""}`}
-                key={`${id}-${index}`}
-              >
-                <span className="check">{checked ? <Check /> : null}</span>
-                <span className="thumb" style={{ background: product.accent }}>
-                  {product.work[0]}
-                </span>
-                <div>
-                  <code>{id}</code>
-                  <b>{product.work}</b>
-                  <small>
-                    {product.format} · {product.size} · {product.location}
-                  </small>
+              const product = products.find((item) => item.id === id)!;
+              const occurrence = order.itemIds
+                .slice(0, index + 1)
+                .filter((item) => item === id).length;
+              const checked =
+                scanned.filter((item) => item === id).length >= occurrence;
+              return (
+                <div
+                  className={`pack-item ${checked ? "checked" : ""}`}
+                  key={`${id}-${index}`}
+                >
+                  <span className="check">{checked ? <Check /> : null}</span>
+                  <span
+                    className="thumb"
+                    style={{ background: product.accent }}
+                  >
+                    {product.work[0]}
+                  </span>
+                  <div>
+                    <code>{id}</code>
+                    <b>{product.work}</b>
+                    <small>
+                      {product.format} · {product.size} · {product.location}
+                    </small>
+                  </div>
+                  {checked ? (
+                    <span className="done-label">已核對</span>
+                  ) : (
+                    <span className="wait-label">等待掃描</span>
+                  )}
                 </div>
-                {checked ? (
-                  <span className="done-label">已核對</span>
-                ) : (
-                  <span className="wait-label">等待掃描</span>
-                )}
-              </div>
-            );
+              );
             })}
           </DataState>
           <button

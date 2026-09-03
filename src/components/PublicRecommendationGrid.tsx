@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconPhoto, IconZoomIn } from "@tabler/icons-react";
+import { ImageIcon, ZoomIn } from "lucide-react";
 
 import { ImageLightbox } from "./ImageLightbox";
 
@@ -44,9 +44,9 @@ export function PublicRecommendationGrid({
                   decoding="async"
                 />
                 <span className="absolute bottom-2 right-2 grid size-8 place-items-center rounded-full bg-black/60 text-white shadow-sm backdrop-blur-sm">
-                  <IconZoomIn
+                  <ZoomIn
                     size={17}
-                    stroke={ICON_STROKE}
+                    strokeWidth={ICON_STROKE}
                     aria-hidden="true"
                   />
                 </span>
@@ -54,9 +54,9 @@ export function PublicRecommendationGrid({
             ) : (
               <div className="aspect-square overflow-hidden border-b-[0.5px] border-[#d6d9de]">
                 <span className="grid h-full w-full place-items-center text-muted">
-                  <IconPhoto
+                  <ImageIcon
                     size={31}
-                    stroke={ICON_STROKE}
+                    strokeWidth={ICON_STROKE}
                     aria-hidden="true"
                   />
                 </span>

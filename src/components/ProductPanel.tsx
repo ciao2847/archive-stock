@@ -63,9 +63,7 @@ export function ProductPanel({
       const result = await deleteProductApi(p.dbId);
       await onUpdated();
       onClose();
-      window.alert(
-        result.imageCleanupWarning || `${p.id} 已成功刪除。`,
-      );
+      window.alert(result.imageCleanupWarning || `${p.id} 已成功刪除。`);
     } catch (error) {
       setDeleting(false);
       window.alert(error instanceof Error ? error.message : "商品刪除失敗");
@@ -118,11 +116,27 @@ export function ProductPanel({
           </button>
         </div>
         <div className="mx-7 my-6 grid grid-cols-2 rounded-lg border border-line bg-white max-sm:grid-cols-1">
-          <Spec className="border-b border-r max-sm:border-r-0" k="商品類型" v={p.category} />
-          <Spec className="border-b" k="國家 / 來源" v={`${p.country} · ${p.source}`} />
-          <Spec className="border-b border-r max-sm:border-r-0" k="版本 / 影廳" v={p.format || "—"} />
+          <Spec
+            className="border-b border-r max-sm:border-r-0"
+            k="商品類型"
+            v={p.category}
+          />
+          <Spec
+            className="border-b"
+            k="國家 / 來源"
+            v={`${p.country} · ${p.source}`}
+          />
+          <Spec
+            className="border-b border-r max-sm:border-r-0"
+            k="版本 / 影廳"
+            v={p.format || "—"}
+          />
           <Spec className="border-b" k="尺寸" v={p.size || "—"} />
-          <Spec className="border-r max-sm:border-b max-sm:border-r-0" k="工藝" v={p.crafts?.join(" ＋ ") || "—"} />
+          <Spec
+            className="border-r max-sm:border-b max-sm:border-r-0"
+            k="工藝"
+            v={p.crafts?.join(" ＋ ") || "—"}
+          />
           <Spec k="庫存數量" v={`${p.stock} 件`} />
         </div>
         <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3">
@@ -132,10 +146,16 @@ export function ProductPanel({
         <div className="mx-7 my-4 flex items-center gap-3 rounded-lg border border-line bg-white p-3">
           <MapPin />
           <div className="flex-1">
-            <small className="mb-1 block text-[11px] text-muted">目前庫位</small>
-            <strong className="font-mono text-[17px] font-medium">{p.location}</strong>
+            <small className="mb-1 block text-[11px] text-muted">
+              目前庫位
+            </small>
+            <strong className="font-mono text-[17px] font-medium">
+              {p.location}
+            </strong>
           </div>
-          <button className="border-0 bg-transparent text-rust">移動庫位</button>
+          <button className="border-0 bg-transparent text-rust">
+            移動庫位
+          </button>
         </div>
         {p.dbId && <QrLabels productId={p.dbId} sku={p.id} />}
         {isAdmin && (
@@ -210,52 +230,62 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
       loadingText="正在讀取 QR Code…"
       className="mx-7 my-4"
       emptyContent={
-      <div className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start">
-        <div>
-          <small className="mb-1 block text-[11px] text-muted">商品 QR Code</small>
-          <strong className="block font-mono text-[18px] font-medium">尚無可用標籤</strong>
-          <p className="mb-3 mt-1 text-[11px] text-muted">請先執行 QR token migration。</p>
+        <div className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start">
+          <div>
+            <small className="mb-1 block text-[11px] text-muted">
+              商品 QR Code
+            </small>
+            <strong className="block font-mono text-[18px] font-medium">
+              尚無可用標籤
+            </strong>
+            <p className="mb-3 mt-1 text-[11px] text-muted">
+              請先執行 QR token migration。
+            </p>
+          </div>
         </div>
-      </div>
       }
     >
       <div>
-      {labels?.map((label, index) => (
-        <div
-          className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start"
-          key={label.token}
-        >
-          <QRCodeSVG
-            className="max-sm:h-[90px] max-sm:w-[90px]"
-            value={
-              publicOrigin
-                ? buildPublicQrUrl(label.token, publicOrigin)
-                : `AS1:${label.token}`
-            }
-            size={112}
-            level="M"
-          />
-          <div>
-            <small className="mb-1 block text-[11px] text-muted">商品 QR Code · 第 {index + 1} 件</small>
-            <strong className="block font-mono text-[18px] font-medium">{sku}</strong>
-            <p className="mb-3 mt-1 text-[11px] text-muted">
-              批次 {label.batch_code || "未指定"} · 使用後顯示購買通路
-            </p>
-            <button className="outline" onClick={() => window.print()}>
-              <Printer size={16} />
-              列印標籤
-            </button>
+        {labels?.map((label, index) => (
+          <div
+            className="qr-card mx-7 my-4 flex items-center gap-5 rounded-lg border border-line bg-white p-5 max-sm:items-start"
+            key={label.token}
+          >
+            <QRCodeSVG
+              className="max-sm:h-[90px] max-sm:w-[90px]"
+              value={
+                publicOrigin
+                  ? buildPublicQrUrl(label.token, publicOrigin)
+                  : `AS1:${label.token}`
+              }
+              size={112}
+              level="M"
+            />
+            <div>
+              <small className="mb-1 block text-[11px] text-muted">
+                商品 QR Code · 第 {index + 1} 件
+              </small>
+              <strong className="block font-mono text-[18px] font-medium">
+                {sku}
+              </strong>
+              <p className="mb-3 mt-1 text-[11px] text-muted">
+                批次 {label.batch_code || "未指定"} · 使用後顯示購買通路
+              </p>
+              <button className="outline" onClick={() => window.print()}>
+                <Printer size={16} />
+                列印標籤
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
       </div>
     </DataState>
   );
 }
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
-  /* eslint-disable-next-line @next/next/no-img-element */
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       className="block h-full w-full bg-light object-contain"
       src={src}
@@ -265,7 +295,15 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function Spec({ k, v, className = "" }: { k: string; v: string; className?: string }) {
+function Spec({
+  k,
+  v,
+  className = "",
+}: {
+  k: string;
+  v: string;
+  className?: string;
+}) {
   return (
     <div className={`border-line p-3 ${className}`}>
       <small className="mb-1 block text-[11px] text-muted">{k}</small>

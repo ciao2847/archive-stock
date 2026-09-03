@@ -210,7 +210,6 @@
   .px-lg {
     @apply px-[24px];
   }
-
 }
 /*    - Tailwind: md:px-[24px]、text-[#3c3c3c]、group-hover:* 等*/
 /* 4. 自訂尺寸用 Tailwind 任意值: text-[13px]、w-[238px] 等*/

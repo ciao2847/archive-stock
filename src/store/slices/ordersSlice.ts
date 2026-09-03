@@ -10,12 +10,16 @@ import {
   getErrorMessage,
   type RequestStatus,
 } from "@/store/asyncData";
-import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 
 const initialState = createAsyncDataState<Order[]>();
 
 const firstRelation = <T>(relation: T | T[] | null): T | null =>
-  Array.isArray(relation) ? relation[0] ?? null : relation;
+  Array.isArray(relation) ? (relation[0] ?? null) : relation;
 
 const formatOrdersData = (rows: OrderRow[]): Order[] =>
   rows.map((row) => {

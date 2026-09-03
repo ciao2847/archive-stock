@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import {
-  IconCheck,
-  IconExternalLink,
-  IconMessageCircle,
-  IconQrcode,
-  IconShieldX,
-  IconShoppingBag,
-} from "@tabler/icons-react";
+  Check,
+  ExternalLink,
+  MessageCircle,
+  QrCode,
+  ShieldX,
+  ShoppingBag,
+} from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { PublicRecommendationGrid } from "@/components/PublicRecommendationGrid";
 import { ORDER_STATUS_LABELS } from "@/constants";
@@ -79,12 +79,11 @@ export default async function PublicQrPage({
 
   return (
     <main className="min-h-screen bg-white pb-9 text-main md:pb-12 xl:pb-14">
-        <header className="mb-7 flex justify-center md:mb-9">
-          <BrandLogo className="justify-center" preload size="small" />
-        </header>
+      <header className="mb-7 flex justify-center md:mb-9">
+        <BrandLogo className="justify-center" preload size="small" />
+      </header>
 
       <div className="mx-auto w-full max-w-[375px] px-4 md:max-w-[768px] md:px-5 xl:max-w-[800px]">
-       
         <section className="rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:px-8 md:py-9">
           {isPreview && (
             <span className="mb-4 inline-flex rounded-full bg-[#f1f5f9] px-3 py-1 text-[11px] font-semibold text-muted">
@@ -95,9 +94,9 @@ export default async function PublicQrPage({
             className={`mx-auto mb-4 grid size-12 place-items-center ${isCompletedPurchase && !loadFailed ? "text-[#15803d]" : "text-[#c4382b]"}`}
           >
             {isCompletedPurchase && !loadFailed ? (
-              <IconCheck size={42} stroke={ICON_STROKE} aria-hidden="true" />
+              <Check size={42} strokeWidth={ICON_STROKE} aria-hidden="true" />
             ) : (
-              <IconShieldX size={40} stroke={ICON_STROKE} aria-hidden="true" />
+              <ShieldX size={40} strokeWidth={ICON_STROKE} aria-hidden="true" />
             )}
           </span>
           <h1 className="m-0 text-[20px] font-bold md:text-[24px]">
@@ -107,7 +106,7 @@ export default async function PublicQrPage({
                 ? "感謝您的購買"
                 : landing
                   ? "這張 QR Code 尚未完成出貨核對"
-                : "這不是有效的商品 QR Code"}
+                  : "這不是有效的商品 QR Code"}
           </h1>
           <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-6 text-muted md:text-[16px]">
             {loadFailed
@@ -116,14 +115,14 @@ export default async function PublicQrPage({
                 ? "商品已完成出貨核對，此連結目前已完成任務並失效。"
                 : landing
                   ? "商品完成包裝核對後，這裡才會顯示對應的訂單與購買入口。"
-                : "請確認掃描的是庫藏 Archive Stock 商品外包裝上的 QR Code。"}
+                  : "請確認掃描的是庫藏 Archive Stock 商品外包裝上的 QR Code。"}
           </p>
 
           <div className="mt-6 flex items-center gap-3 rounded-[16px] border-[0.5px] border-[#d6d9de] px-4 py-4 text-left md:px-5">
             <span
               className={`grid size-10 shrink-0 place-items-center ${isCompletedPurchase ? "text-[#15803d]" : "text-[#c4382b]"}`}
             >
-              <IconQrcode size={25} stroke={ICON_STROKE} aria-hidden="true" />
+              <QrCode size={25} strokeWidth={ICON_STROKE} aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <strong className="block text-[14px] md:text-[16px]">
@@ -145,15 +144,15 @@ export default async function PublicQrPage({
         {landing && (
           <section className="mt-9 md:mt-11">
             <div className="mb-5 text-center">
-              <h2 className="m-0 text-[18px] md:text-[20px]">
-                猜你喜歡
-              </h2>
+              <h2 className="m-0 text-[18px] md:text-[20px]">猜你喜歡</h2>
               <p className="mb-0 mt-1 text-[14px] text-muted">
                 為你隨機挑選目前仍有庫存的商品
               </p>
             </div>
             {(recommendations?.length ?? 0) > 0 ? (
-              <PublicRecommendationGrid recommendations={recommendations ?? []} />
+              <PublicRecommendationGrid
+                recommendations={recommendations ?? []}
+              />
             ) : (
               <div className="rounded-[16px] border-[0.5px] border-[#d6d9de] p-6 text-center text-[14px] text-muted">
                 目前沒有其他在庫推薦商品。
@@ -162,16 +161,22 @@ export default async function PublicQrPage({
           </section>
         )}
 
-        <section
-          className="mt-9 rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:mt-11 md:px-8 md:py-9"
-        >
+        <section className="mt-9 rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:mt-11 md:px-8 md:py-9">
           <span
             className={`mx-auto grid size-12 place-items-center ${isShopee ? "text-[#ee4d2d]" : "text-[#06a947]"}`}
           >
             {isShopee ? (
-              <IconShoppingBag size={34} stroke={ICON_STROKE} aria-hidden="true" />
+              <ShoppingBag
+                size={34}
+                strokeWidth={ICON_STROKE}
+                aria-hidden="true"
+              />
             ) : (
-              <IconMessageCircle size={34} stroke={ICON_STROKE} aria-hidden="true" />
+              <MessageCircle
+                size={34}
+                strokeWidth={ICON_STROKE}
+                aria-hidden="true"
+              />
             )}
           </span>
           <h2 className="mb-0 mt-3 text-[18px]">
@@ -190,7 +195,11 @@ export default async function PublicQrPage({
               rel="noreferrer noopener"
             >
               {isShopee ? "前往蝦皮賣場" : "加官方 LINE"}
-              <IconExternalLink size={18} stroke={ICON_STROKE} aria-hidden="true" />
+              <ExternalLink
+                size={18}
+                strokeWidth={ICON_STROKE}
+                aria-hidden="true"
+              />
             </a>
           ) : (
             <span className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 font-semibold text-muted md:max-w-[360px]">

@@ -5,7 +5,11 @@ import {
   getErrorMessage,
   type RequestStatus,
 } from "@/store/asyncData";
-import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 
 const initialState = createAsyncDataState<Product[]>();
 

@@ -3,6 +3,7 @@ import type {
   InputHTMLAttributes,
   LabelHTMLAttributes,
 } from "react";
+import { cn } from "@/lib/cn";
 
 /** 共用表單標籤。 */
 export function FormLabel({
@@ -12,7 +13,7 @@ export function FormLabel({
   return (
     <label
       {...props}
-      className={`my-4 block text-[12px] font-semibold ${className}`}
+      className={cn("my-4 block text-[12px] font-semibold", className)}
     />
   );
 }
@@ -25,7 +26,10 @@ export function FormInput({
   return (
     <input
       {...props}
-      className={`mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px] ${className}`}
+      className={cn(
+        "mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]",
+        className,
+      )}
     />
   );
 }
@@ -36,9 +40,6 @@ export function FormPrimaryButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      {...props}
-      className={`primary mt-3 w-full p-3 ${className}`}
-    />
+    <button {...props} className={cn("primary mt-3 w-full p-3", className)} />
   );
 }

@@ -63,10 +63,12 @@ export async function fetchPublicQrLanding(
 ): Promise<PublicQrLanding | null> {
   if (!QR_TOKEN_PATTERN.test(token)) return null;
 
-  const { data, error } = await (await createClient()).rpc(
-    "get_public_qr_landing",
-    { p_token: token, p_channel: fallbackChannel || null },
-  );
+  const { data, error } = await (
+    await createClient()
+  ).rpc("get_public_qr_landing", {
+    p_token: token,
+    p_channel: fallbackChannel || null,
+  });
   if (error) throw new Error(error.message);
 
   const row = (data as PublicQrLandingRow[] | null)?.[0];

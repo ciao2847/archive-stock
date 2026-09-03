@@ -19,10 +19,24 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function login(event: FormEvent) {
-    event.preventDefault(); setLoading(true); setError("");
-    const { error } = await createClient().auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message === "Invalid login credentials" ? "Email 或密碼不正確" : error.message); setLoading(false); return; }
-    router.replace("/"); router.refresh();
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    const { error } = await createClient().auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      setError(
+        error.message === "Invalid login credentials"
+          ? "Email 或密碼不正確"
+          : error.message,
+      );
+      setLoading(false);
+      return;
+    }
+    router.replace("/");
+    router.refresh();
   }
 
   return (

@@ -41,8 +41,7 @@ export function ResponsiveTable({
         {colGroup}
         <thead
           className={
-            theadClassName ||
-            (hideHeaderOnMobile ? "max-sm:hidden" : undefined)
+            theadClassName || (hideHeaderOnMobile ? "max-sm:hidden" : undefined)
           }
         >
           <tr className="border-b border-b-line">

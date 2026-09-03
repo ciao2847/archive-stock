@@ -17,7 +17,10 @@ export function useOrdersData() {
     }
   }, [data, dispatch, status]);
 
-  const refresh = useCallback(() => dispatch(fetchOrdersData()).unwrap(), [dispatch]);
+  const refresh = useCallback(
+    () => dispatch(fetchOrdersData()).unwrap(),
+    [dispatch],
+  );
 
   return {
     data,

@@ -36,7 +36,10 @@ function cacheUrl(path: string, url: string) {
   memoryCache.set(path, cached);
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(`${CACHE_PREFIX}${path}`, JSON.stringify(cached));
+    window.localStorage.setItem(
+      `${CACHE_PREFIX}${path}`,
+      JSON.stringify(cached),
+    );
   } catch {
     // Storage can be unavailable in private mode; the in-memory cache still works.
   }
@@ -46,7 +49,9 @@ export async function getSignedImageUrls(
   supabase: SupabaseClient,
   paths: Array<string | null | undefined>,
 ) {
-  const uniquePaths = [...new Set(paths.filter((path): path is string => Boolean(path)))];
+  const uniquePaths = [
+    ...new Set(paths.filter((path): path is string => Boolean(path))),
+  ];
   const urls = new Map<string, string>();
   const missing: string[] = [];
 

@@ -19,6 +19,20 @@ export type CreateOrderInput = {
   }>;
 };
 
+export type UpdateOrderInput = {
+  customerName: string;
+  customerNickname: string;
+  customerContact: string;
+  paymentStatus: string;
+  notes: string;
+  salesChannel: string;
+  discount: number;
+  shippingIncome: number;
+  platformFee: number;
+  sellerShippingCost: number;
+  items: Array<{ id: string; unitPrice: number }>;
+};
+
 export async function createOrder(input: CreateOrderInput) {
   const response = await fetch(API_ROUTES.createOrder, {
     method: "POST",
@@ -33,4 +47,13 @@ export async function archiveOrder(orderId: string) {
     method: "DELETE",
   });
   return readApiResponse<{ archived: boolean }>(response);
+}
+
+export async function updateOrder(orderId: string, input: UpdateOrderInput) {
+  const response = await fetch(API_ROUTES.order(orderId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readApiResponse<{ updated: boolean }>(response);
 }

@@ -1,15 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import {
-  PRODUCT_SKU_PATTERN,
-  QR_TOKEN_PATTERN,
-} from "@/constants";
+import { PRODUCT_SKU_PATTERN, QR_TOKEN_PATTERN } from "@/constants";
 import { extractQrToken } from "@/lib/public-qr";
-import {
-  apiFailure,
-  apiSuccess,
-  requireApiUser,
-} from "@/lib/api/server-auth";
+import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 
 const orderIdSchema = z.string().uuid();
 

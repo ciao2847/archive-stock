@@ -5,7 +5,6 @@ import { CheckCircle2, ImagePlus, Trash2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/client";
 import {
   COUNTRIES,
   IMAGE_UPLOAD,
@@ -17,10 +16,12 @@ import {
   PRODUCT_CATEGORIES,
 } from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
+import { createProductImageVariants } from "@/lib/product-images";
 import {
-  createProductImageVariants,
-  PRODUCT_IMAGE_BUCKET,
-} from "@/lib/product-images";
+  createProduct as createProductApi,
+  removeProductImages,
+  uploadProductImages,
+} from "@/lib/api/products";
 
 const schema = z.object({
   name: z.string().min(1, "請輸入商品名稱"),
@@ -108,117 +109,40 @@ export function NewProduct({
   async function createProduct(values: Form) {
     setSaving(true);
     setSubmitError("");
-    const supabase = createClient();
+    const imagePaths: string[] = [];
     try {
-      let { data: work } = await supabase
-        .from("works")
-        .select("id")
-        .eq("title_zh", values.work)
-        .maybeSingle();
-      if (!work) {
-        const result = await supabase
-          .from("works")
-          .insert({ title_zh: values.work })
-          .select("id")
-          .single();
-        if (result.error) throw result.error;
-        work = result.data;
-      }
-
-      let { data: location } = await supabase
-        .from("locations")
-        .select("id")
-        .eq("code", values.location)
-        .maybeSingle();
-      if (!location) {
-        const [cabinet, shelf, bin] = values.location.split("-");
-        const result = await supabase
-          .from("locations")
-          .insert({
-            code: values.location,
-            cabinet,
-            shelf: Number(shelf),
-            bin: Number(bin),
-          })
-          .select("id")
-          .single();
-        if (result.error) throw result.error;
-        location = result.data;
-      }
-
-      const imagePaths: string[] = [];
       if (image) {
-        const directory = crypto.randomUUID();
-        const mainPath = `${directory}/main.webp`;
-        const thumbnailPath = `${directory}/thumb.webp`;
         const variants = await createProductImageVariants(image);
-        const mainUpload = await supabase.storage
-          .from(PRODUCT_IMAGE_BUCKET)
-          .upload(mainPath, variants.main, {
-            contentType: "image/webp",
-            cacheControl: "31536000",
-            upsert: false,
-          });
-        if (mainUpload.error) throw mainUpload.error;
-        const thumbnailUpload = await supabase.storage
-          .from(PRODUCT_IMAGE_BUCKET)
-          .upload(thumbnailPath, variants.thumbnail, {
-            contentType: "image/webp",
-            cacheControl: "31536000",
-            upsert: false,
-          });
-        if (thumbnailUpload.error) {
-          await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([mainPath]);
-          throw thumbnailUpload.error;
-        }
-        imagePaths.push(mainUpload.data.path, thumbnailUpload.data.path);
+        const uploaded = await uploadProductImages(
+          variants.main,
+          variants.thumbnail,
+        );
+        imagePaths.push(...uploaded.paths);
       }
 
-      const result = await supabase
-        .from("products")
-        .insert({
-          name: values.name,
-          category: values.category,
-          work_id: work.id,
-          country: values.country,
-          source: values.source,
-          location_id: location.id,
-          stock: toNumber(values.stock, DEFAULT_VALUES.productStock),
-          price: toNumber(values.price),
-          image_paths: imagePaths,
-          poster_format:
-            values.category === POSTER_CATEGORY ? values.format : null,
-          poster_size: values.category === POSTER_CATEGORY ? values.size : null,
-          poster_crafts:
-            values.category === POSTER_CATEGORY ? values.crafts : [],
-          identifying_features:
-            values.category === POSTER_CATEGORY ? values.feature : null,
-        })
-        .select("id")
-        .single();
-      if (result.error) throw result.error;
-      if (toNumber(values.cost) > 0) {
-        const costResult = await supabase.rpc("set_admin_product_cost", {
-          p_product_id: result.data.id,
-          p_cost: toNumber(values.cost),
-        });
-        if (costResult.error) throw costResult.error;
-      }
-      const batchCode = new Date()
-        .toISOString()
-        .slice(0, 10)
-        .replaceAll("-", "");
-      const labels = Array.from({ length: toNumber(values.stock) }, () => ({
-        product_id: result.data.id,
-        batch_code: batchCode,
-      }));
-      const labelResult = await supabase
-        .from("product_qr_labels")
-        .insert(labels);
-      if (labelResult.error) throw labelResult.error;
+      await createProductApi({
+        name: values.name,
+        work: values.work,
+        category: values.category,
+        country: values.country,
+        source: values.source,
+        location: values.location,
+        stock: toNumber(values.stock, DEFAULT_VALUES.productStock),
+        price: toNumber(values.price),
+        cost: toNumber(values.cost),
+        imagePaths,
+        format: values.category === POSTER_CATEGORY ? values.format || "" : "",
+        size: values.category === POSTER_CATEGORY ? values.size || "" : "",
+        crafts: values.category === POSTER_CATEGORY ? values.crafts || [] : [],
+        feature:
+          values.category === POSTER_CATEGORY ? values.feature || "" : "",
+      });
       await onCreated?.();
       onClose();
     } catch (error) {
+      if (imagePaths.length > 0) {
+        await removeProductImages(imagePaths).catch(() => undefined);
+      }
       setSubmitError(error instanceof Error ? error.message : "商品儲存失敗");
     } finally {
       setSaving(false);

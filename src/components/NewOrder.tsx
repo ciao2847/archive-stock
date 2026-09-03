@@ -182,9 +182,7 @@ export function NewOrder({
           <div className="mt-7 flex items-end justify-between">
             <div>
               <h3 className="mb-1 mt-0">選擇訂購商品</h3>
-              <p className="m-0 text-[11px] text-muted">
-                只顯示目前在庫的商品
-              </p>
+              <p className="m-0 text-[11px] text-muted">只顯示目前在庫的商品</p>
             </div>
             <span className="font-mono text-[13px] font-medium text-rust">
               {selected.length} 件
@@ -207,33 +205,33 @@ export function NewOrder({
               className="compact-empty"
             >
               {available?.map((product) => {
-              const checked = selected.includes(product.dbId || "");
-              return (
-                <button
-                  type="button"
-                  className={checked ? "selected" : ""}
-                  key={product.dbId}
-                  onClick={() => toggle(product.dbId!)}
-                >
-                  <span className="order-product-check">
-                    {checked && <Check />}
-                  </span>
-                  <span
-                    className="thumb"
-                    style={{ background: product.accent }}
+                const checked = selected.includes(product.dbId || "");
+                return (
+                  <button
+                    type="button"
+                    className={checked ? "selected" : ""}
+                    key={product.dbId}
+                    onClick={() => toggle(product.dbId!)}
                   >
-                    {product.work[0]}
-                  </span>
-                  <div>
-                    <code>{product.id}</code>
-                    <b>{product.work}</b>
-                    <small>
-                      {product.name} · {product.location}
-                    </small>
-                  </div>
-                  <strong>NT$ {product.price.toLocaleString()}</strong>
-                </button>
-              );
+                    <span className="order-product-check">
+                      {checked && <Check />}
+                    </span>
+                    <span
+                      className="thumb"
+                      style={{ background: product.accent }}
+                    >
+                      {product.work[0]}
+                    </span>
+                    <div>
+                      <code>{product.id}</code>
+                      <b>{product.work}</b>
+                      <small>
+                        {product.name} · {product.location}
+                      </small>
+                    </div>
+                    <strong>NT$ {product.price.toLocaleString()}</strong>
+                  </button>
+                );
               })}
             </DataState>
           </div>

@@ -11,6 +11,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { toNumber } from "@/constants";
 import { ResponsiveTable, type TableColumn } from "./ResponsiveTable";
+import { createSettlement } from "@/lib/api/settlements";
 type Settlement = {
   id: string;
   settlement_no: string;
@@ -85,17 +86,12 @@ export function SettlementPanel() {
   async function settle() {
     setSaving(true);
     setError("");
-    const { error: settleError } = await createClient().rpc(
-      "create_financial_settlement",
-      { p_start: start || null, p_end: end || null },
-    );
-    if (settleError)
-      setError(
-        settleError.message === "no unsettled financial data"
-          ? "目前沒有尚未結算的收入或成本。"
-          : settleError.message,
-      );
-    else await load();
+    try {
+      await createSettlement({ start, end });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "建立結算失敗");
+    }
     setSaving(false);
   }
   const totals = history.reduce(
@@ -202,36 +198,32 @@ export function SettlementPanel() {
           ) : undefined
         }
       >
-            {history?.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <code>{row.settlement_no}</code>
-                </td>
-                <td>
-                  {row.period_start || "不限"} ～ {row.period_end || "不限"}
-                </td>
-                <td className="max-sm:hidden">
-                  NT$ {row.revenue.toLocaleString()}
-                </td>
-                <td className="max-sm:hidden">
-                  NT$ {row.cost.toLocaleString()}
-                </td>
-                <td>
-                  <b
-                    className={
-                      row.profit < 0
-                        ? "text-red-700"
-                        : "text-secondary-strong"
-                    }
-                  >
-                    NT$ {row.profit.toLocaleString()}
-                  </b>
-                </td>
-                <td className="max-sm:hidden">
-                  {new Date(row.created_at).toLocaleString("zh-TW")}
-                </td>
-              </tr>
-            ))}
+        {history?.map((row) => (
+          <tr key={row.id}>
+            <td>
+              <code>{row.settlement_no}</code>
+            </td>
+            <td>
+              {row.period_start || "不限"} ～ {row.period_end || "不限"}
+            </td>
+            <td className="max-sm:hidden">
+              NT$ {row.revenue.toLocaleString()}
+            </td>
+            <td className="max-sm:hidden">NT$ {row.cost.toLocaleString()}</td>
+            <td>
+              <b
+                className={
+                  row.profit < 0 ? "text-red-700" : "text-secondary-strong"
+                }
+              >
+                NT$ {row.profit.toLocaleString()}
+              </b>
+            </td>
+            <td className="max-sm:hidden">
+              {new Date(row.created_at).toLocaleString("zh-TW")}
+            </td>
+          </tr>
+        ))}
       </ResponsiveTable>
     </div>
   );
