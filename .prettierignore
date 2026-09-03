@@ -9,6 +9,7 @@ openspec
 playwright-report
 test-results
 tsconfig.json
+src/types/database.types.ts
 package-lock.json
 public
 supabase/legacy

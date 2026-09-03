@@ -24,8 +24,8 @@ export async function POST(request: Request) {
   const { data, error } = await auth.supabase.rpc(
     "create_financial_settlement",
     {
-      p_start: parsed.data.start || null,
-      p_end: parsed.data.end || null,
+      p_start: parsed.data.start || undefined,
+      p_end: parsed.data.end || undefined,
     },
   );
   if (error) {

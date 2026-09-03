@@ -32,7 +32,9 @@ export async function PATCH(
     p_location: input.location,
     p_stock: input.stock,
     p_price: input.price,
-    p_cost: input.cost,
+    // Postgres accepts NULL here to preserve the existing cost for staff, but
+    // generated function argument types cannot express nullable parameters.
+    p_cost: input.cost as number,
     p_poster_format: input.format,
     p_poster_size: input.size,
     p_identifying_features: input.feature,

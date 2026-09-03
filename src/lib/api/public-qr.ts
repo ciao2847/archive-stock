@@ -67,7 +67,7 @@ export async function fetchPublicQrLanding(
     await createClient()
   ).rpc("get_public_qr_landing", {
     p_token: token,
-    p_channel: fallbackChannel || null,
+    p_channel: fallbackChannel || undefined,
   });
   if (error) throw new Error(error.message);
 

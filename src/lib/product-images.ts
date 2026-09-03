@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
 const BUCKET = "product-images";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
@@ -46,7 +47,7 @@ function cacheUrl(path: string, url: string) {
 }
 
 export async function getSignedImageUrls(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   paths: Array<string | null | undefined>,
 ) {
   const uniquePaths = [
