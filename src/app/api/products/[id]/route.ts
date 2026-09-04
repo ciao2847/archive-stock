@@ -63,16 +63,6 @@ export async function DELETE(
     if (error.code === "PGRST202") {
       return apiFailure("商品刪除功能尚未安裝，請先執行最新 migration。", 503);
     }
-    const message = error.message;
-    if (message.includes("product has order history")) {
-      return apiFailure("此商品已有訂單紀錄，不能永久刪除。", 409);
-    }
-    if (message.includes("product has packing history")) {
-      return apiFailure("此商品已有包貨紀錄，不能永久刪除。", 409);
-    }
-    if (message.includes("product has settlement history")) {
-      return apiFailure("此商品已有結算紀錄，不能永久刪除。", 409);
-    }
     return apiFailure("商品刪除失敗", 400);
   }
 

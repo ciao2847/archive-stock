@@ -163,7 +163,7 @@ export function OrderTable({
                       onClick={(event) => {
                         event.stopPropagation();
                         setOpenMenuId(null);
-                        if (canOperate(order)) void onDelete(order);
+                        void onDelete(order);
                       }}
                     >
                       <Trash2 size={15} />

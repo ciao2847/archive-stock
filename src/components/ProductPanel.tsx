@@ -53,7 +53,7 @@ export function ProductPanel({
     if (!p.dbId || deleting) return;
     if (
       !window.confirm(
-        `確定永久刪除 ${p.id}「${p.name}」？\n\n商品資料、庫存與未使用的 QR Code 都會刪除，這個動作無法復原。`,
+        `確定永久刪除 ${p.id}「${p.name}」？\n\n引用此商品的完整訂單、包貨、QR 與結算紀錄都會一併刪除。此操作無法復原。`,
       )
     )
       return;

@@ -82,14 +82,14 @@ export async function DELETE(
     .safeParse((await params).id);
   if (!parsedId.success) return apiFailure("訂單 ID 格式錯誤", 400);
 
-  const { data, error } = await auth.supabase.rpc("archive_order", {
+  const { data, error } = await auth.supabase.rpc("force_delete_order", {
     p_order_id: parsedId.data,
   });
   if (error) {
     if (error.code === "PGRST202") {
-      return apiFailure("封存訂單功能尚未安裝，請先執行最新 migration。", 503);
+      return apiFailure("永久刪除功能尚未安裝，請先執行最新 migration。", 503);
     }
-    return apiFailure("封存訂單失敗", 400);
+    return apiFailure("永久刪除訂單失敗", 400);
   }
 
   return apiSuccess({ archived: Boolean(data) });

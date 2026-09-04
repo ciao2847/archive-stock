@@ -802,6 +802,7 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: string[]
       }
+      force_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       get_admin_product_costs: {
         Args: never
         Returns: {

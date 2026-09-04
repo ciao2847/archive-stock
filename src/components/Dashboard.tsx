@@ -433,7 +433,7 @@ export function Dashboard() {
                         ? async (order) => {
                             if (
                               !window.confirm(
-                                `確定刪除訂單 ${order.id}？商品會恢復為在庫。`,
+                                `確定永久刪除訂單 ${order.id}？\n\n相關包貨、掃描與結算紀錄會一併刪除，已扣除的商品庫存會恢復。此操作無法復原。`,
                               )
                             )
                               return;
@@ -499,7 +499,7 @@ export function Dashboard() {
         <ProductPanel
           product={selected}
           onClose={() => setSelected(null)}
-          onUpdated={loadProducts}
+          onUpdated={loadAllData}
         />
       )}{" "}
       {creating && (
