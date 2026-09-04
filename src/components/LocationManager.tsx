@@ -20,7 +20,7 @@ type LocationRow = {
 };
 
 /** 庫位管理面板。 */
-export function LocationManager({ ownerId }: { ownerId: string }) {
+export function LocationManager({ ownerId }: { ownerId?: string }) {
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
@@ -32,17 +32,19 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
     setLoading(true);
     setError("");
     const supabase = createClient();
+    let locationsQuery = supabase
+      .from("locations")
+      .select("id,code,cabinet,shelf,bin,description")
+      .order("code");
+    let productsQuery = supabase.from("products").select("location_id");
+    if (ownerId) {
+      locationsQuery = locationsQuery.eq("owner_id", ownerId);
+      productsQuery = productsQuery.eq("owner_id", ownerId);
+    }
     const [
       { data: rows, error: locationError },
       { data: productRows, error: productError },
-    ] = await Promise.all([
-      supabase
-        .from("locations")
-        .select("id,code,cabinet,shelf,bin,description")
-        .eq("owner_id", ownerId)
-        .order("code"),
-      supabase.from("products").select("location_id").eq("owner_id", ownerId),
-    ]);
+    ] = await Promise.all([locationsQuery, productsQuery]);
     if (locationError || productError) {
       setError((locationError || productError)?.message || "讀取失敗");
       setLoading(false);
@@ -71,6 +73,7 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
 
   async function addLocation(event: FormEvent) {
     event.preventDefault();
+    if (!ownerId) return;
     const normalized = code.trim().toUpperCase();
     if (!LOCATION_CODE_PATTERN.test(normalized)) {
       setError("庫位格式應為 A-03-02");
@@ -91,38 +94,40 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
 
   return (
     <div className="grid grid-cols-[340px_1fr] items-start gap-4 max-xl:grid-cols-1">
-      <section className="card h-max">
-        <div className="card-head">
-          <div>
-            <h2>建立新庫位</h2>
-            <p>格式：櫃－層－格，例如 A-03-02</p>
+      {ownerId && (
+        <section className="card h-max">
+          <div className="card-head">
+            <div>
+              <h2>建立新庫位</h2>
+              <p>格式：櫃－層－格，例如 A-03-02</p>
+            </div>
           </div>
-        </div>
-        <form className="px-6 pb-6" onSubmit={addLocation}>
-          <FormLabel>
-            庫位代碼
-            <FormInput
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="A-03-02"
-              required
-            />
-          </FormLabel>
-          <FormLabel>
-            說明（選填）
-            <FormInput
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="A 櫃第三層第二格"
-            />
-          </FormLabel>
-          {error && <div className="login-error">{error}</div>}
-          <FormPrimaryButton disabled={saving}>
-            {saving ? <LoaderCircle className="spin" /> : <Plus />}
-            {saving ? "建立中…" : "新增庫位"}
-          </FormPrimaryButton>
-        </form>
-      </section>
+          <form className="px-6 pb-6" onSubmit={addLocation}>
+            <FormLabel>
+              庫位代碼
+              <FormInput
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="A-03-02"
+                required
+              />
+            </FormLabel>
+            <FormLabel>
+              說明（選填）
+              <FormInput
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="A 櫃第三層第二格"
+              />
+            </FormLabel>
+            {error && <div className="login-error">{error}</div>}
+            <FormPrimaryButton disabled={saving}>
+              {saving ? <LoaderCircle className="spin" /> : <Plus />}
+              {saving ? "建立中…" : "新增庫位"}
+            </FormPrimaryButton>
+          </form>
+        </section>
+      )}
       <section className="card location-list w-full self-start">
         <div className="card-head">
           <div>

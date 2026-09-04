@@ -86,6 +86,7 @@ export function SystemSettings({
                   onChange={(event) => onOwnerChange(event.target.value)}
                   aria-label="選擇資料擁有者"
                 >
+                  <option value="all">全部庫存</option>
                   {owners.map((owner) => (
                     <option key={owner.id} value={owner.id}>
                       {owner.name}
