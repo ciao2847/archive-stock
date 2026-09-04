@@ -20,12 +20,19 @@ export async function GET() {
   const userName =
     profile?.display_name?.trim() || user?.email?.split("@")[0] || "使用者";
   if (auth.role !== "admin") {
-    return apiSuccess<AccountData>({ userName, isAdmin: false, finance: null });
+    return apiSuccess<AccountData>({
+      userId: auth.userId,
+      userName,
+      isAdmin: false,
+      finance: null,
+      availableOwners: [{ id: auth.userId, name: userName }],
+    });
   }
 
   const [
     { data: costs, error: costError },
     { data: sales, error: salesError },
+    { data: owners, error: ownersError },
   ] = await Promise.all([
     auth.supabase.rpc("get_admin_product_costs"),
     auth.supabase
@@ -33,10 +40,17 @@ export async function GET() {
       .select(
         "status,discount,shipping_income,platform_fee,seller_shipping_cost,order_items(quantity,unit_price)",
       ),
+    auth.supabase
+      .from("profiles")
+      .select("id,display_name")
+      .order("display_name"),
   ]);
-  if (costError || salesError) {
+  if (costError || salesError || ownersError) {
     return apiFailure(
-      costError?.message || salesError?.message || "財務資料載入失敗",
+      costError?.message ||
+        salesError?.message ||
+        ownersError?.message ||
+        "帳號資料載入失敗",
       400,
     );
   }
@@ -71,8 +85,13 @@ export async function GET() {
     );
 
   return apiSuccess<AccountData>({
+    userId: auth.userId,
     userName,
     isAdmin: true,
     finance: { revenue, cost, profit: revenue - cost },
+    availableOwners: (owners ?? []).map((owner) => ({
+      id: owner.id,
+      name: owner.display_name?.trim() || "未命名使用者",
+    })),
   });
 }

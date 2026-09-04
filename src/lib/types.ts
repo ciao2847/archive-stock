@@ -3,6 +3,8 @@ export type Product = {
   id: string;
   dbId?: string;
   name: string;
+  ownerName: string;
+  ownerId: string;
   work: string;
   category: string;
   country: string;
@@ -44,7 +46,9 @@ export type FinanceOverview = {
 };
 
 export type AccountData = {
+  userId: string;
   userName: string;
   isAdmin: boolean;
   finance: FinanceOverview | null;
+  availableOwners: Array<{ id: string; name: string }>;
 };

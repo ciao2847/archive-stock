@@ -28,8 +28,12 @@ table {
 .product-table {
   table-layout: fixed;
 
+  .owner-column {
+    width: 12%;
+  }
+
   .product-column {
-    width: 42%;
+    width: 30%;
   }
 
   .id-column {
@@ -61,8 +65,8 @@ table {
     text-align: center;
   }
 
-  th:nth-child(4),
-  td:nth-child(4) {
+  th:nth-child(5),
+  td:nth-child(5) {
     text-align: center;
   }
 
@@ -80,7 +84,7 @@ table {
     min-width: 0;
 
     .product-column {
-      width: 40%;
+      width: 28%;
     }
 
     .location-column {
@@ -132,6 +136,21 @@ table {
       white-space: nowrap;
     }
   }
+}
+
+.owner-badge {
+  display: inline-flex;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 7px;
+  border-radius: $radius-sm;
+  background: var(--color-secondary-soft);
+  color: var(--color-secondary-strong);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 // 表格頭 | Table Header

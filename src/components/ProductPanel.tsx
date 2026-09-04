@@ -78,6 +78,7 @@ export function ProductPanel({
           <div>
             <span className="eyebrow">商品資料</span>
             <h2>{p.id}</h2>
+            <span className="owner-badge">擁有者：{p.ownerName}</span>
           </div>
           <button className="icon-btn" onClick={onClose}>
             <X />

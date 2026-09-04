@@ -6,6 +6,7 @@ import type { Product } from "@/lib/types";
 
 type ProductRow = {
   id: string;
+  owner_id: string;
   sku: string;
   name: string;
   category: string;
@@ -19,6 +20,10 @@ type ProductRow = {
   poster_size: string | null;
   poster_crafts: string[] | null;
   identifying_features: string | null;
+  owner:
+    | { display_name: string | null }
+    | { display_name: string | null }[]
+    | null;
   works: { title_zh: string | null } | { title_zh: string | null }[] | null;
   locations: { code: string | null } | { code: string | null }[] | null;
 };
@@ -33,7 +38,7 @@ export async function GET() {
   const { data, error } = await auth.supabase
     .from("products")
     .select(
-      "id,sku,name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,works(title_zh),locations(code)",
+      "id,owner_id,sku,name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,works(title_zh),locations(code),owner:profiles!products_owner_id_fkey(display_name)",
     )
     .order("created_at", { ascending: false });
   if (error) return apiFailure(error.message, 400, error.code);
@@ -63,6 +68,8 @@ export async function GET() {
       id: row.sku,
       dbId: row.id,
       name: row.name,
+      ownerId: row.owner_id,
+      ownerName: firstRelation(row.owner)?.display_name || "未命名使用者",
       work: firstRelation(row.works)?.title_zh || "未指定作品",
       category: row.category,
       country: row.country || "—",

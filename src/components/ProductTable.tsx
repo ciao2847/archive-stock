@@ -5,6 +5,7 @@ import type { Product } from "@/lib/types";
 import { ResponsiveTable, type TableColumn } from "./ResponsiveTable";
 
 const PRODUCT_COLUMNS: TableColumn[] = [
+  { key: "owner", label: "擁有者" },
   { key: "product", label: "商品", className: "sm:max-lg:!pl-4" },
   { key: "id", label: "商品 ID" },
   { key: "type", label: "類型 / 規格" },
@@ -33,6 +34,7 @@ export function ProductTable({
       tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"
       colGroup={
         <colgroup>
+          <col className="owner-column" />
           <col className="product-column" />
           <col className="id-column" />
           <col className="type-column" />
@@ -54,6 +56,9 @@ export function ProductTable({
           key={product.id}
           onClick={() => onSelect?.(product)}
         >
+          <td className="max-md:hidden">
+            <span className="owner-badge">{product.ownerName}</span>
+          </td>
           <td className="md:max-lg:!pl-4 max-md:col-start-1 max-md:row-start-1 max-md:!min-w-0 max-md:!border-0 max-md:!p-0">
             <div className="product-cell max-md:!min-w-0 max-md:!pr-0 [&>div]:min-w-0">
               <span
@@ -70,6 +75,9 @@ export function ProductTable({
                 )}
               </span>
               <div>
+                <span className="owner-badge mb-1 hidden max-md:inline-flex">
+                  {product.ownerName}
+                </span>
                 <b className="max-md:block max-md:max-w-full max-md:truncate">
                   {product.work}
                 </b>

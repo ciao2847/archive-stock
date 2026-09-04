@@ -73,6 +73,7 @@ export function Dashboard() {
   const isAdmin = accountData?.isAdmin ?? false;
   const roleLoaded = !accountLoading;
   const userName = accountData?.userName ?? "使用者";
+  const availableOwners = accountData?.availableOwners ?? [];
   const loadError = [productsError, ordersError, accountError]
     .filter((message): message is string => Boolean(message))
     .join("；");
@@ -101,6 +102,7 @@ export function Dashboard() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [greeting, setGreeting] = useState("您好");
   const [todayLabel, setTodayLabel] = useState("");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("all");
   useEffect(() => {
     const updateGreeting = () => {
       const now = new Date();
@@ -130,16 +132,23 @@ export function Dashboard() {
     const timer = window.setInterval(updateGreeting, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+  const scopedProducts = useMemo(
+    () =>
+      isAdmin && selectedOwnerId !== "all"
+        ? products.filter((product) => product.ownerId === selectedOwnerId)
+        : products,
+    [isAdmin, products, selectedOwnerId],
+  );
   const filtered = useMemo(
     () =>
-      products.filter((p) =>
+      scopedProducts.filter((p) =>
         Object.values(p)
           .flat()
           .join(" ")
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [products, query],
+    [query, scopedProducts],
   );
   const packingCount = orders.filter((order) =>
     PACKING_ORDER_STATUSES.has(order.status),
@@ -225,7 +234,7 @@ export function Dashboard() {
           <div className="avatar">{userName.slice(0, 1).toUpperCase()}</div>
           <div>
             <b>{userName}</b>
-            <small>{isAdmin ? "管理員" : "工作人員"}</small>
+            <small>{isAdmin ? "超級管理員" : "個別使用者"}</small>
           </div>
           <ChevronRight size={17} />
         </button>
@@ -249,6 +258,26 @@ export function Dashboard() {
             />
             <kbd>⌘ K</kbd>
           </div>
+          {isAdmin && (
+            <label className="flex min-w-[180px] items-center gap-2 rounded-lg border border-line bg-white px-3 max-md:min-w-0 max-md:max-w-[42%]">
+              <span className="shrink-0 text-[11px] font-semibold text-muted max-md:hidden">
+                庫存擁有者
+              </span>
+              <select
+                className="min-w-0 flex-1 border-0 bg-transparent py-3 text-[14px] outline-none max-lg:text-[16px]"
+                value={selectedOwnerId}
+                onChange={(event) => setSelectedOwnerId(event.target.value)}
+                aria-label="切換庫存擁有者"
+              >
+                <option value="all">全部擁有者</option>
+                {availableOwners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </header>
         <div className="content">
           {view === "packing" ? (
@@ -344,7 +373,7 @@ export function Dashboard() {
                 >
                   <Overview
                     onNavigate={setView}
-                    products={products}
+                    products={scopedProducts}
                     orders={orders}
                     finance={finance}
                     isAdmin={isAdmin}
@@ -434,7 +463,7 @@ export function Dashboard() {
       )}{" "}
       {creatingOrder && (
         <NewOrder
-          products={products}
+          products={scopedProducts}
           productsLoading={loading}
           onClose={() => setCreatingOrder(false)}
           onCreated={() => {

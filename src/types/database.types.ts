@@ -401,6 +401,7 @@ export type Database = {
           location_id: string | null
           name: string
           notes: string | null
+          owner_id: string
           poster_crafts: string[] | null
           poster_format: string | null
           poster_size: string | null
@@ -429,6 +430,7 @@ export type Database = {
           location_id?: string | null
           name: string
           notes?: string | null
+          owner_id?: string
           poster_crafts?: string[] | null
           poster_format?: string | null
           poster_size?: string | null
@@ -457,6 +459,7 @@ export type Database = {
           location_id?: string | null
           name?: string
           notes?: string | null
+          owner_id?: string
           poster_crafts?: string[] | null
           poster_format?: string | null
           poster_size?: string | null
@@ -483,6 +486,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

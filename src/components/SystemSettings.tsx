@@ -69,7 +69,7 @@ export function SystemSettings() {
           >
             <span className="pill green inline-flex items-center gap-1">
               <ShieldCheck size={13} />
-              {role === "admin" ? "管理員" : "工作人員"}
+              {role === "admin" ? "超級管理員" : "個別使用者"}
             </span>
           </SettingsCardContent>
         </section>
