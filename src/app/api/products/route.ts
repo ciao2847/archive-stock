@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 import { createProductSchema } from "@/lib/validation/products";
 import { DEFAULT_VALUES, PRODUCT_STATUS_LABELS, toNumber } from "@/constants";
@@ -95,10 +96,14 @@ export async function POST(request: Request) {
   const auth = await requireApiUser();
   if (!auth.ok) return auth.response;
 
-  const parsed = createProductSchema.safeParse(
-    await request.json().catch(() => null),
-  );
+  const body = await request.json().catch(() => null);
+  const parsedOwner = z.string().uuid().safeParse(body?.ownerId);
+  const parsed = createProductSchema.safeParse(body);
   if (!parsed.success) return apiFailure("商品資料格式不正確", 400);
+  if (!parsedOwner.success) return apiFailure("商品擁有者格式不正確", 400);
+  if (auth.role !== "admin" && parsedOwner.data !== auth.userId) {
+    return apiFailure("不可替其他使用者建立商品", 403);
+  }
   if (parsed.data.cost > 0 && auth.role !== "admin") {
     return apiFailure("只有管理員可以設定商品成本", 403);
   }
@@ -119,6 +124,7 @@ export async function POST(request: Request) {
     p_poster_size: input.size,
     p_poster_crafts: input.crafts,
     p_identifying_features: input.feature,
+    p_owner_id: parsedOwner.data,
   });
   if (error) return apiFailure(error.message, 400, error.code);
   return apiSuccess({ productId: String(data) }, 201);

@@ -23,6 +23,7 @@ export type Database = {
           name: string
           nickname: string | null
           notes: string | null
+          owner_id: string
         }
         Insert: {
           contact?: string | null
@@ -32,6 +33,7 @@ export type Database = {
           name: string
           nickname?: string | null
           notes?: string | null
+          owner_id?: string
         }
         Update: {
           contact?: string | null
@@ -41,11 +43,19 @@ export type Database = {
           name?: string
           nickname?: string | null
           notes?: string | null
+          owner_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "customers_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -116,6 +126,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          owner_id: string
           shelf: number | null
         }
         Insert: {
@@ -125,6 +136,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          owner_id?: string
           shelf?: number | null
         }
         Update: {
@@ -134,9 +146,18 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          owner_id?: string
           shelf?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "locations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -191,6 +212,7 @@ export type Database = {
           id: string
           notes: string | null
           order_no: string
+          owner_id: string
           packed_at: string | null
           packed_by: string | null
           payment_status: string
@@ -212,6 +234,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_no?: string
+          owner_id?: string
           packed_at?: string | null
           packed_by?: string | null
           payment_status?: string
@@ -233,6 +256,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_no?: string
+          owner_id?: string
           packed_at?: string | null
           packed_by?: string | null
           payment_status?: string
@@ -269,6 +293,13 @@ export type Database = {
           {
             foreignKeyName: "orders_packed_by_fkey"
             columns: ["packed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -597,6 +628,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          owner_id: string
           period_end: string | null
           period_start: string | null
           profit: number | null
@@ -608,6 +640,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          owner_id?: string
           period_end?: string | null
           period_start?: string | null
           profit?: number | null
@@ -619,6 +652,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          owner_id?: string
           period_end?: string | null
           period_start?: string | null
           profit?: number | null
@@ -629,6 +663,13 @@ export type Database = {
           {
             foreignKeyName: "settlements_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlements_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -701,12 +742,13 @@ export type Database = {
         }[]
       }
       create_financial_settlement: {
-        Args: { p_end?: string; p_start?: string }
+        Args: { p_end?: string; p_owner_id: string; p_start?: string }
         Returns: {
           cost: number
           created_at: string
           created_by: string
           id: string
+          owner_id: string
           period_end: string | null
           period_start: string | null
           profit: number | null
@@ -729,6 +771,7 @@ export type Database = {
           p_image_paths: string[]
           p_location: string
           p_name: string
+          p_owner_id: string
           p_poster_crafts: string[]
           p_poster_format: string
           p_poster_size: string

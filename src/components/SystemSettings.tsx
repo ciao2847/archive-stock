@@ -13,7 +13,17 @@ import { createClient } from "@/utils/supabase/client";
 import { DataState } from "./DataState";
 
 /** 系統設定面板。 */
-export function SystemSettings() {
+export function SystemSettings({
+  isAdmin,
+  owners,
+  selectedOwnerId,
+  onOwnerChange,
+}: {
+  isAdmin: boolean;
+  owners: Array<{ id: string; name: string }>;
+  selectedOwnerId: string;
+  onOwnerChange: (ownerId: string) => void;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("載入中…");
   const [name, setName] = useState("—");
@@ -58,6 +68,34 @@ export function SystemSettings() {
       emptyText="找不到帳號資料"
     >
       <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
+        {isAdmin && (
+          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
+            <div className={`${iconClass} bg-primary-soft text-primary`}>
+              <UserRound />
+            </div>
+            <SettingsCardContent
+              eyebrow="資料擁有者"
+              title="切換使用者庫藏"
+              description="庫存、出貨、訂單、庫位與財務都會切換至同一位使用者。"
+            >
+              <label className="block max-w-[360px]">
+                <span className="sr-only">選擇資料擁有者</span>
+                <select
+                  className="mt-1 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+                  value={selectedOwnerId}
+                  onChange={(event) => onOwnerChange(event.target.value)}
+                  aria-label="選擇資料擁有者"
+                >
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </SettingsCardContent>
+          </section>
+        )}
         <section className={cardClass}>
           <div className={iconClass}>
             <UserRound />

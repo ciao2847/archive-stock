@@ -34,7 +34,7 @@ const SETTLEMENT_COLUMNS: TableColumn[] = [
     className: "max-sm:hidden",
   },
 ];
-export function SettlementPanel() {
+export function SettlementPanel({ ownerId }: { ownerId: string }) {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState("");
@@ -67,6 +67,7 @@ export function SettlementPanel() {
       .select(
         "id,settlement_no,period_start,period_end,revenue,cost,profit,created_at",
       )
+      .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
     if (loadError) setError(loadError.message);
     else
@@ -79,7 +80,7 @@ export function SettlementPanel() {
         })) ?? [],
       );
     setLoading(false);
-  }, []);
+  }, [ownerId]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -87,7 +88,7 @@ export function SettlementPanel() {
     setSaving(true);
     setError("");
     try {
-      await createSettlement({ start, end });
+      await createSettlement({ ownerId, start, end });
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "建立結算失敗");

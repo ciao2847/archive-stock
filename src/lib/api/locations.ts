@@ -4,6 +4,7 @@ import { readApiResponse } from "@/lib/api/http-client";
 export async function createLocation(input: {
   code: string;
   description: string;
+  ownerId: string;
 }) {
   const response = await fetch(API_ROUTES.locations, {
     method: "POST",

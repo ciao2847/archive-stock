@@ -3,7 +3,11 @@ import { z } from "zod";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 
 const dateValue = z.union([z.iso.date(), z.literal("")]).optional();
-const settlementSchema = z.object({ start: dateValue, end: dateValue });
+const settlementSchema = z.object({
+  ownerId: z.string().uuid(),
+  start: dateValue,
+  end: dateValue,
+});
 
 export async function POST(request: Request) {
   const auth = await requireApiUser(["admin"]);
@@ -24,6 +28,7 @@ export async function POST(request: Request) {
   const { data, error } = await auth.supabase.rpc(
     "create_financial_settlement",
     {
+      p_owner_id: parsed.data.ownerId,
       p_start: parsed.data.start || undefined,
       p_end: parsed.data.end || undefined,
     },

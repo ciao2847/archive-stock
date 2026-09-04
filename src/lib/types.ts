@@ -30,6 +30,7 @@ export type Product = {
 export type Order = {
   dbId: string;
   id: string;
+  ownerId: string;
   customer: string;
   createdAt: string;
   status: string;
@@ -50,5 +51,6 @@ export type AccountData = {
   userName: string;
   isAdmin: boolean;
   finance: FinanceOverview | null;
+  financeByOwner: Record<string, FinanceOverview>;
   availableOwners: Array<{ id: string; name: string }>;
 };

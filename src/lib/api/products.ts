@@ -5,11 +5,14 @@ import type {
   UpdateProductInput,
 } from "@/lib/validation/products";
 
-export async function createProduct(input: CreateProductInput) {
+export async function createProduct(
+  input: CreateProductInput,
+  ownerId: string,
+) {
   const response = await fetch(API_ROUTES.products, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, ownerId }),
   });
   return readApiResponse<{ productId: string }>(response);
 }

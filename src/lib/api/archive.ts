@@ -11,6 +11,7 @@ export type OrderItemRow = {
 
 export type OrderRow = {
   id: string;
+  owner_id: string;
   order_no: string;
   payment_status: string;
   status: string;

@@ -32,6 +32,7 @@ const formatOrdersData = (rows: OrderRow[]): Order[] =>
     return {
       dbId: row.id,
       id: row.order_no,
+      ownerId: row.owner_id,
       customer: customer?.nickname || customer?.name || "未填寫客人",
       createdAt: new Date(row.created_at).toLocaleDateString("zh-TW"),
       status: ORDER_STATUS_LABELS[row.status] || row.status,

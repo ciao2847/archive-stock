@@ -8,7 +8,7 @@ export async function GET() {
   const { data, error } = await auth.supabase
     .from("orders")
     .select(
-      "id,order_no,payment_status,status,created_at,customers(name,nickname),order_items(quantity,scanned_quantity,products(sku))",
+      "id,owner_id,order_no,payment_status,status,created_at,customers(name,nickname),order_items(quantity,scanned_quantity,products(sku))",
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });

@@ -46,6 +46,7 @@ type View =
 
 const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
+const EMPTY_OWNERS: Array<{ id: string; name: string }> = [];
 
 export function Dashboard() {
   const dispatch = useAppDispatch();
@@ -69,11 +70,10 @@ export function Dashboard() {
   } = useAccountData();
   const products = productsData ?? EMPTY_PRODUCTS;
   const orders = ordersData ?? EMPTY_ORDERS;
-  const finance = accountData?.finance ?? null;
   const isAdmin = accountData?.isAdmin ?? false;
   const roleLoaded = !accountLoading;
   const userName = accountData?.userName ?? "使用者";
-  const availableOwners = accountData?.availableOwners ?? [];
+  const availableOwners = accountData?.availableOwners ?? EMPTY_OWNERS;
   const loadError = [productsError, ordersError, accountError]
     .filter((message): message is string => Boolean(message))
     .join("；");
@@ -102,7 +102,7 @@ export function Dashboard() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [greeting, setGreeting] = useState("您好");
   const [todayLabel, setTodayLabel] = useState("");
-  const [selectedOwnerId, setSelectedOwnerId] = useState("all");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
   useEffect(() => {
     const updateGreeting = () => {
       const now = new Date();
@@ -132,13 +132,38 @@ export function Dashboard() {
     const timer = window.setInterval(updateGreeting, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (!accountData) return;
+    if (!accountData.isAdmin) {
+      setSelectedOwnerId(accountData.userId);
+      return;
+    }
+    setSelectedOwnerId((current) => {
+      if (availableOwners.some((owner) => owner.id === current)) return current;
+      const saved = window.localStorage.getItem("archive-stock-owner-id");
+      if (saved && availableOwners.some((owner) => owner.id === saved)) {
+        return saved;
+      }
+      return accountData.userId || availableOwners[0]?.id || "";
+    });
+  }, [accountData, availableOwners]);
   const scopedProducts = useMemo(
     () =>
-      isAdmin && selectedOwnerId !== "all"
+      selectedOwnerId
         ? products.filter((product) => product.ownerId === selectedOwnerId)
-        : products,
-    [isAdmin, products, selectedOwnerId],
+        : EMPTY_PRODUCTS,
+    [products, selectedOwnerId],
   );
+  const scopedOrders = useMemo(
+    () =>
+      selectedOwnerId
+        ? orders.filter((order) => order.ownerId === selectedOwnerId)
+        : EMPTY_ORDERS,
+    [orders, selectedOwnerId],
+  );
+  const finance = selectedOwnerId
+    ? (accountData?.financeByOwner[selectedOwnerId] ?? null)
+    : null;
   const filtered = useMemo(
     () =>
       scopedProducts.filter((p) =>
@@ -150,7 +175,7 @@ export function Dashboard() {
       ),
     [query, scopedProducts],
   );
-  const packingCount = orders.filter((order) =>
+  const packingCount = scopedOrders.filter((order) =>
     PACKING_ORDER_STATUSES.has(order.status),
   ).length;
   const nav = [
@@ -258,33 +283,13 @@ export function Dashboard() {
             />
             <kbd>⌘ K</kbd>
           </div>
-          {isAdmin && (
-            <label className="flex min-w-[180px] items-center gap-2 rounded-lg border border-line bg-white px-3 max-md:min-w-0 max-md:max-w-[42%]">
-              <span className="shrink-0 text-[11px] font-semibold text-muted max-md:hidden">
-                庫存擁有者
-              </span>
-              <select
-                className="min-w-0 flex-1 border-0 bg-transparent py-3 text-[14px] outline-none max-lg:text-[16px]"
-                value={selectedOwnerId}
-                onChange={(event) => setSelectedOwnerId(event.target.value)}
-                aria-label="切換庫存擁有者"
-              >
-                <option value="all">全部擁有者</option>
-                {availableOwners.map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
         </header>
         <div className="content">
           {view === "packing" ? (
             selectedOrder ? (
               <PackingPanel
                 order={selectedOrder}
-                products={products.filter((product) =>
+                products={scopedProducts.filter((product) =>
                   selectedOrder.itemIds.includes(product.id),
                 )}
                 onBack={() => {
@@ -304,7 +309,7 @@ export function Dashboard() {
                 emptyText="目前沒有待包貨訂單"
               >
                 <PackingQueue
-                  orders={orders}
+                  orders={scopedOrders}
                   onPack={(order) => setSelectedOrder(order)}
                 />
               </DataState>
@@ -329,7 +334,7 @@ export function Dashboard() {
                   </h1>
                   <p>
                     {view === "dashboard"
-                      ? `今天有 ${orders.filter((order) => isOrderPackable(order.status)).length} 筆訂單等待處理。`
+                      ? `今天有 ${scopedOrders.filter((order) => isOrderPackable(order.status)).length} 筆訂單等待處理。`
                       : view === "locations"
                         ? "建立並查看收藏品的實際存放位置。"
                         : view === "settlement"
@@ -367,14 +372,16 @@ export function Dashboard() {
               {view === "dashboard" && (
                 <DataState
                   loading={loading || ordersLoading}
-                  isEmpty={products.length === 0 && orders.length === 0}
+                  isEmpty={
+                    scopedProducts.length === 0 && scopedOrders.length === 0
+                  }
                   loadingText="正在讀取總覽資料…"
                   emptyText="目前沒有商品或訂單資料"
                 >
                   <Overview
                     onNavigate={setView}
                     products={scopedProducts}
-                    orders={orders}
+                    orders={scopedOrders}
                     finance={finance}
                     isAdmin={isAdmin}
                     roleLoaded={roleLoaded}
@@ -401,12 +408,12 @@ export function Dashboard() {
               {view === "orders" && (
                 <DataState
                   loading={ordersLoading}
-                  isEmpty={orders.length === 0}
+                  isEmpty={scopedOrders.length === 0}
                   loadingText="正在讀取訂單…"
                   emptyText="目前沒有正式訂單"
                 >
                   <OrderTable
-                    orders={orders}
+                    orders={scopedOrders}
                     onEditAmount={isAdmin ? setEditingOrder : undefined}
                     onDelete={
                       isAdmin
@@ -441,9 +448,28 @@ export function Dashboard() {
                   />
                 </DataState>
               )}
-              {view === "locations" && <LocationManager />}
-              {view === "settlement" && <SettlementPanel />}
-              {view === "settings" && <SystemSettings />}
+              {view === "locations" && selectedOwnerId && (
+                <LocationManager ownerId={selectedOwnerId} />
+              )}
+              {view === "settlement" && selectedOwnerId && (
+                <SettlementPanel ownerId={selectedOwnerId} />
+              )}
+              {view === "settings" && (
+                <SystemSettings
+                  isAdmin={isAdmin}
+                  owners={availableOwners}
+                  selectedOwnerId={selectedOwnerId}
+                  onOwnerChange={(ownerId) => {
+                    setSelectedOwnerId(ownerId);
+                    window.localStorage.setItem(
+                      "archive-stock-owner-id",
+                      ownerId,
+                    );
+                    setSelected(null);
+                    setSelectedOrder(null);
+                  }}
+                />
+              )}
             </>
           )}
         </div>
@@ -457,6 +483,7 @@ export function Dashboard() {
       )}{" "}
       {creating && (
         <NewProduct
+          ownerId={selectedOwnerId}
           onClose={() => setCreating(false)}
           onCreated={loadProducts}
         />

@@ -20,7 +20,7 @@ type LocationRow = {
 };
 
 /** 庫位管理面板。 */
-export function LocationManager() {
+export function LocationManager({ ownerId }: { ownerId: string }) {
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
@@ -39,8 +39,9 @@ export function LocationManager() {
       supabase
         .from("locations")
         .select("id,code,cabinet,shelf,bin,description")
+        .eq("owner_id", ownerId)
         .order("code"),
-      supabase.from("products").select("location_id"),
+      supabase.from("products").select("location_id").eq("owner_id", ownerId),
     ]);
     if (locationError || productError) {
       setError((locationError || productError)?.message || "讀取失敗");
@@ -62,7 +63,7 @@ export function LocationManager() {
       })) ?? [],
     );
     setLoading(false);
-  }, []);
+  }, [ownerId]);
 
   useEffect(() => {
     void load();
@@ -78,7 +79,7 @@ export function LocationManager() {
     setSaving(true);
     setError("");
     try {
-      await createLocation({ code: normalized, description });
+      await createLocation({ code: normalized, description, ownerId });
       setCode("");
       setDescription("");
       await load();

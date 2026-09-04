@@ -42,9 +42,11 @@ type Form = z.input<typeof schema>;
 
 /** 新增商品表單。 */
 export function NewProduct({
+  ownerId,
   onClose,
   onCreated,
 }: {
+  ownerId: string;
   onClose: () => void;
   onCreated?: () => void | Promise<void>;
 }) {
@@ -120,23 +122,28 @@ export function NewProduct({
         imagePaths.push(...uploaded.paths);
       }
 
-      await createProductApi({
-        name: values.name,
-        work: values.work,
-        category: values.category,
-        country: values.country,
-        source: values.source,
-        location: values.location,
-        stock: toNumber(values.stock, DEFAULT_VALUES.productStock),
-        price: toNumber(values.price),
-        cost: toNumber(values.cost),
-        imagePaths,
-        format: values.category === POSTER_CATEGORY ? values.format || "" : "",
-        size: values.category === POSTER_CATEGORY ? values.size || "" : "",
-        crafts: values.category === POSTER_CATEGORY ? values.crafts || [] : [],
-        feature:
-          values.category === POSTER_CATEGORY ? values.feature || "" : "",
-      });
+      await createProductApi(
+        {
+          name: values.name,
+          work: values.work,
+          category: values.category,
+          country: values.country,
+          source: values.source,
+          location: values.location,
+          stock: toNumber(values.stock, DEFAULT_VALUES.productStock),
+          price: toNumber(values.price),
+          cost: toNumber(values.cost),
+          imagePaths,
+          format:
+            values.category === POSTER_CATEGORY ? values.format || "" : "",
+          size: values.category === POSTER_CATEGORY ? values.size || "" : "",
+          crafts:
+            values.category === POSTER_CATEGORY ? values.crafts || [] : [],
+          feature:
+            values.category === POSTER_CATEGORY ? values.feature || "" : "",
+        },
+        ownerId,
+      );
       await onCreated?.();
       onClose();
     } catch (error) {

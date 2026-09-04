@@ -25,6 +25,7 @@ export async function GET() {
       userName,
       isAdmin: false,
       finance: null,
+      financeByOwner: {},
       availableOwners: [{ id: auth.userId, name: userName }],
     });
   }
@@ -33,62 +34,86 @@ export async function GET() {
     { data: costs, error: costError },
     { data: sales, error: salesError },
     { data: owners, error: ownersError },
+    { data: productOwners, error: productOwnersError },
   ] = await Promise.all([
     auth.supabase.rpc("get_admin_product_costs"),
     auth.supabase
       .from("orders")
       .select(
-        "status,discount,shipping_income,platform_fee,seller_shipping_cost,order_items(quantity,unit_price)",
+        "owner_id,status,discount,shipping_income,platform_fee,seller_shipping_cost,order_items(quantity,unit_price)",
       ),
     auth.supabase
       .from("profiles")
       .select("id,display_name")
       .order("display_name"),
+    auth.supabase.from("products").select("id,owner_id"),
   ]);
-  if (costError || salesError || ownersError) {
+  if (costError || salesError || ownersError || productOwnersError) {
     return apiFailure(
       costError?.message ||
         salesError?.message ||
         ownersError?.message ||
+        productOwnersError?.message ||
         "帳號資料載入失敗",
       400,
     );
   }
 
-  const cost = (costs ?? []).reduce(
-    (sum: number, row: { cost: unknown }) => sum + toNumber(row.cost),
-    0,
+  const productOwnerMap = new Map(
+    (productOwners ?? []).map((product) => [product.id, product.owner_id]),
   );
+  const financeByOwner: AccountData["financeByOwner"] = {};
+  for (const owner of owners ?? []) {
+    financeByOwner[owner.id] = { revenue: 0, cost: 0, profit: 0 };
+  }
+  for (const row of costs ?? []) {
+    const ownerId = productOwnerMap.get(String(row.product_id));
+    if (ownerId && financeByOwner[ownerId]) {
+      financeByOwner[ownerId].cost += toNumber(row.cost);
+    }
+  }
   const rows = (sales ?? []) as unknown as Array<{
     status: string;
+    owner_id: string;
     discount: unknown;
     shipping_income: unknown;
     platform_fee: unknown;
     seller_shipping_cost: unknown;
     order_items: Array<{ quantity: number; unit_price: unknown }> | null;
   }>;
-  const revenue = rows
-    .filter((row) => FINANCIAL_ORDER_STATUSES.has(row.status))
-    .reduce(
-      (sum, row) =>
-        sum +
-        (row.order_items ?? []).reduce(
-          (itemSum, item) =>
-            itemSum + toNumber(item.unit_price) * item.quantity,
-          0,
-        ) +
-        toNumber(row.shipping_income) -
-        toNumber(row.discount) -
-        toNumber(row.platform_fee) -
-        toNumber(row.seller_shipping_cost),
-      0,
-    );
+  for (const row of rows.filter((item) =>
+    FINANCIAL_ORDER_STATUSES.has(item.status),
+  )) {
+    const finance = financeByOwner[row.owner_id];
+    if (!finance) continue;
+    finance.revenue +=
+      (row.order_items ?? []).reduce(
+        (sum, item) => sum + toNumber(item.unit_price) * item.quantity,
+        0,
+      ) +
+      toNumber(row.shipping_income) -
+      toNumber(row.discount) -
+      toNumber(row.platform_fee) -
+      toNumber(row.seller_shipping_cost);
+  }
+  for (const value of Object.values(financeByOwner)) {
+    value.profit = value.revenue - value.cost;
+  }
+  const finance = Object.values(financeByOwner).reduce(
+    (sum, value) => ({
+      revenue: sum.revenue + value.revenue,
+      cost: sum.cost + value.cost,
+      profit: sum.profit + value.profit,
+    }),
+    { revenue: 0, cost: 0, profit: 0 },
+  );
 
   return apiSuccess<AccountData>({
     userId: auth.userId,
     userName,
     isAdmin: true,
-    finance: { revenue, cost, profit: revenue - cost },
+    finance,
+    financeByOwner,
     availableOwners: (owners ?? []).map((owner) => ({
       id: owner.id,
       name: owner.display_name?.trim() || "未命名使用者",
