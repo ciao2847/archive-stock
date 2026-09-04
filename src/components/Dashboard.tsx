@@ -47,7 +47,6 @@ type View =
 const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
 const EMPTY_OWNERS: Array<{ id: string; name: string }> = [];
-const ALL_OWNERS = "all";
 
 export function Dashboard() {
   const dispatch = useAppDispatch();
@@ -140,13 +139,9 @@ export function Dashboard() {
       return;
     }
     setSelectedOwnerId((current) => {
-      if (current === ALL_OWNERS) return current;
       if (availableOwners.some((owner) => owner.id === current)) return current;
       const saved = window.localStorage.getItem("archive-stock-owner-id");
-      if (
-        saved === ALL_OWNERS ||
-        (saved && availableOwners.some((owner) => owner.id === saved))
-      ) {
+      if (saved && availableOwners.some((owner) => owner.id === saved)) {
         return saved;
       }
       return accountData.userId || availableOwners[0]?.id || "";
@@ -154,28 +149,21 @@ export function Dashboard() {
   }, [accountData, availableOwners]);
   const scopedProducts = useMemo(
     () =>
-      selectedOwnerId === ALL_OWNERS
-        ? products
-        : selectedOwnerId
-          ? products.filter((product) => product.ownerId === selectedOwnerId)
-          : EMPTY_PRODUCTS,
+      selectedOwnerId
+        ? products.filter((product) => product.ownerId === selectedOwnerId)
+        : EMPTY_PRODUCTS,
     [products, selectedOwnerId],
   );
   const scopedOrders = useMemo(
     () =>
-      selectedOwnerId === ALL_OWNERS
-        ? orders
-        : selectedOwnerId
-          ? orders.filter((order) => order.ownerId === selectedOwnerId)
-          : EMPTY_ORDERS,
+      selectedOwnerId
+        ? orders.filter((order) => order.ownerId === selectedOwnerId)
+        : EMPTY_ORDERS,
     [orders, selectedOwnerId],
   );
-  const finance =
-    selectedOwnerId === ALL_OWNERS
-      ? (accountData?.finance ?? null)
-      : selectedOwnerId
-        ? (accountData?.financeByOwner[selectedOwnerId] ?? null)
-        : null;
+  const finance = selectedOwnerId
+    ? (accountData?.financeByOwner[selectedOwnerId] ?? null)
+    : null;
   const filtered = useMemo(
     () =>
       scopedProducts.filter((p) =>
@@ -356,7 +344,7 @@ export function Dashboard() {
                             : "快速找到每一件收藏品，減少人工核對。"}
                   </p>
                 </div>
-                {view === "orders" && selectedOwnerId !== ALL_OWNERS ? (
+                {view === "orders" ? (
                   <button
                     className="primary"
                     onClick={() => setCreatingOrder(true)}
@@ -365,7 +353,6 @@ export function Dashboard() {
                     新增訂單
                   </button>
                 ) : (
-                  selectedOwnerId !== ALL_OWNERS &&
                   view !== "settings" &&
                   view !== "locations" &&
                   view !== "settlement" && (
@@ -462,18 +449,10 @@ export function Dashboard() {
                 </DataState>
               )}
               {view === "locations" && selectedOwnerId && (
-                <LocationManager
-                  ownerId={
-                    selectedOwnerId === ALL_OWNERS ? undefined : selectedOwnerId
-                  }
-                />
+                <LocationManager ownerId={selectedOwnerId} />
               )}
               {view === "settlement" && selectedOwnerId && (
-                <SettlementPanel
-                  ownerId={
-                    selectedOwnerId === ALL_OWNERS ? undefined : selectedOwnerId
-                  }
-                />
+                <SettlementPanel ownerId={selectedOwnerId} />
               )}
               {view === "settings" && (
                 <SystemSettings

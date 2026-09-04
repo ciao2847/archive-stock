@@ -74,19 +74,18 @@ export function SystemSettings({
               <UserRound />
             </div>
             <SettingsCardContent
-              eyebrow="資料擁有者"
+              eyebrow="使用者資料"
               title="切換使用者庫藏"
               description="庫存、出貨、訂單、庫位與財務都會切換至同一位使用者。"
             >
               <label className="block max-w-[360px]">
-                <span className="sr-only">選擇資料擁有者</span>
+                <span className="sr-only">選擇使用者</span>
                 <select
                   className="mt-1 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
                   value={selectedOwnerId}
                   onChange={(event) => onOwnerChange(event.target.value)}
-                  aria-label="選擇資料擁有者"
+                  aria-label="選擇使用者"
                 >
-                  <option value="all">全部庫存</option>
                   {owners.map((owner) => (
                     <option key={owner.id} value={owner.id}>
                       {owner.name}

@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   const parsedOwner = z.string().uuid().safeParse(body?.ownerId);
   const parsed = createProductSchema.safeParse(body);
   if (!parsed.success) return apiFailure("商品資料格式不正確", 400);
-  if (!parsedOwner.success) return apiFailure("商品擁有者格式不正確", 400);
+  if (!parsedOwner.success) return apiFailure("商品使用者格式不正確", 400);
   if (auth.role !== "admin" && parsedOwner.data !== auth.userId) {
     return apiFailure("不可替其他使用者建立商品", 403);
   }

@@ -34,7 +34,7 @@ const SETTLEMENT_COLUMNS: TableColumn[] = [
     className: "max-sm:hidden",
   },
 ];
-export function SettlementPanel({ ownerId }: { ownerId?: string }) {
+export function SettlementPanel({ ownerId }: { ownerId: string }) {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState("");
@@ -62,14 +62,13 @@ export function SettlementPanel({ ownerId }: { ownerId?: string }) {
       return;
     }
     setAllowed(true);
-    let settlementQuery = supabase
+    const { data, error: loadError } = await supabase
       .from("settlements")
       .select(
         "id,settlement_no,period_start,period_end,revenue,cost,profit,created_at",
       )
+      .eq("owner_id", ownerId)
       .order("created_at", { ascending: false });
-    if (ownerId) settlementQuery = settlementQuery.eq("owner_id", ownerId);
-    const { data, error: loadError } = await settlementQuery;
     if (loadError) setError(loadError.message);
     else
       setHistory(
@@ -86,7 +85,6 @@ export function SettlementPanel({ ownerId }: { ownerId?: string }) {
     void load();
   }, [load]);
   async function settle() {
-    if (!ownerId) return;
     setSaving(true);
     setError("");
     try {
@@ -135,56 +133,54 @@ export function SettlementPanel({ ownerId }: { ownerId?: string }) {
           negative={totals.profit < 0}
         />
       </section>
-      {ownerId && (
-        <section className="card p-5">
-          <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
-            <label className="field min-w-0 flex-1 max-sm:w-full">
-              <span>開始日期</span>
-              <span className="settlement-date-control">
-                <span className={start ? undefined : "text-muted"}>
-                  {start || "選擇開始日期"}
-                </span>
-                <input
-                  type="date"
-                  aria-label="開始日期"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                />
+      <section className="card p-5">
+        <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
+          <label className="field min-w-0 flex-1 max-sm:w-full">
+            <span>開始日期</span>
+            <span className="settlement-date-control">
+              <span className={start ? undefined : "text-muted"}>
+                {start || "選擇開始日期"}
               </span>
-            </label>
-            <label className="field min-w-0 flex-1 max-sm:w-full">
-              <span>結束日期</span>
-              <span className="settlement-date-control">
-                <span className={end ? undefined : "text-muted"}>
-                  {end || "選擇結束日期"}
-                </span>
-                <input
-                  type="date"
-                  aria-label="結束日期"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                />
+              <input
+                type="date"
+                aria-label="開始日期"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </span>
+          </label>
+          <label className="field min-w-0 flex-1 max-sm:w-full">
+            <span>結束日期</span>
+            <span className="settlement-date-control">
+              <span className={end ? undefined : "text-muted"}>
+                {end || "選擇結束日期"}
               </span>
-            </label>
-            <button
-              className="primary h-10 max-sm:w-full"
-              onClick={() => void settle()}
-              disabled={saving}
-            >
-              {saving ? (
-                <LoaderCircle className="spin" />
-              ) : (
-                <WalletCards size={17} />
-              )}
-              確認結算
-            </button>
-          </div>
-          <p className="mt-3 text-[12px] text-default">
-            只會納入尚未結算的已包裝／已出貨訂單，以及尚未計入的批次成本。
-          </p>
-          {error && <div className="data-error mt-3">{error}</div>}
-        </section>
-      )}
+              <input
+                type="date"
+                aria-label="結束日期"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+              />
+            </span>
+          </label>
+          <button
+            className="primary h-10 max-sm:w-full"
+            onClick={() => void settle()}
+            disabled={saving}
+          >
+            {saving ? (
+              <LoaderCircle className="spin" />
+            ) : (
+              <WalletCards size={17} />
+            )}
+            確認結算
+          </button>
+        </div>
+        <p className="mt-3 text-[12px] text-default">
+          只會納入尚未結算的已包裝／已出貨訂單，以及尚未計入的批次成本。
+        </p>
+        {error && <div className="data-error mt-3">{error}</div>}
+      </section>
       <ResponsiveTable
         columns={SETTLEMENT_COLUMNS}
         tableClassName="max-sm:!min-w-0 max-sm:[&_td]:px-2 max-sm:[&_th]:px-2"
