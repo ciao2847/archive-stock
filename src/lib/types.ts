@@ -18,6 +18,7 @@ export type Product = {
   price: number;
   cost: number;
   feature?: string;
+  description?: string;
   accent: string;
   image?: string;
   thumbnail?: string;

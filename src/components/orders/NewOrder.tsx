@@ -3,9 +3,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Check, ClipboardPlus, LoaderCircle, Search, X } from "lucide-react";
 import { Product } from "@/lib/types";
-import { SALES_CHANNELS, isProductAvailable } from "@/constants";
+import { SALES_CHANNELS } from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { createOrder } from "@/lib/api/orders";
+import {
+  calculateOrderTotals,
+  searchAvailableProducts,
+} from "./order-form-utils";
 import { DataState } from "@/components/ui/DataState";
 
 /** 新增訂單表單。 */
@@ -42,30 +46,23 @@ export function NewOrder({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const available = useMemo(
-    () =>
-      products.filter(
-        (product) =>
-          isProductAvailable(product.status, product.stock) &&
-          Object.values(product)
-            .flat()
-            .join(" ")
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-      ),
+    () => searchAvailableProducts(products, query),
     [products, query],
   );
   const selectedProducts = useMemo(
     () => products.filter((product) => selected.includes(product.dbId || "")),
     [products, selected],
   );
-  const subtotal = selectedProducts.reduce(
-    (sum, product) =>
-      sum + toNumber(prices[product.dbId || ""] ?? product.price),
-    0,
+  const { orderTotal, netRevenue } = calculateOrderTotals(
+    selectedProducts,
+    prices,
+    {
+      shippingIncome,
+      discount,
+      platformFee,
+      sellerShippingCost,
+    },
   );
-  const orderTotal = subtotal + toNumber(shippingIncome) - toNumber(discount);
-  const netRevenue =
-    orderTotal - toNumber(platformFee) - toNumber(sellerShippingCost);
 
   function toggle(id: string) {
     const product = products.find((item) => item.dbId === id);

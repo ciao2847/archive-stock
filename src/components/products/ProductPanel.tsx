@@ -87,7 +87,9 @@ export function ProductPanel({
         <button
           type="button"
           className={`relative m-6 grid h-[185px] w-[calc(100%-48px)] place-items-center rounded-[9px] border-0 text-[30px] tracking-[0.15em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1875)] ${p.image ? "cursor-zoom-in overflow-hidden p-0" : ""}`}
-          style={{ background: `linear-gradient(145deg,${p.accent},var(--color-dark))` }}
+          style={{
+            background: `linear-gradient(145deg,${p.accent},var(--color-dark))`,
+          }}
           onClick={() => p.image && setPreview(true)}
         >
           {p.image ? (
@@ -143,6 +145,12 @@ export function ProductPanel({
         <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3">
           <small className="mb-1 block text-[11px] text-muted">辨識特徵</small>
           <p className="m-0">{p.feature || "尚未填寫"}</p>
+        </div>
+        <div className="mx-7 my-4 rounded-lg bg-primary-soft p-3">
+          <small className="mb-1 block text-[11px] text-muted">功能描述</small>
+          <p className="m-0 whitespace-pre-wrap break-words">
+            {p.description || "尚未填寫"}
+          </p>
         </div>
         <div className="mx-7 my-4 flex items-center gap-3 rounded-lg border border-line bg-white p-3">
           <MapPin />

@@ -7,6 +7,7 @@ export type PublicRecommendation = {
   sku: string;
   name: string;
   imageUrl?: string;
+  description?: string;
 };
 
 export type PublicQrLanding = {
@@ -40,6 +41,8 @@ function mapRecommendations(value: unknown): PublicRecommendation[] {
       {
         sku: row.sku,
         name: row.name,
+        description:
+          typeof row.description === "string" ? row.description : undefined,
         imageUrl: imagePath ? buildPublicProductImageUrl(imagePath) : undefined,
       },
     ];

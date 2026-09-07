@@ -12,6 +12,11 @@ const productBaseSchema = z.object({
   price: z.number().nonnegative(),
   format: z.string().max(100),
   size: z.string().max(100),
+  description: z
+    .string()
+    .max(2000, "功能描述最多 2,000 字元")
+    .optional()
+    .default(""),
   feature: z.string().max(2000),
 });
 

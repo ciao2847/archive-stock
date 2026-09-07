@@ -26,6 +26,7 @@ type ProductRow = {
   poster_format: string | null;
   poster_size: string | null;
   poster_crafts: string[] | null;
+  description: string | null;
   identifying_features: string | null;
   owner:
     | { display_name: string | null }
@@ -45,7 +46,7 @@ export async function GET() {
   const { data, error } = await auth.supabase
     .from("products")
     .select(
-      "id,owner_id,sku,name,category,country,source,stock,status,price,cost,image_paths,poster_format,poster_size,poster_crafts,identifying_features,works(title_zh),locations(code),owner:profiles!products_owner_id_fkey(display_name)",
+      "id,owner_id,sku,name,category,country,source,stock,status,price,cost,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations(code),owner:profiles!products_owner_id_fkey(display_name)",
     )
     .order("created_at", { ascending: false });
   if (error) return apiFailure(error.message, 400, error.code);
@@ -78,6 +79,7 @@ export async function GET() {
       status: PRODUCT_STATUS_LABELS[row.status] || "在庫",
       price: toNumber(row.price),
       cost: toNumber(row.cost),
+      description: row.description || "",
       feature: row.identifying_features || undefined,
       accent: "#5A87B1",
       image,
@@ -118,6 +120,7 @@ export async function POST(request: Request) {
         p_poster_format: input.format,
         p_poster_size: input.size,
         p_poster_crafts: input.crafts,
+        p_description: input.description,
         p_identifying_features: input.feature,
         p_owner_id: parsedOwner.data,
       },

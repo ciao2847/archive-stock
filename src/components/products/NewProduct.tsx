@@ -4,17 +4,14 @@ import { ChangeEvent, useEffect, useState } from "react";
 import { CheckCircle2, ImagePlus, Trash2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
-  COUNTRIES,
-  IMAGE_UPLOAD,
-  LOCATION_CODE_PATTERN,
-  POSTER_CATEGORY,
-  POSTER_CRAFTS,
-  POSTER_FORMATS,
-  POSTER_SIZES,
-  PRODUCT_CATEGORIES,
-} from "@/constants";
+  newProductSchema as schema,
+  type NewProductForm as Form,
+} from "./new-product-schema";
+import { PosterSpecFields } from "./PosterSpecFields";
+import { validateProductImage } from "./product-image-validation";
+import { ProductFormField as Field } from "./ProductFormField";
+import { COUNTRIES, POSTER_CATEGORY, PRODUCT_CATEGORIES } from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { createProductImageVariants } from "@/lib/product-images";
 import {
@@ -22,23 +19,6 @@ import {
   removeProductImages,
   uploadProductImages,
 } from "@/lib/api/products";
-
-const schema = z.object({
-  name: z.string().min(1, "請輸入商品名稱"),
-  work: z.string().min(1, "請輸入作品名稱"),
-  category: z.string(),
-  country: z.string(),
-  source: z.string(),
-  location: z.string().regex(LOCATION_CODE_PATTERN, "格式如 A-03-02"),
-  stock: z.coerce.number().min(1),
-  price: z.coerce.number().min(0),
-  cost: z.coerce.number().min(0),
-  format: z.string().optional(),
-  size: z.string().optional(),
-  crafts: z.array(z.string()).optional(),
-  feature: z.string().optional(),
-});
-type Form = z.input<typeof schema>;
 
 /** 新增商品表單。 */
 export function NewProduct({
@@ -81,17 +61,9 @@ export function NewProduct({
   function selectImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (
-      !IMAGE_UPLOAD.acceptedTypes.includes(
-        file.type as (typeof IMAGE_UPLOAD.acceptedTypes)[number],
-      )
-    ) {
-      setImageError("請選擇 JPG、PNG 或 WebP 圖片");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > IMAGE_UPLOAD.maxBytes) {
-      setImageError(`圖片不可超過 ${IMAGE_UPLOAD.maxMegabytes}MB`);
+    const validationError = validateProductImage(file);
+    if (validationError) {
+      setImageError(validationError);
       event.target.value = "";
       return;
     }
@@ -139,6 +111,7 @@ export function NewProduct({
           size: values.category === POSTER_CATEGORY ? values.size || "" : "",
           crafts:
             values.category === POSTER_CATEGORY ? values.crafts || [] : [],
+          description: values.description || "",
           feature:
             values.category === POSTER_CATEGORY ? values.feature || "" : "",
         },
@@ -270,44 +243,16 @@ export function NewProduct({
                 placeholder="整批成本，不必拆單件"
               />
             </Field>
-            {poster && (
-              <>
-                <Field label="版本 / 影廳">
-                  <select {...register("format")}>
-                    {POSTER_FORMATS.map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="尺寸">
-                  <select {...register("size")}>
-                    {POSTER_SIZES.map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="工藝（可複選）" wide>
-                  <div className="chips">
-                    {POSTER_CRAFTS.map((x) => (
-                      <label key={x}>
-                        <input
-                          type="checkbox"
-                          value={x}
-                          {...register("crafts")}
-                        />
-                        {x}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="辨識特徵" wide>
-                  <textarea
-                    {...register("feature")}
-                    placeholder="例：左下角有 IMAX Logo、標題燙金…"
-                  />
-                </Field>
-              </>
-            )}
+            {poster && <PosterSpecFields register={register} />}
+            <Field label="功能描述" wide error={errors.description?.message}>
+              <textarea
+                {...register("description")}
+                rows={5}
+                placeholder="商品內容、特色或故事背景"
+                aria-invalid={Boolean(errors.description)}
+              />
+              <small>選填，最多 2,000 字元，支援換行。</small>
+            </Field>
           </div>
           {submitError && (
             <p className="upload-error">儲存失敗：{submitError}</p>
@@ -328,25 +273,5 @@ export function NewProduct({
         </form>
       </aside>
     </>
-  );
-}
-
-function Field({
-  label,
-  error,
-  wide,
-  children,
-}: {
-  label: string;
-  error?: string;
-  wide?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={wide ? "field wide" : "field"}>
-      <span>{label}</span>
-      {children}
-      {error && <em>{error}</em>}
-    </label>
   );
 }

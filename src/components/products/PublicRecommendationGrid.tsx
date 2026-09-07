@@ -9,6 +9,7 @@ type Recommendation = {
   sku: string;
   name: string;
   imageUrl?: string;
+  description?: string;
 };
 
 const ICON_STROKE = 1.7;
@@ -65,6 +66,11 @@ export function PublicRecommendationGrid({
             <h3 className="m-0 line-clamp-2 min-h-[58px] px-4 py-3 text-[12px] leading-5 md:min-h-[66px] md:px-4 md:text-[16px] md:leading-6">
               {product.name}
             </h3>
+            {product.description && (
+              <p className="m-0 whitespace-pre-wrap break-words px-4 pb-4 text-[12px] leading-5 text-muted">
+                {product.description}
+              </p>
+            )}
           </article>
         ))}
       </div>

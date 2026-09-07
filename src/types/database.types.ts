@@ -507,6 +507,7 @@ export type Database = {
           created_by: string | null
           edition: string | null
           id: string
+          description: string | null
           identifying_features: string | null
           image_paths: string[] | null
           is_art_set: boolean | null
@@ -536,6 +537,7 @@ export type Database = {
           created_by?: string | null
           edition?: string | null
           id?: string
+          description?: string | null
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
@@ -565,6 +567,7 @@ export type Database = {
           created_by?: string | null
           edition?: string | null
           id?: string
+          description?: string | null
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
@@ -859,6 +862,7 @@ export type Database = {
           p_category: string
           p_cost: number
           p_country: string
+          p_description?: string
           p_identifying_features: string
           p_image_paths: string[]
           p_location: string
@@ -932,6 +936,7 @@ export type Database = {
           p_category: string
           p_cost: number
           p_country: string
+          p_description?: string
           p_identifying_features: string
           p_location: string
           p_name: string

@@ -37,6 +37,7 @@ export function EditProduct({
     cost: String(product.cost),
     format: product.format || "",
     size: product.size || "",
+    description: product.description || "",
     feature: product.feature || "",
   });
   const [crafts, setCrafts] = useState(product.crafts ?? []);
@@ -63,6 +64,8 @@ export function EditProduct({
     setSaving(true);
     setError("");
     try {
+      if (form.description.length > 2000)
+        throw new Error("功能描述最多 2,000 字元");
       if (form.location) {
         const code = form.location.toUpperCase();
         if (!LOCATION_CODE_PATTERN.test(code))
@@ -93,6 +96,7 @@ export function EditProduct({
         format: form.category === POSTER_CATEGORY ? form.format : "",
         size: form.category === POSTER_CATEGORY ? form.size : "",
         feature: form.feature,
+        description: form.description,
       });
       await onUpdated();
       onClose();
@@ -302,6 +306,21 @@ export function EditProduct({
                 </Field>
               </>
             )}
+            <Field label="功能描述" wide>
+              <textarea
+                value={form.description}
+                onChange={(e) => change("description", e.target.value)}
+                rows={5}
+                placeholder="商品內容、特色或故事背景"
+                aria-invalid={form.description.length > 2000}
+              />
+              <small>
+                {form.description.length} / 2,000 字元，選填，支援換行。
+              </small>
+              {form.description.length > 2000 && (
+                <em>功能描述最多 2,000 字元</em>
+              )}
+            </Field>
           </div>
           {error && <p className="upload-error">更新失敗：{error}</p>}
           <div className="form-actions">

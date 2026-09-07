@@ -14,9 +14,9 @@
 
 ## 3. Form Component Modularization
 
-- [ ] 3.1 Refactor `src/components/orders/NewOrder.tsx` by extracting pricing calculation and product search helpers into focused utilities or sub-components. Verify order creation flow with typecheck.
-- [ ] 3.2 Refactor `src/components/products/NewProduct.tsx` by separating image upload validation and spec fieldsets into reusable helpers or sub-components. Verify product creation flow with typecheck.
+- [x] 3.1 Refactor `src/components/orders/NewOrder.tsx` by extracting pricing calculation and product search helpers into focused utilities or sub-components. Verify order creation flow with typecheck.
+- [x] 3.2 Refactor `src/components/products/NewProduct.tsx` by separating image upload validation and spec fieldsets into reusable helpers or sub-components. Verify product creation flow with typecheck.
 
 ## 4. Final Quality Verification
 
-- [ ] 4.1 Run full project build and lint verification (`npm run typecheck && npm run lint`). Verify 0 errors.
+- [x] 4.1 Run full project build and lint verification (`npm run typecheck && npm run lint`). Verify 0 errors.

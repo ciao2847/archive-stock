@@ -42,6 +42,7 @@ export async function PATCH(
         p_cost: input.cost as number,
         p_poster_format: input.format,
         p_poster_size: input.size,
+        p_description: input.description,
         p_identifying_features: input.feature,
         p_work: input.work,
         p_poster_crafts: input.crafts,
