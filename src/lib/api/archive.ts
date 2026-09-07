@@ -28,9 +28,9 @@ async function get<T>(url: string): Promise<T> {
   return readApiResponse<T>(response);
 }
 
-export const fetchProductsApi = () => get<Product[]>(API_ROUTES.products);
-export const fetchOrdersApi = () => get<OrderRow[]>(API_ROUTES.createOrder);
-export const fetchAccountApi = () => get<AccountData>(API_ROUTES.account);
+export const fetchProductsApi = () => get<Product[]>(API_ROUTES.getProducts);
+export const fetchOrdersApi = () => get<OrderRow[]>(API_ROUTES.getOrders);
+export const fetchAccountApi = () => get<AccountData>(API_ROUTES.getAccount);
 
 export async function archiveOrderApi(orderId: string): Promise<void> {
   await archiveOrder(orderId);

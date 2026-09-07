@@ -34,7 +34,7 @@ export type UpdateOrderInput = {
 };
 
 export async function createOrder(input: CreateOrderInput) {
-  const response = await fetch(API_ROUTES.createOrder, {
+  const response = await fetch(API_ROUTES.getOrders, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -43,14 +43,14 @@ export async function createOrder(input: CreateOrderInput) {
 }
 
 export async function archiveOrder(orderId: string) {
-  const response = await fetch(API_ROUTES.order(orderId), {
+  const response = await fetch(API_ROUTES.getOrder(orderId), {
     method: "DELETE",
   });
   return readApiResponse<{ archived: boolean }>(response);
 }
 
 export async function updateOrder(orderId: string, input: UpdateOrderInput) {
-  const response = await fetch(API_ROUTES.order(orderId), {
+  const response = await fetch(API_ROUTES.getOrder(orderId), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

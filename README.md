@@ -75,9 +75,6 @@ NEXT_PUBLIC_OFFICIAL_LINE_URL=https://lin.ee/你的官方帳號
 ```bash
 npm run lint
 npm run typecheck
-npm test
-npm run test:e2e
-npm run test:db       # 需要本機 Supabase / Docker
 SUPABASE_PROJECT_ID=your-project-ref npm run db:types
 ```
 

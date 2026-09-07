@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      inventory_database_members: {
+        Row: {
+          created_at: string
+          inventory_id: string
+          is_owner: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          inventory_id: string
+          is_owner?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          inventory_id?: string
+          is_owner?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_database_members_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_databases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_database_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_databases: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_databases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           contact: string | null
@@ -363,6 +431,8 @@ export type Database = {
           batch_code: string | null
           created_at: string
           id: string
+          printed_at: string | null
+          printed_by: string | null
           product_id: string
           status: string
           token: string
@@ -374,6 +444,8 @@ export type Database = {
           batch_code?: string | null
           created_at?: string
           id?: string
+          printed_at?: string | null
+          printed_by?: string | null
           product_id: string
           status?: string
           token?: string
@@ -385,6 +457,8 @@ export type Database = {
           batch_code?: string | null
           created_at?: string
           id?: string
+          printed_at?: string | null
+          printed_by?: string | null
           product_id?: string
           status?: string
           token?: string
@@ -393,6 +467,13 @@ export type Database = {
           used_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_qr_labels_printed_by_fkey"
+            columns: ["printed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_qr_labels_product_id_fkey"
             columns: ["product_id"]
@@ -540,21 +621,32 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          inventory_owner_id: string
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
           created_at?: string
           display_name: string
           id: string
+          inventory_owner_id?: string
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
           created_at?: string
           display_name?: string
           id?: string
+          inventory_owner_id?: string
           role?: Database["public"]["Enums"]["user_role"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_inventory_owner_id_fkey"
+            columns: ["inventory_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settlement_orders: {
         Row: {
@@ -824,12 +916,19 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      mark_product_qr_labels_printed: {
+        Args: { p_label_ids: string[] }
+        Returns: boolean
+      }
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
       }
       update_inventory_product: {
         Args: {
+          p_work?: string
+          p_poster_crafts?: string[]
+          p_image_paths?: string[]
           p_category: string
           p_cost: number
           p_country: string
@@ -844,6 +943,14 @@ export type Database = {
           p_stock: number
         }
         Returns: boolean
+      }
+      update_inventory_database_access: {
+        Args: {
+          p_inventory_id: string | null
+          p_name: string
+          p_owner_ids: string[]
+        }
+        Returns: string
       }
       update_order_details: {
         Args: {

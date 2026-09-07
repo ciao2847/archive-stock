@@ -8,8 +8,8 @@
   position: fixed;
   inset: 0 auto 0 0;
   width: 238px;
-  background: var(--color-main);
-  color: #fff;
+  background: var(--color-dark);
+  color: var(--color-white);
   padding: $spacing-5 $spacing-3;
   z-index: $z-sidebar;
   display: flex;
@@ -43,13 +43,13 @@
   display: block;
   font: 10px var(--font-mono);
   letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.62);
+  color: color-mix(in srgb, var(--color-white) 62%, transparent);
   margin-top: 2px;
 }
 
 // 導航菜單 | Navigation Menu
 .sidebar nav {
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid color-mix(in srgb, var(--color-white) 14%, transparent);
   padding-top: 17px;
 }
 
@@ -58,15 +58,15 @@
   margin-top: 27px;
 
   > span {
-    color: rgba(255, 255, 255, 0.45);
+    color: color-mix(in srgb, var(--color-white) 45%, transparent);
     font-size: 10px;
     letter-spacing: 0.16em;
     padding: 0 14px;
   }
 
   button.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: color-mix(in srgb, var(--color-white) 10%, transparent);
+    color: var(--color-white);
   }
 }
 
@@ -76,7 +76,7 @@
   height: 35px;
   border-radius: 50%;
   background: var(--color-secondary);
-  color: var(--color-main);
+  color: var(--color-dark);
   display: grid;
   place-items: center;
   font: 500 14px var(--font-mono);
@@ -97,7 +97,7 @@
   @media (max-width: $breakpoint-md) {
     display: grid !important;
     margin-left: auto;
-    border-color: #555;
+    border-color: var(--color-desc);
   }
 }
 

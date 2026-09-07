@@ -6,7 +6,7 @@ export async function createSettlement(input: {
   start: string;
   end: string;
 }) {
-  const response = await fetch(API_ROUTES.settlements, {
+  const response = await fetch(API_ROUTES.getSettlements, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

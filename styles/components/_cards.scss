@@ -101,8 +101,8 @@
   }
 
   &.blue {
-    background: #e8edf2;
-    color: var(--color-main);
+    background: var(--color-light);
+    color: var(--color-dark);
   }
 }
 
@@ -148,7 +148,7 @@
 
   time {
     font-size: 10px;
-    color: #aaa;
+    color: var(--color-info);
   }
 }
 
@@ -190,7 +190,7 @@
 
 .order-index {
   font: 500 10px var(--font-mono);
-  color: #aaa;
+  color: var(--color-info);
 }
 
 // 標籤和狀態 | Labels & Status
@@ -204,14 +204,14 @@
 }
 
 .wait-label {
-  color: #aaa;
+  color: var(--color-info);
 }
 
 // 資料錯誤提示 | Data Error Message
 .data-error {
-  background: #f6dfda;
-  color: #91382c;
-  border: 1px solid #e8bdb5;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+  border: 1px solid var(--color-danger-soft);
   padding: 12px 14px;
   border-radius: $radius-lg;
   margin-bottom: $spacing-3;

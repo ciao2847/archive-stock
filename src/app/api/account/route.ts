@@ -20,13 +20,30 @@ export async function GET() {
   const userName =
     profile?.display_name?.trim() || user?.email?.split("@")[0] || "使用者";
   if (auth.role !== "admin") {
+    const { data: inventory, error: inventoryError } = await auth.supabase
+      .from("inventory_databases")
+      .select("id,name")
+      .eq("id", auth.inventoryOwnerId)
+      .maybeSingle();
+    if (inventoryError)
+      return apiFailure(inventoryError.message, 400, inventoryError.code);
+    const inventoryName = inventory?.name?.trim() || "我的庫藏";
     return apiSuccess<AccountData>({
       userId: auth.userId,
+      inventoryOwnerId: auth.inventoryOwnerId,
       userName,
       isAdmin: false,
       finance: null,
       financeByOwner: {},
-      availableOwners: [{ id: auth.userId, name: userName }],
+      availableOwners: [{ id: auth.inventoryOwnerId, name: inventoryName }],
+      inventoryDatabases: [
+        {
+          id: auth.inventoryOwnerId,
+          name: inventoryName,
+          ownerIds: [auth.userId],
+        },
+      ],
+      availableUsers: [],
     });
   }
 
@@ -35,6 +52,8 @@ export async function GET() {
     { data: sales, error: salesError },
     { data: owners, error: ownersError },
     { data: productOwners, error: productOwnersError },
+    { data: inventories, error: inventoriesError },
+    { data: memberships, error: membershipsError },
   ] = await Promise.all([
     auth.supabase.rpc("get_admin_product_costs"),
     auth.supabase
@@ -44,16 +63,29 @@ export async function GET() {
       ),
     auth.supabase
       .from("profiles")
-      .select("id,display_name")
+      .select("id,display_name,inventory_owner_id")
       .order("display_name"),
     auth.supabase.from("products").select("id,owner_id"),
+    auth.supabase.from("inventory_databases").select("id,name").order("name"),
+    auth.supabase
+      .from("inventory_database_members")
+      .select("inventory_id,user_id,is_owner"),
   ]);
-  if (costError || salesError || ownersError || productOwnersError) {
+  if (
+    costError ||
+    salesError ||
+    ownersError ||
+    productOwnersError ||
+    inventoriesError ||
+    membershipsError
+  ) {
     return apiFailure(
       costError?.message ||
         salesError?.message ||
         ownersError?.message ||
         productOwnersError?.message ||
+        inventoriesError?.message ||
+        membershipsError?.message ||
         "帳號資料載入失敗",
       400,
     );
@@ -62,8 +94,9 @@ export async function GET() {
   const productOwnerMap = new Map(
     (productOwners ?? []).map((product) => [product.id, product.owner_id]),
   );
+  const canonicalOwners = inventories ?? [];
   const financeByOwner: AccountData["financeByOwner"] = {};
-  for (const owner of owners ?? []) {
+  for (const owner of canonicalOwners) {
     financeByOwner[owner.id] = { revenue: 0, cost: 0, profit: 0 };
   }
   for (const row of costs ?? []) {
@@ -110,11 +143,26 @@ export async function GET() {
 
   return apiSuccess<AccountData>({
     userId: auth.userId,
+    inventoryOwnerId: auth.inventoryOwnerId,
     userName,
     isAdmin: true,
     finance,
     financeByOwner,
-    availableOwners: (owners ?? []).map((owner) => ({
+    availableOwners: canonicalOwners.map((owner) => ({
+      id: owner.id,
+      name: owner.name?.trim() || "未命名庫藏",
+    })),
+    inventoryDatabases: canonicalOwners.map((inventory) => ({
+      id: inventory.id,
+      name: inventory.name,
+      ownerIds: (memberships ?? [])
+        .filter(
+          (membership) =>
+            membership.inventory_id === inventory.id && membership.is_owner,
+        )
+        .map((membership) => membership.user_id),
+    })),
+    availableUsers: (owners ?? []).map((owner) => ({
       id: owner.id,
       name: owner.display_name?.trim() || "未命名使用者",
     })),

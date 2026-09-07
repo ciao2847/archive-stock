@@ -10,7 +10,7 @@ const settlementSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const auth = await requireApiUser(["admin"]);
+  const auth = await requireApiUser(["admin", "staff"]);
   if (!auth.ok) return auth.response;
 
   const parsed = settlementSchema.safeParse(

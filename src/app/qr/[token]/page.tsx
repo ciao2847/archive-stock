@@ -7,8 +7,8 @@ import {
   ShieldX,
   ShoppingBag,
 } from "lucide-react";
-import { BrandLogo } from "@/components/BrandLogo";
-import { PublicRecommendationGrid } from "@/components/PublicRecommendationGrid";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import { PublicRecommendationGrid } from "@/components/products/PublicRecommendationGrid";
 import { ORDER_STATUS_LABELS } from "@/constants";
 import {
   fetchPublicQrLanding,
@@ -78,20 +78,20 @@ export default async function PublicQrPage({
   const recommendations = landing?.recommendations;
 
   return (
-    <main className="min-h-screen bg-white pb-9 text-main md:pb-12 xl:pb-14">
+    <main className="min-h-screen bg-white pb-9 text-dark md:pb-12 xl:pb-14">
       <header className="mb-7 flex justify-center md:mb-9">
         <BrandLogo className="justify-center" preload size="small" />
       </header>
 
       <div className="mx-auto w-full max-w-[375px] px-4 md:max-w-[768px] md:px-5 xl:max-w-[800px]">
-        <section className="rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:px-8 md:py-9">
+        <section className="rounded-[16px] border-[0.5px] border-line px-5 py-7 text-center md:px-8 md:py-9">
           {isPreview && (
-            <span className="mb-4 inline-flex rounded-full bg-[#f1f5f9] px-3 py-1 text-[11px] font-semibold text-muted">
+            <span className="mb-4 inline-flex rounded-full bg-light px-3 py-1 text-[11px] font-semibold text-muted">
               頁面預覽
             </span>
           )}
           <span
-            className={`mx-auto mb-4 grid size-12 place-items-center ${isCompletedPurchase && !loadFailed ? "text-[#15803d]" : "text-[#c4382b]"}`}
+            className={`mx-auto mb-4 grid size-12 place-items-center ${isCompletedPurchase && !loadFailed ? "text-success" : "text-danger"}`}
           >
             {isCompletedPurchase && !loadFailed ? (
               <Check size={42} strokeWidth={ICON_STROKE} aria-hidden="true" />
@@ -118,9 +118,9 @@ export default async function PublicQrPage({
                   : "請確認掃描的是庫藏 Archive Stock 商品外包裝上的 QR Code。"}
           </p>
 
-          <div className="mt-6 flex items-center gap-3 rounded-[16px] border-[0.5px] border-[#d6d9de] px-4 py-4 text-left md:px-5">
+          <div className="mt-6 flex items-center gap-3 rounded-[16px] border-[0.5px] border-line px-4 py-4 text-left md:px-5">
             <span
-              className={`grid size-10 shrink-0 place-items-center ${isCompletedPurchase ? "text-[#15803d]" : "text-[#c4382b]"}`}
+              className={`grid size-10 shrink-0 place-items-center ${isCompletedPurchase ? "text-success" : "text-danger"}`}
             >
               <QrCode size={25} strokeWidth={ICON_STROKE} aria-hidden="true" />
             </span>
@@ -154,14 +154,14 @@ export default async function PublicQrPage({
                 recommendations={recommendations ?? []}
               />
             ) : (
-              <div className="rounded-[16px] border-[0.5px] border-[#d6d9de] p-6 text-center text-[14px] text-muted">
+              <div className="rounded-[16px] border-[0.5px] border-line p-6 text-center text-[14px] text-muted">
                 目前沒有其他在庫推薦商品。
               </div>
             )}
           </section>
         )}
 
-        <section className="mt-9 rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 py-7 text-center md:mt-11 md:px-8 md:py-9">
+        <section className="mt-9 rounded-[16px] border-[0.5px] border-line px-5 py-7 text-center md:mt-11 md:px-8 md:py-9">
           <span
             className={`mx-auto grid size-12 place-items-center ${isShopee ? "text-[#ee4d2d]" : "text-[#06a947]"}`}
           >
@@ -202,13 +202,13 @@ export default async function PublicQrPage({
               />
             </a>
           ) : (
-            <span className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-[16px] border-[0.5px] border-[#d6d9de] px-5 font-semibold text-muted md:max-w-[360px]">
+            <span className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-[16px] border-[0.5px] border-line px-5 font-semibold text-muted md:max-w-[360px]">
               購買入口設定中
             </span>
           )}
         </section>
 
-        <footer className="pt-8 text-center text-[11px] text-[#9ba0a8] md:pt-10">
+        <footer className="pt-8 text-center text-[11px] text-muted md:pt-10">
           © {new Date().getFullYear()} 庫藏 Archive Stock. All rights reserved.
         </footer>
       </div>

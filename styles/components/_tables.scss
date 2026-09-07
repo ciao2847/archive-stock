@@ -181,7 +181,7 @@ tbody tr {
   transition: 0.15s;
 
   &:hover {
-    background: #f8fafc;
+    background: var(--color-light);
   }
 }
 
@@ -201,7 +201,7 @@ tbody tr {
   width: 39px;
   height: 46px;
   border-radius: $radius-sm;
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--color-white) 80%, transparent);
   display: grid;
   place-items: center;
   font-size: 16px;
@@ -288,7 +288,7 @@ code {
 .order-product-check {
   width: 22px;
   height: 22px;
-  border: 1px solid #c7c6bf;
+  border: 1px solid var(--color-line);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -301,7 +301,7 @@ code {
 
 .selected .order-product-check {
   background: var(--color-green);
-  color: #fff;
+  color: var(--color-white);
   border-color: var(--color-green);
 }
 

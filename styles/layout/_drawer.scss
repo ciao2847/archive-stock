@@ -8,7 +8,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(17, 17, 17, 0.53);
+  background: color-mix(in srgb, var(--color-black) 53%, transparent);
   z-index: $z-overlay;
   backdrop-filter: blur(2px);
 }
@@ -79,7 +79,7 @@
   margin: 25px -26px 0;
   padding: 14px 26px max(14px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--color-line);
-  background: rgba(241, 245, 249, 0.96);
+  background: color-mix(in srgb, var(--color-light) 96%, transparent);
   backdrop-filter: blur(10px);
 
   button {

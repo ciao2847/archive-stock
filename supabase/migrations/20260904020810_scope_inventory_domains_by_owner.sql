@@ -222,16 +222,19 @@ drop policy if exists "admin reads settlement orders" on public.settlement_order
 drop policy if exists "admin reads settlement products" on public.settlement_products;
 create policy "admins read owner settlements" on public.settlements for select to authenticated
 using ((select public.my_role()) = 'admin');
-create policy "admins create owner settlements" on public.settlements for insert to authenticated
-with check ((select public.my_role()) = 'admin');
+create policy "inventory members create owner settlements" on public.settlements for insert to authenticated
+with check (
+  owner_id = (select private.current_inventory_owner_id())
+  or (select public.my_role()) = 'admin'
+);
 create policy "admins read owner settlement orders" on public.settlement_orders for select to authenticated
 using ((select public.my_role()) = 'admin' and exists (select 1 from public.settlements s where s.id = settlement_orders.settlement_id));
-create policy "admins create owner settlement orders" on public.settlement_orders for insert to authenticated
-with check ((select public.my_role()) = 'admin' and exists (select 1 from public.settlements s where s.id = settlement_orders.settlement_id));
+create policy "inventory members create owner settlement orders" on public.settlement_orders for insert to authenticated
+with check (exists (select 1 from public.settlements s where s.id = settlement_orders.settlement_id));
 create policy "admins read owner settlement products" on public.settlement_products for select to authenticated
 using ((select public.my_role()) = 'admin' and exists (select 1 from public.settlements s where s.id = settlement_products.settlement_id));
-create policy "admins create owner settlement products" on public.settlement_products for insert to authenticated
-with check ((select public.my_role()) = 'admin' and exists (select 1 from public.settlements s where s.id = settlement_products.settlement_id));
+create policy "inventory members create owner settlement products" on public.settlement_products for insert to authenticated
+with check (exists (select 1 from public.settlements s where s.id = settlement_products.settlement_id));
 
 -- Products may be created for a selected owner only by an admin. Staff remain
 -- locked to auth.uid().
@@ -387,7 +390,11 @@ create function public.create_financial_settlement(p_owner_id uuid, p_start date
 returns public.settlements language plpgsql security invoker set search_path = '' as $$
 declare v_settlement public.settlements; v_revenue numeric(14,2); v_cost numeric(14,2);
 begin
-  if (select auth.uid()) is null or (select public.my_role()) <> 'admin' then raise exception 'admin access required'; end if;
+  if (select auth.uid()) is null or (select public.my_role()) not in ('admin', 'staff') then raise exception 'employee access required'; end if;
+  if (select public.my_role()) <> 'admin'
+    and p_owner_id <> (select private.current_inventory_owner_id()) then
+    raise exception 'owner access required';
+  end if;
   if not exists(select 1 from public.profiles where id=p_owner_id) then raise exception 'owner not found'; end if;
   select coalesce(sum(x.net_revenue),0) into v_revenue from (
     select o.id,coalesce(sum(oi.quantity*oi.unit_price),0)+o.shipping_income-o.discount-o.platform_fee-o.seller_shipping_cost net_revenue

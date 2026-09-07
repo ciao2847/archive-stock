@@ -24,6 +24,9 @@ export const createProductSchema = productBaseSchema.extend({
 });
 
 export const updateProductSchema = productBaseSchema.extend({
+  work: z.string().trim().min(1).max(300).optional(),
+  crafts: z.array(z.string().max(100)).max(30).optional(),
+  imagePaths: z.array(z.string().min(1).max(1000)).max(2).optional(),
   location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
   cost: z.number().nonnegative().nullable(),
 });

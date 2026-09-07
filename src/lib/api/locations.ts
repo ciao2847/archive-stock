@@ -6,7 +6,7 @@ export async function createLocation(input: {
   description: string;
   ownerId: string;
 }) {
-  const response = await fetch(API_ROUTES.locations, {
+  const response = await fetch(API_ROUTES.getLocations, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

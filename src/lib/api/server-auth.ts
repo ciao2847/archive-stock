@@ -8,6 +8,7 @@ type AuthenticatedApiContext = {
   ok: true;
   supabase: Awaited<ReturnType<typeof createClient>>;
   userId: string;
+  inventoryOwnerId: string;
   role: UserRole;
 };
 
@@ -41,7 +42,25 @@ export async function requireApiUser(
     };
   }
 
-  return { ok: true, supabase, userId: user.id, role };
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("inventory_owner_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError || !profile?.inventory_owner_id) {
+    return {
+      ok: false,
+      response: apiFailure("帳號尚未綁定庫藏", 403, profileError?.code),
+    };
+  }
+
+  return {
+    ok: true,
+    supabase,
+    userId: user.id,
+    inventoryOwnerId: profile.inventory_owner_id,
+    role,
+  };
 }
 
 export function apiSuccess<T>(data: T, status = 200) {
@@ -62,4 +81,22 @@ export function apiFailure(error: string, status: number, code?: string) {
       headers: { "Cache-Control": "private, no-store, max-age=0" },
     },
   );
+}
+
+/** Keep unexpected server failures in the same JSON contract as API errors. */
+export async function withApiErrorHandling(
+  operation: string,
+  handler: () => Promise<Response>,
+): Promise<Response> {
+  try {
+    return await handler();
+  } catch (error) {
+    const requestId = crypto.randomUUID();
+    console.error("API request failed", { operation, requestId, error });
+    return apiFailure(
+      `伺服器處理失敗（追蹤碼：${requestId}）。請先重新整理確認是否已儲存，再重試`,
+      500,
+      "INTERNAL_ERROR",
+    );
+  }
 }

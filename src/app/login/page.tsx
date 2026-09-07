@@ -4,12 +4,12 @@ import { FormEvent, useState } from "react";
 import { LoaderCircle, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { BrandLogo } from "@/components/BrandLogo";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   FormInput,
   FormLabel,
   FormPrimaryButton,
-} from "@/components/FormControls";
+} from "@/components/ui/FormControls";
 
 export default function LoginPage() {
   const router = useRouter();

@@ -6,8 +6,8 @@
 
 // 危險區域 | Danger Zone
 .danger {
-  color: #9e382d;
-  border-color: #ddbcb6;
+  color: var(--color-danger-strong);
+  border-color: var(--color-danger-soft);
 
   svg {
     width: 17px;

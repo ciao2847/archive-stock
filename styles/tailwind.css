@@ -6,40 +6,56 @@
    Using Tailwind v4 new configuration method
    Define responsive breakpoints, color system, custom theme values */
 
+/* 顏色值由 utilities/_variables.scss 提供。 */
+@theme inline {
+  --color-primary: var(--app-color-primary);
+  --color-secondary: var(--app-color-secondary);
+  --color-success: var(--app-color-success);
+  --color-info: var(--app-color-info);
+  --color-warning: var(--app-color-warning);
+  --color-danger: var(--app-color-danger);
+  --color-light: var(--app-color-light);
+  --color-dark: var(--app-color-dark);
+  --color-heavy: var(--app-color-heavy);
+  --color-black: var(--app-color-black);
+  --color-white: var(--app-color-white);
+  --color-desc: var(--app-color-desc);
+  --color-default: var(--app-color-default);
+  --color-main: var(--app-color-main);
+  --color-accent: var(--app-color-accent);
+  --color-accent-hover: var(--app-color-accent-hover);
+  --color-accent-strong: var(--app-color-accent-strong);
+  --color-accent-soft: var(--app-color-accent-soft);
+  --color-ink: var(--app-color-ink);
+  --color-muted: var(--app-color-muted);
+  --color-paper: var(--app-color-paper);
+  --color-rust: var(--app-color-rust);
+  --color-green: var(--app-color-green);
+  --color-gold: var(--app-color-gold);
+  --color-line: var(--app-color-line);
+  --color-primary-hover: var(--app-color-primary-hover);
+  --color-primary-strong: var(--app-color-primary-strong);
+  --color-primary-soft: var(--app-color-primary-soft);
+  --color-secondary-hover: var(--app-color-secondary-hover);
+  --color-secondary-strong: var(--app-color-secondary-strong);
+  --color-secondary-soft: var(--app-color-secondary-soft);
+  --color-main-hover: var(--app-color-main-hover);
+  --color-main-strong: var(--app-color-main-strong);
+  --color-main-soft: var(--app-color-main-soft);
+  --color-danger-hover: var(--app-color-danger-hover);
+  --color-danger-strong: var(--app-color-danger-strong);
+  --color-danger-soft: var(--app-color-danger-soft);
+  --color-success-hover: var(--app-color-success-hover);
+  --color-success-strong: var(--app-color-success-strong);
+  --color-success-soft: var(--app-color-success-soft);
+}
+
 @theme {
   /* Breakpoints (mobile-first) */
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
-
-  /* Color System */
-  --color-primary: #5a87b1;
-  --color-primary-hover: #4b769e;
-  --color-primary-soft: #e7eff7;
-
-  --color-secondary: #86b7b1;
-  --color-secondary-strong: #547f7b;
-  --color-secondary-soft: #e8f3f2;
-
-  --color-accent: #ffb997;
-  --color-accent-hover: #f3a47f;
-  --color-accent-strong: #b85f41;
-  --color-accent-soft: #fff0e8;
-
-  --color-main: #1c2a3a;
-  --color-default: #6b7280;
-  --color-light: #f1f5f9;
-  --color-white: #ffffff;
-  --color-line: #d8e0e8;
-
-  /* Semantic Aliases */
-  --color-ink: var(--color-main);
-  --color-muted: var(--color-default);
-  --color-paper: var(--color-light);
-  --color-rust: var(--color-accent-strong);
-  --color-green: var(--color-secondary-strong);
-  --color-gold: var(--color-secondary);
 
   /* Typography */
   --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
@@ -77,11 +93,6 @@
   body {
     @apply font-sans;
   }
-}
-
-@layer components {
-  /* Tailwind component aliases (optional)
-     Common buttons, cards, etc can be defined here */
 }
 
 @layer utilities {
@@ -122,31 +133,6 @@
     @apply grid-cols-4;
   }
 
-  /* Color Utilities */
-  .bg-primary {
-    @apply bg-[#5a87b1];
-  }
-
-  .bg-accent {
-    @apply bg-[#ffb997];
-  }
-
-  .bg-green {
-    @apply bg-[#547f7b];
-  }
-
-  .text-primary {
-    @apply text-[#5a87b1];
-  }
-
-  .text-accent {
-    @apply text-[#ffb997];
-  }
-
-  .text-muted {
-    @apply text-[#6b7280];
-  }
-
   /* Border Radius Utilities */
   .rounded-sm {
     @apply rounded-[4px];
@@ -166,15 +152,15 @@
 
   /* Shadow Utilities */
   .shadow-sm {
-    @apply shadow-[0_3px_8px_rgba(255,185,151,0.26)];
+    box-shadow: var(--app-shadow-sm);
   }
 
   .shadow-md {
-    @apply shadow-[0_5px_12px_rgba(255,185,151,0.34)];
+    box-shadow: var(--app-shadow-md);
   }
 
   .shadow-lg {
-    @apply shadow-[-20px_0_60px_rgba(17,17,17,0.075)];
+    box-shadow: var(--app-shadow-lg);
   }
 
   /* Transition Utilities */
@@ -211,6 +197,3 @@
     @apply px-[24px];
   }
 }
-/*    - Tailwind: md:px-[24px]、text-[#3c3c3c]、group-hover:* 等*/
-/* 4. 自訂尺寸用 Tailwind 任意值: text-[13px]、w-[238px] 等*/
-/* 5. 複雜佈局用 SCSS mixin，簡單 utility 用 Tailwind*/

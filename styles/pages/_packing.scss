@@ -70,8 +70,8 @@
 .scanner {
   height: 385px;
   border-radius: $radius-xl;
-  background: var(--color-main);
-  color: #fff;
+  background: var(--color-dark);
+  color: var(--color-white);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,10 +85,10 @@
     inset: 30px;
     background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.03),
-      rgba(255, 255, 255, 0.01)
+      color-mix(in srgb, var(--color-white) 3%, transparent),
+      color-mix(in srgb, var(--color-white) 1%, transparent)
     );
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    border: 1px solid color-mix(in srgb, var(--color-white) 9%, transparent);
   }
 
   > svg {
@@ -100,16 +100,16 @@
   }
 
   p {
-    color: #aaa;
+    color: var(--color-info);
     margin: 0 0 22px;
   }
 
   &.ok {
-    background: #325f4a;
+    background: var(--color-success-strong);
   }
 
   &.bad {
-    background: #8b372e;
+    background: var(--color-danger-strong);
   }
 
   @media (max-width: $breakpoint-md) {
@@ -120,10 +120,10 @@
       position: absolute;
       inset: 0;
       background: linear-gradient(
-        #0004,
-        rgba(0, 0, 0, 0.06) 35%,
-        rgba(0, 0, 0, 0.06) 65%,
-        #0004
+        color-mix(in srgb, var(--color-black) 27%, transparent),
+        color-mix(in srgb, var(--color-black) 6%, transparent) 35%,
+        color-mix(in srgb, var(--color-black) 6%, transparent) 65%,
+        color-mix(in srgb, var(--color-black) 27%, transparent)
       );
       pointer-events: none;
     }
@@ -148,7 +148,7 @@
 .corners {
   position: absolute;
   inset: 50px;
-  border: 2px solid rgba(255, 255, 255, 0.375);
+  border: 2px solid color-mix(in srgb, var(--color-white) 37.5%, transparent);
   border-left-color: transparent;
   border-right-color: transparent;
   display: grid;
@@ -168,7 +168,7 @@
 // 相機主動狀態 | Camera Active State
 .camera-active .corners {
   z-index: 2;
-  border-color: #fff;
+  border-color: var(--color-white);
   border-left-color: transparent;
   border-right-color: transparent;
 }
@@ -183,9 +183,9 @@
   text-align: center;
 
   p {
-    color: #fff !important;
+    color: var(--color-white) !important;
     margin: 0 0 8px !important;
-    text-shadow: 0 1px 4px #000;
+    text-shadow: 0 1px 4px var(--color-black);
   }
 }
 
@@ -193,9 +193,9 @@
 .camera-error {
   margin-top: 10px;
   padding: 10px 12px;
-  border: 1px solid #e3b8af;
-  background: #f6dfda;
-  color: #96382d;
+  border: 1px solid var(--color-danger-soft);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
   border-radius: $radius-lg;
   display: flex;
   align-items: center;
@@ -287,7 +287,7 @@
   width: 23px;
   height: 23px;
   border-radius: 50%;
-  border: 1px solid #c9c8c1;
+  border: 1px solid var(--color-line);
   display: grid;
   place-items: center;
 
@@ -298,7 +298,7 @@
 
 .checked .check {
   background: var(--color-green);
-  color: #fff;
+  color: var(--color-white);
 }
 
 // 打包完成訊息 | Packing Success
@@ -362,7 +362,7 @@
 // 完成幫助文本 | Complete Help
 .complete-help {
   text-align: center;
-  color: #999;
+  color: var(--color-info);
   font-size: 11px;
   margin: 0 0 20px;
 }

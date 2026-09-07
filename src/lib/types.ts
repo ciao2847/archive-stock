@@ -22,9 +22,11 @@ export type Product = {
   image?: string;
   thumbnail?: string;
   qrLabels?: {
+    id?: string;
     token: string;
     batchCode?: string;
     status: "active" | "used" | "revoked";
+    printedAt?: string;
   }[];
 };
 export type Order = {
@@ -48,9 +50,26 @@ export type FinanceOverview = {
 
 export type AccountData = {
   userId: string;
+  inventoryOwnerId: string;
   userName: string;
   isAdmin: boolean;
   finance: FinanceOverview | null;
   financeByOwner: Record<string, FinanceOverview>;
   availableOwners: Array<{ id: string; name: string }>;
+  inventoryDatabases: Array<{
+    id: string;
+    name: string;
+    ownerIds: string[];
+  }>;
+  availableUsers: Array<{ id: string; name: string }>;
 };
+
+export type DashboardView =
+  | "dashboard"
+  | "products"
+  | "orders"
+  | "packing"
+  | "locations"
+  | "settlement"
+  | "settings";
+

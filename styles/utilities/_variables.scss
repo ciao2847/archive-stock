@@ -1,39 +1,107 @@
-// ============================================================================
-// 全域變數 | Global Variables
-// ============================================================================
+@use "sass:map";
 
-// 顏色系統 | Color System
+// 在此調整全站配色；SCSS 與 Tailwind 共用以下設定。
+$white: #fff !default;
+$black: #000 !default;
+$gray-100: #f8f9fa !default;
+$gray-800: #343a40 !default;
+$green: #198754 !default;
+$yellow: #ffc107 !default;
+$red: #dc3545 !default;
+$indigo: #6610f2 !default;
+
+$primary: #3f8058 !default;
+$secondary: #82be66 !default;
+$success: $green !default;
+$info: #767676 !default;
+$warning: $yellow !default;
+$danger: $red !default;
+$light: $gray-100 !default;
+$dark: $gray-800 !default;
+$heavy: $indigo !default;
+$default: $gray-800 !default;
+$main: #f9793a !default;
+
+// 可在此覆寫或新增語意色；使用 map.merge 取代已棄用的 map-merge。
+$theme-colors: () !default;
+$theme-colors: map.merge(
+  (
+    "primary": $primary,
+    "secondary": $secondary,
+    "success": $success,
+    "info": $info,
+    "warning": $warning,
+    "danger": $danger,
+    "light": $light,
+    "dark": $dark,
+    "heavy": $heavy,
+    "black": $black,
+    "white": $white,
+    "desc": #555,
+    "default": $default,
+    "main": $main,
+  ),
+  $theme-colors
+);
+
 :root {
-  // 主色調 | Primary Colors
-  --color-primary: #5a87b1;
-  --color-primary-hover: #4b769e;
-  --color-primary-soft: #e7eff7;
+  @each $name, $value in $theme-colors {
+    --app-color-#{$name}: #{$value};
+    --color-#{$name}: var(--app-color-#{$name});
+  }
 
-  // 次要色 | Secondary Colors
-  --color-secondary: #86b7b1;
-  --color-secondary-strong: #547f7b;
-  --color-secondary-soft: #e8f3f2;
+  // 衍生色直接引用主題色，修改設定後自動同步。
+  @each $name in (primary, secondary, main, danger, success) {
+    --app-color-#{$name}-hover: color-mix(
+      in srgb,
+      var(--color-#{$name}),
+      var(--color-black) 15%
+    );
+    --app-color-#{$name}-strong: color-mix(
+      in srgb,
+      var(--color-#{$name}),
+      var(--color-black) 30%
+    );
+    --app-color-#{$name}-soft: color-mix(
+      in srgb,
+      var(--color-#{$name}),
+      var(--color-white) 90%
+    );
+    --color-#{$name}-hover: var(--app-color-#{$name}-hover);
+    --color-#{$name}-strong: var(--app-color-#{$name}-strong);
+    --color-#{$name}-soft: var(--app-color-#{$name}-soft);
+  }
 
-  // 強調色 | Accent Colors
-  --color-accent: #ffb997;
-  --color-accent-hover: #f3a47f;
-  --color-accent-strong: #b85f41;
-  --color-accent-soft: #fff0e8;
-
-  // 中性色 | Neutral Colors
-  --color-main: #1c2a3a;
-  --color-default: #6b7280;
-  --color-light: #f1f5f9;
-  --color-white: #ffffff;
-  --color-line: #d8e0e8;
-
-  // 語意別名 | Semantic Aliases
-  --color-ink: var(--color-main);
-  --color-muted: var(--color-default);
-  --color-paper: var(--color-light);
-  --color-rust: var(--color-accent-strong);
-  --color-green: var(--color-secondary-strong);
-  --color-gold: var(--color-secondary);
+  $aliases: (
+    "accent": "main",
+    "accent-hover": "main-hover",
+    "accent-strong": "main-strong",
+    "accent-soft": "main-soft",
+    "ink": "dark",
+    "muted": "info",
+    "paper": "light",
+    "rust": "main-strong",
+    "green": "success",
+    "gold": "secondary",
+  );
+  @each $name, $target in $aliases {
+    --app-color-#{$name}: var(--color-#{$target});
+    --color-#{$name}: var(--app-color-#{$name});
+  }
+  --app-color-line: color-mix(
+    in srgb,
+    var(--color-dark),
+    var(--color-white) 80%
+  );
+  --color-line: var(--app-color-line);
+  --app-shadow-sm: 0 3px 8px
+    color-mix(in srgb, var(--color-main) 26%, transparent);
+  --app-shadow-md: 0 5px 12px
+    color-mix(in srgb, var(--color-main) 34%, transparent);
+  --app-shadow-lg: -20px 0 60px
+    color-mix(in srgb, var(--color-black) 7.5%, transparent);
+  --app-shadow-xl: 0 25px 80px
+    color-mix(in srgb, var(--color-black) 5%, transparent);
 }
 
 // 字體 | Typography
@@ -68,10 +136,10 @@ $radius-xl: 9px;
 $radius-full: 20px;
 
 // 陰影 | Shadows
-$shadow-sm: 0 3px 8px rgba(255, 185, 151, 0.26);
-$shadow-md: 0 5px 12px rgba(255, 185, 151, 0.34);
-$shadow-lg: -20px 0 60px rgba(17, 17, 17, 0.075);
-$shadow-xl: 0 25px 80px rgba(0, 0, 0, 0.05);
+$shadow-sm: var(--app-shadow-sm);
+$shadow-md: var(--app-shadow-md);
+$shadow-lg: var(--app-shadow-lg);
+$shadow-xl: var(--app-shadow-xl);
 
 // 動畫 | Animations
 $transition-fast: 0.16s ease;

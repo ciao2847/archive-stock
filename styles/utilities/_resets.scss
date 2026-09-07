@@ -26,7 +26,7 @@ code,
 input,
 select,
 textarea {
-  color: var(--color-main);
+  color: var(--color-dark);
 }
 
 .sidebar b,
@@ -75,5 +75,10 @@ button:disabled {
     left: 0;
     top: 0;
     border: 0;
+  }
+
+  body.printing-single-qr .qr-card:not(.print-target),
+  body.printing-single-qr .qr-card:not(.print-target) * {
+    visibility: hidden;
   }
 }

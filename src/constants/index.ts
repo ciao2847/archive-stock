@@ -2,15 +2,19 @@ import type { Status } from "@/lib/types";
 
 export const API_ROUTES = {
   getPacking: "/api/packing",
-  createOrder: "/api/orders",
-  locations: "/api/locations",
-  settlements: "/api/settlements",
-  account: "/api/account",
-  products: "/api/products",
-  productImages: "/api/product-images",
-  order: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
-  product: (id: string) => `/api/products/${encodeURIComponent(id)}`,
+  getOrders: "/api/orders",
+  getLocations: "/api/locations",
+  getSettlements: "/api/settlements",
+  getAccount: "/api/account",
+  getInventoryDatabases: "/api/inventory-databases",
+  getPrintLabels: "/api/print-labels",
+  getMarkPrintLabel: "/api/print-labels/mark",
+  getProducts: "/api/products",
+  getProductImages: "/api/product-images",
+  getOrder: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
+  getProduct: (id: string) => `/api/products/${encodeURIComponent(id)}`,
 } as const;
+
 
 export const UI_BREAKPOINTS = {
   mobile: 600,

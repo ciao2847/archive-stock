@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     await request.json().catch(() => null),
   );
   if (!parsed.success) return apiFailure("庫位資料格式不正確", 400);
-  if (auth.role !== "admin" && parsed.data.ownerId !== auth.userId) {
+  if (auth.role !== "admin" && parsed.data.ownerId !== auth.inventoryOwnerId) {
     return apiFailure("不可替其他使用者建立庫位", 403);
   }
 

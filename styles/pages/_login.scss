@@ -8,7 +8,7 @@
   margin-left: 0;
   background: linear-gradient(
     to bottom right,
-    var(--color-main) 0%,
+    var(--color-dark) 0%,
     var(--color-secondary) 56%,
     var(--color-accent) 100%
   );
@@ -16,8 +16,8 @@
 
 // 登入錯誤 | Login Error
 .login-error {
-  background: #f6dfda;
-  color: #9b3529;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
   padding: 10px;
   border-radius: $radius-lg;
   font-size: 12px;

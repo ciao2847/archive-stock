@@ -9,7 +9,7 @@ export async function createProduct(
   input: CreateProductInput,
   ownerId: string,
 ) {
-  const response = await fetch(API_ROUTES.products, {
+  const response = await fetch(API_ROUTES.getProducts, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...input, ownerId }),
@@ -21,7 +21,7 @@ export async function updateProduct(
   productId: string,
   input: UpdateProductInput,
 ) {
-  const response = await fetch(API_ROUTES.product(productId), {
+  const response = await fetch(API_ROUTES.getProduct(productId), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -33,7 +33,7 @@ export async function uploadProductImages(main: Blob, thumbnail: Blob) {
   const form = new FormData();
   form.append("main", main, "main.webp");
   form.append("thumbnail", thumbnail, "thumb.webp");
-  const response = await fetch(API_ROUTES.productImages, {
+  const response = await fetch(API_ROUTES.getProductImages, {
     method: "POST",
     body: form,
   });
@@ -41,7 +41,7 @@ export async function uploadProductImages(main: Blob, thumbnail: Blob) {
 }
 
 export async function removeProductImages(paths: string[]) {
-  const response = await fetch(API_ROUTES.productImages, {
+  const response = await fetch(API_ROUTES.getProductImages, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paths }),
@@ -55,7 +55,7 @@ export type DeleteProductResult = {
 };
 
 export async function deleteProduct(productId: string) {
-  const response = await fetch(API_ROUTES.product(productId), {
+  const response = await fetch(API_ROUTES.getProduct(productId), {
     method: "DELETE",
   });
   return readApiResponse<DeleteProductResult>(response);

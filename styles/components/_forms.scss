@@ -45,7 +45,7 @@
   }
 
   > em {
-    color: #b33d2d;
+    color: var(--color-danger);
     font-size: 10px;
   }
 }
@@ -98,13 +98,13 @@
 // 上傳區域 | Upload Area
 .upload {
   height: 120px;
-  border: 1px dashed #aaa79d;
+  border: 1px dashed var(--color-info);
   border-radius: $radius-lg;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #777;
+  color: var(--color-info);
   cursor: pointer;
 
   b {
@@ -185,12 +185,12 @@
   gap: 5px;
   border: 0;
   background: transparent;
-  color: #a44334;
+  color: var(--color-danger-strong);
   padding: 7px 0;
 }
 
 .upload-error {
-  color: #b33d2d;
+  color: var(--color-danger);
   font-size: 11px;
   margin: 7px 2px 0;
 }
