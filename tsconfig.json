@@ -22,9 +22,49 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "components/*": [
+        "./src/components/*"
+      ],
+      "components": [
+        "./src/components/index.ts"
+      ],
+      "api/*": [
+        "./src/api/*"
+      ],
+      "lib/*": [
+        "./src/lib/*"
+      ],
+      "adapters/*": [
+        "./src/adapters/*"
+      ],
+      "constants/*": [
+        "./src/constants/*"
+      ],
+      "constants": [
+        "./src/constants/index.ts"
+      ],
+      "contexts/*": [
+        "./src/contexts/*"
+      ],
+      "hooks/*": [
+        "./src/hooks/*"
+      ],
+      "store/*": [
+        "./src/store/*"
+      ],
+      "layout/*": [
+        "./src/layout/*"
+      ],
+      "layout": [
+        "./src/layout/index.tsx"
+      ],
+      "types/*": [
+        "./src/types/*"
       ]
     }
   },

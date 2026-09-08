@@ -307,7 +307,7 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
           <div>
             <strong className="block">精臣批量列印</strong>
             <small className="mt-1 block text-[11px] text-muted">
-              只匯出最新入庫批次中尚未列印的 {latestBatchCount} 張 QR 標籤
+              匯出含可掃描 QR 圖片的最新入庫批次，共 {latestBatchCount} 張
             </small>
           </div>
           <button
@@ -337,7 +337,7 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
             {preparingPrint
               ? "產生中…"
               : latestBatchCreatedAt
-                ? `下載最新批次（${latestBatchCount} 張）`
+                ? `下載 QR 圖片（${latestBatchCount} 張）`
                 : "最新批次已列印"}
           </button>
         </div>

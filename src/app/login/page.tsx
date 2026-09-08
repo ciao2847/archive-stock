@@ -40,7 +40,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page grid min-h-screen place-items-center p-5">
+    <main className="grid min-h-screen place-items-center p-5 bg-gradient-to-br from-dark via-secondary to-accent ml-0">
       <section className="w-full max-w-[420px] rounded-[12px] bg-paper p-10 shadow-[0_25px_80px_rgba(0,0,0,0.05)] max-sm:px-6 max-sm:py-7">
         <BrandLogo className="mb-9" preload size="large" />
         <span className="eyebrow">內部管理系統</span>
@@ -69,9 +69,9 @@ export default function LoginPage() {
               placeholder="至少 6 個字元"
             />
           </FormLabel>
-          {error && <div className="login-error">{error}</div>}
+          {error && <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">{error}</div>}
           <FormPrimaryButton disabled={loading}>
-            {loading ? <LoaderCircle className="spin" /> : <LogIn />}
+            {loading ? <LoaderCircle className="animate-spin" /> : <LogIn />}
             {loading ? "登入中…" : "登入"}
           </FormPrimaryButton>
         </form>

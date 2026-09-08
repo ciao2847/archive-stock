@@ -1,32 +1,21 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { shallowEqual } from "react-redux";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchProductsData } from "@/store/slices/productsSlice";
+import { useCallback } from "react";
+import { useProductsQuery } from "@/api/productQueries";
 
 export function useProductsData() {
-  const dispatch = useAppDispatch();
-  const data = useAppSelector((state) => state.productsData.data, shallowEqual);
-  const status = useAppSelector((state) => state.productsData.status);
-  const error = useAppSelector((state) => state.productsData.error);
+  const { data, error, isLoading, isFetching, refetch } = useProductsQuery();
 
-  useEffect(() => {
-    if (data === null && status === "idle") {
-      void dispatch(fetchProductsData());
-    }
-  }, [data, dispatch, status]);
-
-  const refresh = useCallback(
-    () => dispatch(fetchProductsData()).unwrap(),
-    [dispatch],
-  );
+  const refresh = useCallback(async () => {
+    const result = await refetch();
+    return result.data ?? [];
+  }, [refetch]);
 
   return {
-    data,
-    error,
-    loading: status === "idle" || (status === "loading" && data === null),
-    refreshing: status === "loading" && data !== null,
+    data: data ?? null,
+    error: error ? (error as Error).message || "讀取商品失敗" : null,
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
     refresh,
   };
 }

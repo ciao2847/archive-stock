@@ -66,6 +66,12 @@
   }
 }
 
+// 頁面標題操作按鈕 | Keep action labels on one line on mobile
+.page-title-action {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 // 眉頁文本 | Eyebrow Text
 .eyebrow {
   font: 500 10px var(--font-mono);

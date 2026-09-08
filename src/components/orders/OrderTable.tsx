@@ -10,6 +10,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import swal from "sweetalert";
 import { isOrderPackable } from "@/constants";
 import type { Order } from "@/lib/types";
 import { ResponsiveTable, type TableColumn } from "@/components/ui/ResponsiveTable";
@@ -38,7 +39,11 @@ export function OrderTable({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const canOperate = (order: Order) => {
     if (isOrderPackable(order.status)) return true;
-    window.alert("此訂單已完成或已鎖定，不能再編輯、刪除或包貨。");
+    void swal({
+      title: "訂單已鎖定",
+      text: "此訂單已完成或已鎖定，不能再編輯、刪除或包貨。",
+      icon: "warning",
+    });
     return false;
   };
 

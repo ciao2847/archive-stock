@@ -1,7 +1,11 @@
 import ExcelJS from "exceljs";
+import QRCode from "qrcode";
 import { z } from "zod";
 import { apiFailure, requireApiUser } from "@/lib/api/server-auth";
 import { buildPublicQrUrl } from "@/lib/public-qr";
+
+const QR_IMAGE_SIZE = 256;
+const QR_IMAGE_DISPLAY_SIZE = 144;
 
 const requestSchema = z.object({
   productIds: z.array(z.string().uuid()).min(1).max(500),
@@ -93,19 +97,51 @@ export async function POST(request: Request) {
   workbook.creator = "Archive Stock";
   const sheet = workbook.addWorksheet("批量列印");
   sheet.columns = [
-    { header: "QR Code", key: "qrCode", width: 56 },
+    { header: "QR Code", key: "qrImage", width: 24 },
     { header: "商品 ID", key: "productId", width: 16 },
     { header: "商品名稱", key: "productName", width: 36 },
   ];
   sheet.addRows(
-    rows.map(({ qrCode, productId, productName }) => ({
-      qrCode,
+    rows.map(({ productId, productName }) => ({
+      qrImage: "",
       productId,
       productName,
     })),
   );
   sheet.getRow(1).font = { bold: true };
   sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  const qrImageBuffers = await Promise.all(
+    rows.map(({ qrCode }) =>
+      QRCode.toBuffer(qrCode, {
+        type: "png",
+        errorCorrectionLevel: "M",
+        margin: 4,
+        width: QR_IMAGE_SIZE,
+      }),
+    ),
+  );
+
+  qrImageBuffers.forEach((buffer, index) => {
+    const row = sheet.getRow(index + 2);
+    row.height = 118;
+    row.getCell(1).alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+
+    const imageId = workbook.addImage({
+      base64: `data:image/png;base64,${buffer.toString("base64")}`,
+      extension: "png",
+    });
+    sheet.addImage(imageId, {
+      tl: { col: 0.05, row: index + 1.05 },
+      ext: {
+        width: QR_IMAGE_DISPLAY_SIZE,
+        height: QR_IMAGE_DISPLAY_SIZE,
+      },
+    });
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   const { data: marked, error: markError } = await auth.supabase.rpc(

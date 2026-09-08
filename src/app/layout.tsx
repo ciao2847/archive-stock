@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "../../styles/tailwind.css";
 import "../../styles/app.global.scss";
-import { StoreProvider } from "@/app/providers";
+import { AppProviders } from "@/app/providers";
+import { Layout } from "@/layout";
 
 export const metadata: Metadata = {
   title: "庫藏 Archive — 收藏品庫存管理",
@@ -33,6 +34,7 @@ export const metadata: Metadata = {
     },
   },
 };
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -47,7 +49,9 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body>
-        <StoreProvider>{children}</StoreProvider>
+        <AppProviders>
+          <Layout>{children}</Layout>
+        </AppProviders>
       </body>
     </html>
   );

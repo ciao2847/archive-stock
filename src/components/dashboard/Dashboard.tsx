@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import swal from "sweetalert";
 import {
   Boxes,
   ChevronRight,
@@ -39,7 +40,6 @@ import { PackingQueue } from "@/components/packing/PackingQueue";
 import { downloadPrintLabels } from "@/lib/api/print-labels";
 
 type View = DashboardView;
-
 
 const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
@@ -358,10 +358,10 @@ export function Dashboard() {
                     新增訂單
                   </button>
                 ) : view === "products" ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      className={printSelectionMode ? "outline" : "primary"}
+                      className={`${printSelectionMode ? "outline" : "primary"} page-title-action`}
                       onClick={() => {
                         setPrintSelectionMode((current) => !current);
                         setPrintProductIds(new Set());
@@ -463,18 +463,23 @@ export function Dashboard() {
                           try {
                             await downloadPrintLabels([...printProductIds]);
                           } catch (error) {
-                            window.alert(
-                              error instanceof Error
-                                ? error.message
-                                : "列印檔案產生失敗",
-                            );
+                            void swal({
+                              title: "列印失敗",
+                              text:
+                                error instanceof Error
+                                  ? error.message
+                                  : "列印檔案產生失敗",
+                              icon: "error",
+                            });
                           } finally {
                             setPreparingPrint(false);
                           }
                         }}
                       >
                         <Printer size={17} />
-                        {preparingPrint ? "產生中…" : "下載一個批量列印檔"}
+                        {preparingPrint
+                          ? "產生中…"
+                          : "下載批量列印檔（含 QR 圖片）"}
                       </button>
                     </div>
                   )}
@@ -610,4 +615,3 @@ export function Dashboard() {
     </div>
   );
 }
-

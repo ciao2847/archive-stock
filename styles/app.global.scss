@@ -26,8 +26,6 @@
 @use "components/forms";
 @use "components/tables";
 
-// 5. 頁面特定樣式 | Page-specific Styles
+// 5. 頁面特定樣式（漸進遷移至 Tailwind + 元件中）
 // ============================================================================
 @use "pages/packing";
-@use "pages/login";
-@use "pages/locations";

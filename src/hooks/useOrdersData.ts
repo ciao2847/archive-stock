@@ -1,32 +1,21 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { shallowEqual } from "react-redux";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchOrdersData } from "@/store/slices/ordersSlice";
+import { useCallback } from "react";
+import { useOrdersQuery } from "@/api/orderQueries";
 
 export function useOrdersData() {
-  const dispatch = useAppDispatch();
-  const data = useAppSelector((state) => state.ordersData.data, shallowEqual);
-  const status = useAppSelector((state) => state.ordersData.status);
-  const error = useAppSelector((state) => state.ordersData.error);
+  const { data, error, isLoading, isFetching, refetch } = useOrdersQuery();
 
-  useEffect(() => {
-    if (data === null && status === "idle") {
-      void dispatch(fetchOrdersData());
-    }
-  }, [data, dispatch, status]);
-
-  const refresh = useCallback(
-    () => dispatch(fetchOrdersData()).unwrap(),
-    [dispatch],
-  );
+  const refresh = useCallback(async () => {
+    const result = await refetch();
+    return result.data ?? [];
+  }, [refetch]);
 
   return {
-    data,
-    error,
-    loading: status === "idle" || (status === "loading" && data === null),
-    refreshing: status === "loading" && data !== null,
+    data: data ?? null,
+    error: error ? (error as Error).message || "讀取訂單失敗" : null,
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
     refresh,
   };
 }

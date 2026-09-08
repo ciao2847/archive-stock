@@ -1,32 +1,21 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { shallowEqual } from "react-redux";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAccountData } from "@/store/slices/accountSlice";
+import { useCallback } from "react";
+import { useAccountQuery } from "@/api/accountQueries";
 
 export function useAccountData() {
-  const dispatch = useAppDispatch();
-  const data = useAppSelector((state) => state.accountData.data, shallowEqual);
-  const status = useAppSelector((state) => state.accountData.status);
-  const error = useAppSelector((state) => state.accountData.error);
+  const { data, error, isLoading, isFetching, refetch } = useAccountQuery();
 
-  useEffect(() => {
-    if (data === null && status === "idle") {
-      void dispatch(fetchAccountData());
-    }
-  }, [data, dispatch, status]);
-
-  const refresh = useCallback(
-    () => dispatch(fetchAccountData()).unwrap(),
-    [dispatch],
-  );
+  const refresh = useCallback(async () => {
+    const result = await refetch();
+    return result.data ?? null;
+  }, [refetch]);
 
   return {
-    data,
-    error,
-    loading: status === "idle" || (status === "loading" && data === null),
-    refreshing: status === "loading" && data !== null,
+    data: data ?? null,
+    error: error ? (error as Error).message || "讀取帳號資料失敗" : null,
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
     refresh,
   };
 }

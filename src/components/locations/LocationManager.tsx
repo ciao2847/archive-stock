@@ -116,9 +116,9 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
               placeholder="A 櫃第三層第二格"
             />
           </FormLabel>
-          {error && <div className="login-error">{error}</div>}
+          {error && <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">{error}</div>}
           <FormPrimaryButton disabled={saving}>
-            {saving ? <LoaderCircle className="spin" /> : <Plus />}
+            {saving ? <LoaderCircle className="animate-spin" /> : <Plus />}
             {saving ? "建立中…" : "新增庫位"}
           </FormPrimaryButton>
         </form>

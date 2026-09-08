@@ -3,17 +3,17 @@
 // 在此調整全站配色；SCSS 與 Tailwind 共用以下設定。
 $white: #fff !default;
 $black: #000 !default;
-$gray-100: #f8f9fa !default;
+$gray-100: #f5f5f5 !default;
 $gray-800: #343a40 !default;
-$green: #198754 !default;
-$yellow: #ffc107 !default;
-$red: #dc3545 !default;
+$green: #04863f !default;
+$yellow: #f0c775 !default;
+$red: #dd0025 !default;
 $indigo: #6610f2 !default;
 
 $primary: #3f8058 !default;
 $secondary: #82be66 !default;
 $success: $green !default;
-$info: #767676 !default;
+$info: #6b7280 !default;
 $warning: $yellow !default;
 $danger: $red !default;
 $light: $gray-100 !default;
