@@ -1,9 +1,5 @@
-import {
-  archiveOrderApi,
-  fetchOrdersApi,
-  type OrderRow,
-} from "@/lib/api/archive";
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/constants";
+import { archiveOrderApi, fetchOrdersApi } from "@/lib/api/archive";
+import { adaptOrders } from "@/adapters/orderAdapter";
 import type { Order } from "@/lib/types";
 import {
   createAsyncDataState,
@@ -17,36 +13,6 @@ import {
 } from "@reduxjs/toolkit";
 
 const initialState = createAsyncDataState<Order[]>();
-
-const firstRelation = <T>(relation: T | T[] | null): T | null =>
-  Array.isArray(relation) ? (relation[0] ?? null) : relation;
-
-const formatOrdersData = (rows: OrderRow[]): Order[] =>
-  rows.map((row) => {
-    const customer = firstRelation(row.customers);
-    const items = row.order_items;
-    if (!Array.isArray(items)) {
-      throw new Error(`訂單 ${row.order_no} 缺少商品明細。`);
-    }
-
-    return {
-      dbId: row.id,
-      id: row.order_no,
-      ownerId: row.owner_id,
-      customer: customer?.nickname || customer?.name || "未填寫客人",
-      createdAt: new Date(row.created_at).toLocaleDateString("zh-TW"),
-      status: ORDER_STATUS_LABELS[row.status] || row.status,
-      payment: PAYMENT_STATUS_LABELS[row.payment_status] || row.payment_status,
-      itemIds: items.flatMap((item) => {
-        const sku = firstRelation(item.products)?.sku;
-        return sku ? Array.from({ length: item.quantity }, () => sku) : [];
-      }),
-      packedIds: items.flatMap((item) => {
-        const sku = firstRelation(item.products)?.sku;
-        return item.scanned_quantity >= item.quantity && sku ? [sku] : [];
-      }),
-    };
-  });
 
 const ordersSlice = createSlice({
   name: "ordersData",
@@ -80,7 +46,7 @@ export const fetchOrdersData = createAsyncThunk<
   dispatch(changeOrdersError(null));
   try {
     const rows = await fetchOrdersApi();
-    const data = formatOrdersData(rows);
+    const data = adaptOrders(rows);
     dispatch(changeOrdersData(data));
     dispatch(changeOrdersStatus("succeeded"));
   } catch (error) {

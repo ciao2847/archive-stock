@@ -1,5 +1,19 @@
 import swal from "sweetalert";
 
+type ApiClientOptions = RequestInit & { silent?: boolean };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getErrorMessage(data: unknown, status: number) {
+  if (isRecord(data)) {
+    if (typeof data.message === "string") return data.message;
+    if (typeof data.error === "string") return data.error;
+  }
+  return typeof data === "string" ? data : `HTTP ${status} Error`;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -10,9 +24,9 @@ export class ApiError extends Error {
   }
 }
 
-export const apiClient = async <T = any>(
+export const apiClient = async <T>(
   endpoint: string,
-  options: RequestInit & { silent?: boolean } = {},
+  options: ApiClientOptions = {},
 ): Promise<T> => {
   const { silent = false, headers = {}, ...customConfig } = options;
 
@@ -32,20 +46,23 @@ export const apiClient = async <T = any>(
 
     // 原生 fetch 對 4xx/5xx 不會自動 reject，必須手動檢查 response.ok
     if (!response.ok) {
-      const message =
-        (data && typeof data === "object" && "message" in data && typeof data.message === "string" && data.message) ||
-        (data && typeof data === "object" && "error" in data && typeof data.error === "string" && data.error) ||
-        data?.toString() ||
-        `HTTP ${response.status} Error`;
-      throw new ApiError(response.status, message, data);
+      throw new ApiError(
+        response.status,
+        getErrorMessage(data, response.status),
+        data,
+      );
+    }
+    if (isRecord(data) && data.success === true && "data" in data) {
+      return data.data as T;
     }
     return data as T;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!silent && typeof window !== "undefined") {
       void swal({
         title: "網路通訊錯誤",
-        text: error?.message || "請檢查網路連線或稍後再試",
-        icon: "error",
+        text:
+          error instanceof Error ? error.message : "請檢查網路連線或稍後再試",
+        type: "error",
       });
     }
     throw error;

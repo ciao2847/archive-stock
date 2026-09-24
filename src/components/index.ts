@@ -47,3 +47,8 @@ export type { TableColumn } from "./ui/ResponsiveTable";
 export { BannerTitle } from "./blocks/BannerTitle";
 export type { BannerTitleProps } from "./blocks/BannerTitle";
 
+// Claims
+export { ClaimFormPanel } from "./claims/ClaimFormPanel";
+export { ClaimProductSettings } from "./claims/ClaimProductSettings";
+export { ClaimSubmissionsView } from "./claims/ClaimSubmissionsView";
+export { PublicClaimFormView } from "./claims/PublicClaimFormView";

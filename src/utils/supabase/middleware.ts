@@ -57,10 +57,12 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/auth") ||
-    request.nextUrl.pathname.startsWith("/qr/");
+    request.nextUrl.pathname.startsWith("/qr/") ||
+    request.nextUrl.pathname.startsWith("/claim/") ||
+    request.nextUrl.pathname.startsWith("/api/public/claim-forms/");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
 
-  if (!data?.claims && isApiRoute) {
+  if (!data?.claims && isApiRoute && !isPublicRoute) {
     const unauthorizedResponse = NextResponse.json(
       { success: false, error: "請先登入" },
       { status: 401 },

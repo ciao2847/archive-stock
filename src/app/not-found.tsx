@@ -10,7 +10,7 @@ export default function NotFound() {
         <BrandLogo size="small" />
       </header>
       <div className="mx-auto w-full max-w-[375px] px-4 md:max-w-[768px] md:px-5 xl:max-w-[800px]">
-        <section className="rounded-[24px] border border-line bg-white px-6 py-10 text-center shadow-[0_24px_70px_rgba(80,61,43,0.08)] md:px-12 md:py-14">
+        <section className="rounded-[8px] border border-line bg-white px-6 py-10 text-center shadow-[0_24px_70px_rgba(80,61,43,0.08)] md:px-12 md:py-14">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-primary">
             <MapPinOff aria-hidden="true" size={30} strokeWidth={1.7} />
           </div>
@@ -28,7 +28,7 @@ export default function NotFound() {
           </p>
 
           <Link
-            className="mx-auto mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-7 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+            className="mx-auto mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-[8px] bg-primary px-7 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
             href="/"
           >
             <ArrowLeft aria-hidden="true" size={18} strokeWidth={2} />

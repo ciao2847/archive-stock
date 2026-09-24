@@ -20,13 +20,24 @@ const productBaseSchema = z.object({
   feature: z.string().max(2000),
 });
 
-export const createProductSchema = productBaseSchema.extend({
-  work: z.string().trim().min(1).max(300),
-  stock: z.number().int().min(1).max(1000),
-  cost: z.number().nonnegative(),
-  imagePaths: z.array(z.string().min(1).max(1000)).max(2),
-  crafts: z.array(z.string().max(100)).max(30),
-});
+export const createProductSchema = productBaseSchema
+  .extend({
+    work: z.string().trim().min(1).max(300),
+    stock: z.number().int().min(0).max(1000),
+    location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
+    cost: z.number().nonnegative(),
+    imagePaths: z.array(z.string().min(1).max(1000)).max(2),
+    crafts: z.array(z.string().max(100)).max(30),
+  })
+  .superRefine((product, context) => {
+    if (product.stock > 0 && !product.location) {
+      context.addIssue({
+        code: "custom",
+        path: ["location"],
+        message: "有現貨時必須填寫庫位",
+      });
+    }
+  });
 
 export const updateProductSchema = productBaseSchema.extend({
   work: z.string().trim().min(1).max(300).optional(),

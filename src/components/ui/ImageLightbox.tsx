@@ -51,7 +51,7 @@ export function ImageLightbox({
         onClick={(event) => event.stopPropagation()}
       />
       {label && (
-        <div className="absolute bottom-4 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-full bg-black/65 px-4 py-2 text-center text-[14px] text-white">
+        <div className="absolute bottom-4 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-[8px] bg-black/65 px-4 py-2 text-center text-[14px] text-white">
           {label}
         </div>
       )}

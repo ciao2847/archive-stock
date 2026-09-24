@@ -1,13 +1,17 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, MapPin, Plus, Warehouse } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { createLocation } from "@/lib/api/locations";
 import { LOCATION_CODE_PATTERN } from "@/constants";
 import { DEFAULT_VALUES } from "@/constants";
 import { DataState } from "@/components/ui/DataState";
-import { FormInput, FormLabel, FormPrimaryButton } from "@/components/ui/FormControls";
+import {
+  FormInput,
+  FormLabel,
+  FormPrimaryButton,
+} from "@/components/ui/FormControls";
 
 type LocationRow = {
   id: string;
@@ -20,7 +24,13 @@ type LocationRow = {
 };
 
 /** 庫位管理面板。 */
-export function LocationManager({ ownerId }: { ownerId: string }) {
+export function LocationManager({
+  ownerId,
+  query = "",
+}: {
+  ownerId: string;
+  query?: string;
+}) {
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
@@ -69,6 +79,24 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
     void load();
   }, [load]);
 
+  const filteredLocations = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase("zh-TW");
+    if (!normalizedQuery) return locations;
+    return locations.filter((location) =>
+      [
+        location.code,
+        location.description,
+        location.cabinet,
+        location.shelf,
+        location.bin,
+      ]
+        .filter((value) => value != null)
+        .join(" ")
+        .toLocaleLowerCase("zh-TW")
+        .includes(normalizedQuery),
+    );
+  }, [locations, query]);
+
   async function addLocation(event: FormEvent) {
     event.preventDefault();
     const normalized = code.trim().toUpperCase();
@@ -116,7 +144,11 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
               placeholder="A 櫃第三層第二格"
             />
           </FormLabel>
-          {error && <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">{error}</div>}
+          {error && (
+            <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">
+              {error}
+            </div>
+          )}
           <FormPrimaryButton disabled={saving}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Plus />}
             {saving ? "建立中…" : "新增庫位"}
@@ -127,22 +159,30 @@ export function LocationManager({ ownerId }: { ownerId: string }) {
         <div className="card-head">
           <div>
             <h2>全部庫位</h2>
-            <p>{locations.length} 個庫位</p>
+            <p>
+              {query.trim()
+                ? `${filteredLocations.length} / ${locations.length} 個庫位`
+                : `${locations.length} 個庫位`}
+            </p>
           </div>
         </div>
         <DataState
           loading={loading}
-          isEmpty={locations.length === 0}
+          isEmpty={filteredLocations.length === 0}
           loadingText="正在讀取庫位…"
           emptyContent={
             <div className="flex flex-col items-center gap-2">
               <Warehouse />
-              <p className="m-0">還沒有庫位，請先建立第一個。</p>
+              <p className="m-0">
+                {query.trim()
+                  ? `找不到符合「${query.trim()}」的庫位。`
+                  : "還沒有庫位，請先建立第一個。"}
+              </p>
             </div>
           }
         >
           <div className="grid grid-cols-2 gap-3 px-5 pb-5 max-lg:grid-cols-1">
-            {locations?.map((item) => (
+            {filteredLocations.map((item) => (
               <LocationCard item={item} key={item.id} />
             ))}
           </div>

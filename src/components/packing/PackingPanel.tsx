@@ -13,35 +13,42 @@ import {
   ScanLine,
   XCircle,
 } from "lucide-react";
-import { Product, Order } from "@/lib/types";
 import { PACKING_SCAN_ERROR_MESSAGES } from "@/constants";
+import type { Product } from "@/lib/types";
 import {
-  completePackingOrder,
-  fetchPackingProgress,
-  scanPackingItem,
+  completePackingPackage,
+  fetchPackingPackage,
+  scanPackingPackage,
+  startPackingPackage,
+  type PackingCompletion,
+  type PackingPackage,
 } from "@/lib/api/packing";
+import type { PackingCustomer } from "./PackingQueue";
 import { DataState } from "@/components/ui/DataState";
 
-/** 掃碼出貨面板。 */
+type Feedback = "ok" | "bad" | null;
+
+/** 以客人為單位的合併包貨面板。 */
 export function PackingPanel({
   onBack,
-  order,
+  customer,
   products,
   onCompleted,
   packerName,
 }: {
   onBack: () => void;
-  order: Order;
+  customer: PackingCustomer;
   products: Product[];
   onCompleted?: () => void;
   packerName: string;
 }) {
-  const [scanned, setScanned] = useState<string[]>(() => [...order.packedIds]);
-  const scannedRef = useRef<string[]>([...order.packedIds]);
+  const [packageData, setPackageData] = useState<PackingPackage | null>(null);
+  const [completion, setCompletion] = useState<PackingCompletion | null>(null);
   const [input, setInput] = useState("");
-  const [feedback, setFeedback] = useState<"ok" | "bad" | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [done, setDone] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
@@ -65,31 +72,44 @@ export function PackingPanel({
     setCameraStarting(false);
   }, []);
 
-  const loadScanProgress = useCallback(async () => {
+  const loadPackage = useCallback(async () => {
     setProgressLoading(true);
+    setCameraError("");
     try {
-      const restored = await fetchPackingProgress(order.dbId);
-      scannedRef.current = restored;
-      setScanned(restored);
+      const created = await startPackingPackage(customer.ownerId, customer.key);
+      setPackageData(created);
     } catch (error) {
       setCameraError(
         error instanceof Error
           ? error.message
-          : "讀取核對進度失敗，請重新整理後再試。",
+          : "建立包貨工作失敗，請重新整理後再試。",
       );
     } finally {
       setProgressLoading(false);
     }
-  }, [order.dbId]);
+  }, [customer.key, customer.ownerId]);
+
+  const refreshPackage = useCallback(async (packageId: string) => {
+    try {
+      const refreshed = await fetchPackingPackage(packageId);
+      setPackageData(refreshed);
+    } catch (error) {
+      setCameraError(
+        error instanceof Error
+          ? error.message
+          : "讀取包貨進度失敗，請稍後再試。",
+      );
+    }
+  }, []);
 
   const scan = useCallback(
     async (raw: string) => {
-      if (verifyingRef.current) return;
+      if (verifyingRef.current || !packageData) return;
 
       const value = raw.trim();
       if (!value) {
         setFeedback("bad");
-        setFeedbackMessage("請輸入 A000004 格式的商品 ID 或掃描 QR Code");
+        setFeedbackMessage("請輸入商品 ID 或掃描 QR Code");
         navigator.vibrate?.([200, 100, 200]);
         return;
       }
@@ -100,15 +120,18 @@ export function PackingPanel({
       setCameraError("");
 
       try {
-        const { result, method } = await scanPackingItem(order.dbId, value);
+        const { result, method } = await scanPackingPackage(
+          packageData.id,
+          value,
+        );
 
         if (result.valid && result.sku) {
-          const next = [...scannedRef.current, result.sku];
-          scannedRef.current = next;
-          setScanned(next);
+          await refreshPackage(packageData.id);
           setFeedback("ok");
           setFeedbackMessage(
-            method === "manual_sku" ? "已使用商品 ID 人工核對" : "已加入本訂單",
+            method === "manual_sku"
+              ? `已人工核對，加入 ${result.orderNo ?? "此客人"}`
+              : `已加入 ${result.orderNo ?? "此客人"} 的合併包裹`,
           );
           navigator.vibrate?.(100);
           return;
@@ -130,19 +153,29 @@ export function PackingPanel({
         setIsVerifying(false);
       }
     },
-    [order.dbId],
+    [packageData, refreshPackage],
   );
 
   async function completePacking() {
+    if (!packageData || packageData.scannedCount < 1 || isCompleting) return;
+    const confirmed = window.confirm(
+      `確定要完成本次包裝嗎？\n\n將完成已掃描的 ${packageData.scannedCount} 件商品；尚未到貨的品項會保留在原訂單。`,
+    );
+    if (!confirmed) return;
+
+    setIsCompleting(true);
     stopCamera();
     try {
-      await completePackingOrder(order.dbId);
+      const result = await completePackingPackage(packageData.id);
+      setCompletion(result);
       setDone(true);
       onCompleted?.();
     } catch (error) {
       setCameraError(
         error instanceof Error ? error.message : "完成包裝失敗，請稍後再試",
       );
+    } finally {
+      setIsCompleting(false);
     }
   }
 
@@ -202,12 +235,14 @@ export function PackingPanel({
   }
 
   useEffect(() => {
-    const cached = [...order.packedIds];
-    scannedRef.current = cached;
-    setScanned(cached);
-    void loadScanProgress();
-  }, [loadScanProgress, order.packedIds]);
+    setPackageData(null);
+    setCompletion(null);
+    setDone(false);
+    void loadPackage();
+  }, [loadPackage]);
+
   useEffect(() => () => stopCamera(), [stopCamera]);
+
   useEffect(() => {
     if (!feedback) return;
     const timer = setTimeout(() => {
@@ -217,27 +252,48 @@ export function PackingPanel({
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  if (done)
+  if (done && completion)
     return (
       <div className="packing-success">
         <span>
           <CheckCircle2 />
         </span>
-        <h1>包裝核對完成</h1>
+        <h1>合併包裝完成</h1>
         <p>
-          {order.id} 的 {order.itemIds.length} 件商品已全部掃描正確。
+          {completion.packageNo} 已包裝 {completion.itemCount} 件商品，涵蓋{" "}
+          {completion.orderCount} 筆訂單。
         </p>
         <div>
+          <b>收件人</b>
+          <span>{packageData?.customerName || customer.name}</span>
+          <b>本次完成訂單</b>
+          <span>
+            {completion.fullyPackedOrderCount} / {completion.orderCount} 筆
+          </span>
           <b>包貨人</b>
           <span>{packerName}</span>
-          <b>完成時間</b>
-          <span>剛剛</span>
         </div>
+        <p className="complete-help">
+          尚未到貨的品項仍保留在原訂單，之後可以再建立下一個包裹。
+        </p>
         <button className="primary" onClick={onBack}>
           回到總覽
         </button>
       </div>
     );
+
+  const packageItems =
+    packageData?.orders.flatMap((order) =>
+      order.items.map((item) => ({ ...item, orderNo: order.orderNo })),
+    ) ?? [];
+  const packageOrders = packageData?.orders ?? [];
+  const productById = new Map(
+    products
+      .filter((product) => product.dbId)
+      .map((product) => [product.dbId as string, product]),
+  );
+  const customerName = packageData?.customerName || customer.name;
+  const scannedCount = packageData?.scannedCount ?? 0;
 
   return (
     <div className="packing">
@@ -252,8 +308,8 @@ export function PackingPanel({
           <ArrowLeft />
         </button>
         <div>
-          <span className="eyebrow">掃碼出貨</span>
-          <h1>{order.id}</h1>
+          <span className="eyebrow">依客人合併包貨</span>
+          <h1>{packageData?.packageNo || "建立包裝工作"}</h1>
         </div>
         <span className="pill amber">包貨中</span>
       </div>
@@ -262,12 +318,13 @@ export function PackingPanel({
           <div className="customer">
             <div>
               <small>收件人</small>
-              <h2>{order.customer}</h2>
+              <h2>{customerName}</h2>
+              <small>{customer.orders.length} 筆訂單可合併</small>
             </div>
             <div>
-              <small>完成進度</small>
+              <small>本次包裝</small>
               <h2>
-                <em>{scanned.length}</em> / {order.itemIds.length}
+                <em>{scannedCount}</em> 件
               </h2>
             </div>
           </div>
@@ -290,13 +347,13 @@ export function PackingPanel({
               <div className="feedback">
                 <CheckCircle2 />
                 <h2>商品正確</h2>
-                <p>{feedbackMessage || "已加入本訂單"}</p>
+                <p>{feedbackMessage || "已加入合併包裹"}</p>
               </div>
             ) : feedback === "bad" ? (
               <div className="feedback">
                 <XCircle />
                 <h2>商品錯誤</h2>
-                <p>{feedbackMessage || "此商品不屬於本訂單或已掃描"}</p>
+                <p>{feedbackMessage || "此商品不屬於這位客人或已完成核對"}</p>
               </div>
             ) : cameraOpen ? (
               <div className="camera-status">
@@ -311,15 +368,15 @@ export function PackingPanel({
             ) : (
               <>
                 <Camera size={34} />
-                <h2>掃描下一件商品</h2>
-                <p>將商品 QR Code 對準鏡頭</p>
+                <h2>掃描已到貨商品</h2>
+                <p>掃到的商品會自動歸入最早的未出貨訂單</p>
                 <button
                   className="scan-button"
                   onClick={startCamera}
-                  disabled={cameraStarting || progressLoading}
+                  disabled={cameraStarting || progressLoading || !packageData}
                 >
                   <Camera />
-                  {progressLoading ? "正在讀取進度…" : "開啟相機掃描"}
+                  {progressLoading ? "正在建立包貨工作…" : "開啟相機掃描"}
                 </button>
               </>
             )}
@@ -335,17 +392,19 @@ export function PackingPanel({
             <input
               placeholder="輸入商品 ID，例如 A000004"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isVerifying) {
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !isVerifying) {
                   stopCamera();
                   void scan(input);
                 }
               }}
-              disabled={isVerifying || progressLoading}
+              disabled={isVerifying || progressLoading || !packageData}
             />
             <button
-              disabled={isVerifying || progressLoading || !input.trim()}
+              disabled={
+                isVerifying || progressLoading || !input.trim() || !packageData
+              }
               onClick={() => {
                 stopCamera();
                 void scan(input);
@@ -355,74 +414,91 @@ export function PackingPanel({
             </button>
           </div>
           <p className="mt-2 text-[12px] text-muted">
-            手動輸入會記錄為人工核對，並使其中一張未使用標籤失效。
+            只要商品已到貨就能先包裝，不需要等同一張訂單全部到齊。
           </p>
         </section>
         <section className="packing-items">
           <div className="card-head">
             <div>
-              <h2>訂單商品</h2>
-              <p>請逐件掃描，全部正確才能完成</p>
+              <h2>客人訂單商品</h2>
+              <p>已出貨數量會保留，未到貨品項下次再處理</p>
             </div>
           </div>
           <DataState
             loading={progressLoading}
-            isEmpty={order.itemIds.length === 0 || products.length === 0}
-            loadingText="正在讀取訂單商品…"
-            emptyText="這筆訂單沒有可包裝的商品"
+            isEmpty={packageItems.length === 0}
+            loadingText="正在讀取客人訂單…"
+            emptyText="這位客人目前沒有可包裝的商品"
             className="compact-empty"
           >
-            {order.itemIds?.map((id, index) => {
-              const product = products.find((item) => item.id === id)!;
-              const occurrence = order.itemIds
-                .slice(0, index + 1)
-                .filter((item) => item === id).length;
-              const checked =
-                scanned.filter((item) => item === id).length >= occurrence;
-              return (
-                <div
-                  className={`pack-item ${checked ? "checked" : ""}`}
-                  key={`${id}-${index}`}
-                >
-                  <span className="check">{checked ? <Check /> : null}</span>
-                  <span
-                    className="thumb"
-                    style={{ background: product.accent }}
-                  >
-                    {product.work[0]}
-                  </span>
-                  <div>
-                    <code>{id}</code>
-                    <b>{product.work}</b>
-                    <small>
-                      {product.format} · {product.size} · {product.location}
-                    </small>
-                  </div>
-                  {checked ? (
-                    <span className="done-label">已核對</span>
-                  ) : (
-                    <span className="wait-label">等待掃描</span>
-                  )}
+            {packageOrders.map((order) => (
+              <div className="packing-order-group" key={order.orderId}>
+                <div className="packing-order-divider">
+                  <span>{order.orderNo}</span>
+                  <small>{order.status}</small>
                 </div>
-              );
-            })}
+                {order.items.map((item) => {
+                  const product = productById.get(item.productId);
+                  const outstanding = Math.max(
+                    item.quantity - item.packedQuantity,
+                    0,
+                  );
+                  const checked = item.packageQuantity > 0;
+                  return (
+                    <div
+                      className={`pack-item ${checked ? "checked" : ""}`}
+                      key={item.orderItemId}
+                    >
+                      <span className="check">
+                        {checked ? <Check /> : null}
+                      </span>
+                      <span
+                        className="thumb"
+                        style={{
+                          background:
+                            product?.accent || "var(--color-primary-soft)",
+                        }}
+                      >
+                        {product?.work?.[0] || item.name?.[0] || "品"}
+                      </span>
+                      <div>
+                        <code>{item.sku}</code>
+                        <b>{item.name || product?.work || "商品"}</b>
+                        <small>
+                          已出貨 {item.packedQuantity} · 本次{" "}
+                          {item.packageQuantity} · 尚缺{" "}
+                          {Math.max(outstanding - item.packageQuantity, 0)}
+                        </small>
+                      </div>
+                      {item.packageQuantity > 0 ? (
+                        <span className="done-label">
+                          本次 {item.packageQuantity}
+                        </span>
+                      ) : item.packedQuantity >= item.quantity ? (
+                        <span className="done-label">已完成</span>
+                      ) : (
+                        <span className="wait-label">等待到貨</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </DataState>
           <button
             className="complete"
-            disabled={
-              progressLoading || scanned.length !== order.itemIds.length
-            }
+            disabled={progressLoading || scannedCount < 1 || isCompleting}
             onClick={() => void completePacking()}
           >
             <PackageCheck />
-            完成包裝
+            {isCompleting ? "正在完成包裝…" : "完成本次包裝"}
           </button>
           <p className="complete-help">
             {progressLoading
-              ? "正在讀取已核對進度"
-              : scanned.length === order.itemIds.length
-                ? "全部正確，可以完成包裝"
-                : "需掃描全部商品後才能完成"}
+              ? "正在讀取包貨進度"
+              : scannedCount > 0
+                ? `可先完成這 ${scannedCount} 件，未到貨品項會留在原訂單`
+                : "先掃描已到貨商品，再完成本次包裝"}
           </p>
         </section>
       </div>

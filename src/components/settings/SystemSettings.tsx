@@ -25,7 +25,12 @@ export function SystemSettings({
 }: {
   isAdmin: boolean;
   inventories: Array<{ id: string; name: string }>;
-  inventoryDatabases: Array<{ id: string; name: string; ownerIds: string[] }>;
+  inventoryDatabases: Array<{
+    id: string;
+    name: string;
+    ownerIds: string[];
+    qrDestinationUrl: string;
+  }>;
   availableUsers: Array<{ id: string; name: string }>;
   selectedInventoryId: string;
   onInventoryChange: (inventoryId: string) => void;
@@ -67,7 +72,7 @@ export function SystemSettings({
   }
   const cardClass = "card flex gap-5 p-6";
   const iconClass =
-    "grid h-12 w-12 shrink-0 place-items-center rounded-[9px] bg-accent-soft text-rust";
+    "grid h-12 w-12 shrink-0 place-items-center rounded-[8px] bg-accent-soft text-rust";
   return (
     <DataState
       loading={loading}
@@ -109,9 +114,10 @@ export function SystemSettings({
             <div className="flex items-start justify-between gap-4 max-lg:flex-col">
               <div>
                 <span className="eyebrow">庫藏資料庫權限</span>
-                <h2 className="mb-1 mt-2">命名與擁有者</h2>
+                <h2 className="mb-1 mt-2">命名、擁有者與 QR 網址</h2>
                 <p className="mb-5 mt-0 text-muted">
-                  每個資料庫至少需要一位擁有者；同一帳號一次歸屬一個庫藏資料庫。
+                  每個資料庫至少需要一位擁有者，並可設定包裝完成後的 QR
+                  前往網址。
                 </p>
               </div>
               <button
@@ -126,7 +132,12 @@ export function SystemSettings({
             <div className="grid gap-4">
               {creatingDatabase && (
                 <InventoryDatabaseEditor
-                  inventory={{ id: "", name: "", ownerIds: [] }}
+                  inventory={{
+                    id: "",
+                    name: "",
+                    ownerIds: [],
+                    qrDestinationUrl: "",
+                  }}
                   users={availableUsers}
                   onSaved={async () => {
                     setCreatingDatabase(false);
@@ -136,7 +147,7 @@ export function SystemSettings({
               )}
               {inventoryDatabases.map((inventory) => (
                 <InventoryDatabaseEditor
-                  key={`${inventory.id}:${inventory.name}:${inventory.ownerIds.join(",")}`}
+                  key={`${inventory.id}:${inventory.name}:${inventory.qrDestinationUrl}:${inventory.ownerIds.join(",")}`}
                   inventory={inventory}
                   users={availableUsers}
                   onSaved={onInventoryDatabaseUpdated}
@@ -197,12 +208,20 @@ function InventoryDatabaseEditor({
   users,
   onSaved,
 }: {
-  inventory: { id: string; name: string; ownerIds: string[] };
+  inventory: {
+    id: string;
+    name: string;
+    ownerIds: string[];
+    qrDestinationUrl: string;
+  };
   users: Array<{ id: string; name: string }>;
   onSaved: () => Promise<unknown>;
 }) {
   const [databaseName, setDatabaseName] = useState(inventory.name);
   const [ownerIds, setOwnerIds] = useState(inventory.ownerIds);
+  const [qrDestinationUrl, setQrDestinationUrl] = useState(
+    inventory.qrDestinationUrl,
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -210,6 +229,17 @@ function InventoryDatabaseEditor({
     if (!databaseName.trim() || ownerIds.length === 0) {
       setMessage("請輸入名稱並至少選擇一位擁有者");
       return;
+    }
+    const normalizedQrDestinationUrl = qrDestinationUrl.trim();
+    if (normalizedQrDestinationUrl) {
+      try {
+        if (new URL(normalizedQrDestinationUrl).protocol !== "https:") {
+          throw new Error();
+        }
+      } catch {
+        setMessage("QR 前往網址必須是完整的 HTTPS 網址");
+        return;
+      }
     }
     setSaving(true);
     setMessage("");
@@ -219,8 +249,17 @@ function InventoryDatabaseEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           inventory.id
-            ? { id: inventory.id, name: databaseName.trim(), ownerIds }
-            : { name: databaseName.trim(), ownerIds },
+            ? {
+                id: inventory.id,
+                name: databaseName.trim(),
+                ownerIds,
+                qrDestinationUrl: normalizedQrDestinationUrl,
+              }
+            : {
+                name: databaseName.trim(),
+                ownerIds,
+                qrDestinationUrl: normalizedQrDestinationUrl,
+              },
         ),
       });
       const result = (await response.json()) as {
@@ -249,6 +288,21 @@ function InventoryDatabaseEditor({
           maxLength={80}
           onChange={(event) => setDatabaseName(event.target.value)}
         />
+      </label>
+      <label className="mt-4 block text-[12px] font-semibold">
+        包裝完成 QR 前往網址
+        <input
+          className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+          type="url"
+          inputMode="url"
+          value={qrDestinationUrl}
+          maxLength={2048}
+          placeholder="https://example.com/checkout"
+          onChange={(event) => setQrDestinationUrl(event.target.value)}
+        />
+        <span className="mt-2 block font-normal leading-5 text-muted">
+          留空時沿用原本依出貨通路設定的蝦皮或 LINE 連結。
+        </span>
       </label>
       <fieldset className="mt-4 border-0 p-0">
         <legend className="text-[12px] font-semibold">擁有者</legend>

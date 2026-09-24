@@ -15,6 +15,7 @@ export type PublicQrLanding = {
   qrStatus: string;
   orderStatus: string | null;
   salesChannel: string | null;
+  purchaseUrl: string | null;
   recommendations: PublicRecommendation[];
 };
 
@@ -23,8 +24,19 @@ type PublicQrLandingRow = {
   qr_status: string;
   order_status: string | null;
   sales_channel: string | null;
+  purchase_url: unknown;
   recommendations: unknown;
 };
+
+function normalizeHttpsUrl(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmedValue = value.trim();
+  try {
+    return new URL(trimmedValue).protocol === "https:" ? trimmedValue : null;
+  } catch {
+    return null;
+  }
+}
 
 function mapRecommendations(value: unknown): PublicRecommendation[] {
   if (!Array.isArray(value)) return [];
@@ -82,6 +94,7 @@ export async function fetchPublicQrLanding(
     qrStatus: row.qr_status,
     orderStatus: row.order_status,
     salesChannel: row.sales_channel,
+    purchaseUrl: normalizeHttpsUrl(row.purchase_url),
     recommendations: mapRecommendations(row.recommendations),
   };
 }

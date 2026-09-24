@@ -24,6 +24,23 @@ supabase/migrations/20260903001511_harden_rls_and_rpc_privileges.sql
 
 主要流程：商品建檔 → 永久 ID → QR 標籤 → 建立訂單 → 掃碼核對 → 完成包裝。
 
+## 公開喊單頁
+
+登入後從側邊欄進入「喊單管理」，每個 IP（例如蜘蛛人、蝙蝠俠）都能建立一條固定且獨立的 `/claim/{token}` 分享連結，並可隨新品釋出持續更新該 IP 頁面的商品。各 IP 的商品、顧客喊單與統計互相分開；管理者可個別自訂公開名稱、喊單金額、單次數量上限、表單說明與截止時間。這些自訂內容不會修改庫藏商品主檔。消費者不需登入，可以選擇多項商品與數量，最後填寫電話、群組暱稱後送出；喊單管理頁會依商品彙整採購數量，也可下載 CSV。
+
+喊單屬於預購需求蒐集，不會預留或扣除現有庫存，也不會直接進入掃碼包貨流程。尚未進貨的商品可先用庫存 `0`、空白庫位建檔；日後補上實際庫存時才會產生 QR 標籤。正式啟用前需套用：
+
+```text
+supabase/migrations/20260910073243_add_public_claim_forms.sql
+supabase/migrations/20260910083927_customize_claim_form_products.sql
+supabase/migrations/20260921035700_fix_claim_form_upsert_ambiguity.sql
+supabase/migrations/20260921042929_enable_multiple_claim_forms_per_ip.sql
+supabase/migrations/20260921074225_allow_admin_delete_claim_submissions.sql
+supabase/migrations/20260921075610_allow_inventory_users_delete_claim_submissions.sql
+```
+
+公開 RPC 只回傳商品展示欄位，電話與暱稱所在資料表不提供匿名角色直接存取，匿名送單統一透過受驗證的原子化 RPC 寫入。
+
 ## 資料流程
 
 共用資料採用以下固定流程：
@@ -68,7 +85,13 @@ NEXT_PUBLIC_SHOPEE_STORE_URL=https://shopee.tw/你的賣場
 NEXT_PUBLIC_OFFICIAL_LINE_URL=https://lin.ee/你的官方帳號
 ```
 
-新列印的商品 QR 會使用 `/qr/{token}`。完成包貨後，頁面依訂單 `sales_channel` 顯示蝦皮或官方 LINE 入口；舊的 `AS1:{token}` QR 仍可由內部掃碼器核對。
+新列印的商品 QR 會使用 `/qr/{token}`。完成包貨後，頁面會優先使用「系統設定 → 庫藏資料庫權限」中各庫藏自己的 QR 前往網址；若留空，才依訂單 `sales_channel` 沿用蝦皮或官方 LINE 入口。`NN佛系海報代購` 預設導向指定的 7-ELEVEN 賣貨便，小天地未設定時維持原本連結。舊的 `AS1:{token}` QR 仍可由內部掃碼器核對。
+
+此功能的 schema 與預設網址由下列 migration 建立：
+
+```text
+supabase/migrations/20260921080639_per_inventory_qr_destination_url.sql
+```
 
 ## 品質檢查
 

@@ -30,11 +30,25 @@ header {
   border: 1px solid var(--color-line);
   background: var(--color-white);
   border-radius: $radius-lg;
-  height: 40px;
+  height: 44px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  gap: 2px;
+  padding: 0 4px 0 13px;
   color: var(--color-default);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+
+  > svg {
+    color: var(--color-muted);
+  }
 
   input {
     border: 0;
@@ -42,11 +56,95 @@ header {
     background: transparent;
     flex: 1;
     min-width: 0;
-    padding: 0 10px;
-    font: 14px var(--font-sans);
+    height: 100%;
+    padding: 0 8px;
+    color: var(--color-dark);
+    font: 13px var(--font-sans);
+
+    &::placeholder {
+      color: var(--color-muted);
+      opacity: 0.82;
+    }
+
+    &::-webkit-search-cancel-button {
+      display: none;
+    }
+  }
+
+  .search-clear {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border: 0;
+    border-radius: $radius-lg;
+    background: transparent;
+    color: var(--color-muted);
+    padding: 0;
+    display: grid;
+    place-items: center;
+
+    @media (hover: hover) {
+      &:hover {
+        background: var(--color-light);
+        color: var(--color-dark);
+      }
+    }
+  }
+
+  .search-submit {
+    height: 36px;
+    min-width: 76px;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: $radius-lg;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font: 600 12px var(--font-sans);
+    white-space: nowrap;
+
+    @media (hover: hover) {
+      &:not(:disabled):hover {
+        background: var(--color-primary-hover);
+      }
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
   }
 
   @media (max-width: $breakpoint-md) {
+    height: 40px;
+    padding: 0 4px 0 10px;
+
+    input {
+      padding: 0 7px;
+      font-size: 16px;
+    }
+
+    .search-clear {
+      width: 28px;
+      height: 28px;
+      flex-basis: 28px;
+    }
+
+    .search-submit {
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      padding: 0;
+
+      span {
+        display: none;
+      }
+    }
+
     kbd {
       display: none;
     }

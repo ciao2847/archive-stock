@@ -5,6 +5,7 @@ export const API_ROUTES = {
   getOrders: "/api/orders",
   getLocations: "/api/locations",
   getSettlements: "/api/settlements",
+  getClaimForms: "/api/claim-forms",
   getAccount: "/api/account",
   getInventoryDatabases: "/api/inventory-databases",
   getPrintLabels: "/api/print-labels",
@@ -13,8 +14,9 @@ export const API_ROUTES = {
   getProductImages: "/api/product-images",
   getOrder: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
   getProduct: (id: string) => `/api/products/${encodeURIComponent(id)}`,
+  getPublicClaimForm: (token: string) =>
+    `/api/public/claim-forms/${encodeURIComponent(token)}`,
 } as const;
-
 
 export const UI_BREAKPOINTS = {
   mobile: 600,
@@ -108,6 +110,9 @@ export const PACKING_SCAN_ERROR_MESSAGES: Record<string, string> = {
   invalid_token: "QR Code 無效",
   token_used: "這張 QR Code 已經使用過",
   wrong_order: "此商品不屬於本訂單或已完成核對",
+  no_customer_item: "此商品不在這位客人的待出貨訂單中",
+  package_closed: "這個包裝工作已完成，請重新建立包裹",
+  package_not_found: "找不到這個包裝工作，請重新整理後再試",
   no_active_label: "此商品沒有可使用的 QR 標籤",
 };
 

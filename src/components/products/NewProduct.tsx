@@ -1,7 +1,13 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import { CheckCircle2, ImagePlus, Trash2, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  ImagePlus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -25,10 +31,18 @@ export function NewProduct({
   ownerId,
   onClose,
   onCreated,
+  initialStock,
+  initialLocation,
+  title,
+  preorderOnly = false,
 }: {
   ownerId: string;
   onClose: () => void;
-  onCreated?: () => void | Promise<void>;
+  onCreated?: (productId?: string) => void | Promise<void>;
+  initialStock?: number;
+  initialLocation?: string;
+  title?: string;
+  preorderOnly?: boolean;
 }) {
   const [poster, setPoster] = useState(true);
   const [image, setImage] = useState<File | null>(null);
@@ -44,7 +58,8 @@ export function NewProduct({
     resolver: zodResolver(schema),
     defaultValues: {
       category: POSTER_CATEGORY,
-      stock: DEFAULT_VALUES.productStock,
+      stock: preorderOnly ? 0 : (initialStock ?? DEFAULT_VALUES.productStock),
+      location: preorderOnly ? "" : (initialLocation ?? ""),
       price: DEFAULT_VALUES.amount,
       cost: DEFAULT_VALUES.amount,
       crafts: [],
@@ -94,17 +109,19 @@ export function NewProduct({
         imagePaths.push(...uploaded.paths);
       }
 
-      await createProductApi(
+      const res = await createProductApi(
         {
           name: values.name,
           work: values.work,
           category: values.category,
           country: values.country,
           source: values.source,
-          location: values.location,
-          stock: toNumber(values.stock, DEFAULT_VALUES.productStock),
+          location: preorderOnly ? "" : values.location,
+          stock: preorderOnly
+            ? 0
+            : toNumber(values.stock, DEFAULT_VALUES.productStock),
           price: toNumber(values.price),
-          cost: toNumber(values.cost),
+          cost: preorderOnly ? 0 : toNumber(values.cost),
           imagePaths,
           format:
             values.category === POSTER_CATEGORY ? values.format || "" : "",
@@ -117,7 +134,7 @@ export function NewProduct({
         },
         ownerId,
       );
-      await onCreated?.();
+      await onCreated?.(res.productId);
       onClose();
     } catch (error) {
       if (imagePaths.length > 0) {
@@ -135,8 +152,10 @@ export function NewProduct({
       <aside className="drawer new-drawer">
         <div className="drawer-head">
           <div>
-            <span className="eyebrow">商品入庫</span>
-            <h2>新增商品</h2>
+            <span className="eyebrow">
+              {preorderOnly ? "預購喊單" : "商品入庫"}
+            </span>
+            <h2>{title || "新增商品"}</h2>
           </div>
           <button className="icon-btn" onClick={onClose}>
             <X />
@@ -192,6 +211,20 @@ export function NewProduct({
             </label>
           )}
           {imageError && <p className="upload-error">{imageError}</p>}
+          {preorderOnly && (
+            <div className="mb-5 flex items-start gap-3 rounded-[8px] border border-[#cbdde9] bg-[#eef5fa] px-4 py-3.5 text-[#29485f]">
+              <span className="grid size-9 shrink-0 place-items-center rounded-[8px] bg-white text-[#5a87b1]">
+                <ClipboardList size={18} aria-hidden="true" />
+              </span>
+              <div>
+                <b className="block text-[13px]">先收喊單，再依總數叫貨</b>
+                <p className="mb-0 mt-1 text-[12px] leading-5 text-[#526b80]">
+                  商品會以庫存 0
+                  建立，不佔用現貨，也不需要先填庫位或成本。截止後依喊單彙總採購，到貨時再辦理入庫。
+                </p>
+              </div>
+            </div>
+          )}
           <div className="form-grid">
             <Field label="商品名稱" error={errors.name?.message}>
               <input {...register("name")} placeholder="例：烘焙款 IMAX 海報" />
@@ -219,12 +252,23 @@ export function NewProduct({
             <Field label="發行來源">
               <input {...register("source")} placeholder="CGV、官方快閃…" />
             </Field>
-            <Field label="庫位" error={errors.location?.message}>
-              <input {...register("location")} placeholder="A-03-02" />
-            </Field>
-            <Field label="庫存數量">
-              <input type="number" {...register("stock")} />
-            </Field>
+            {preorderOnly ? (
+              <>
+                <input type="hidden" {...register("location")} />
+                <input type="hidden" {...register("stock")} />
+                <input type="hidden" {...register("cost")} />
+              </>
+            ) : (
+              <>
+                <Field label="庫位" error={errors.location?.message}>
+                  <input {...register("location")} placeholder="A-03-02" />
+                  <small>尚未進貨、庫存填 0 時可先留空。</small>
+                </Field>
+                <Field label="庫存數量">
+                  <input type="number" {...register("stock")} />
+                </Field>
+              </>
+            )}
             <Field label="商品售價（每件）" error={errors.price?.message}>
               <input
                 type="number"
@@ -234,15 +278,17 @@ export function NewProduct({
                 placeholder="每件售價"
               />
             </Field>
-            <Field label="本批成本總額" error={errors.cost?.message}>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("cost")}
-                placeholder="整批成本，不必拆單件"
-              />
-            </Field>
+            {!preorderOnly && (
+              <Field label="本批成本總額" error={errors.cost?.message}>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  {...register("cost")}
+                  placeholder="整批成本，不必拆單件"
+                />
+              </Field>
+            )}
             {poster && <PosterSpecFields register={register} />}
             <Field label="功能描述" wide error={errors.description?.message}>
               <textarea
@@ -267,7 +313,7 @@ export function NewProduct({
               取消
             </button>
             <button className="primary" disabled={saving}>
-              {saving ? "儲存中…" : "儲存並產生 QR Code"}
+              {saving ? "儲存中…" : preorderOnly ? "建立預購商品" : "儲存商品"}
             </button>
           </div>
         </form>

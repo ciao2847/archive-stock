@@ -26,7 +26,7 @@ export function PublicRecommendationGrid({
       <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         {recommendations.map((product) => (
           <article
-            className="relative block min-w-0 overflow-hidden rounded-[16px] border-[0.5px] border-line bg-transparent text-dark"
+            className="relative block min-w-0 overflow-hidden rounded-[8px] border-[0.5px] border-line bg-transparent text-dark"
             key={product.sku}
           >
             {product.imageUrl ? (

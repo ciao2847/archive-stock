@@ -1,0 +1,19 @@
+// Claim management intentionally uses flat cards. The shared app shadows are
+// orange-tinted, so suppress them only inside this management surface.
+.claim-management {
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .primary,
+  .primary:hover {
+    box-shadow: none;
+  }
+}
+
+// Keep the fixed claim settings actions aligned with the main content. The
+// sidebar becomes persistent at 992px; below that it is an overlay.
+.claim-fixed-actions {
+  @media (min-width: 992px) {
+    left: 238px;
+  }
+}

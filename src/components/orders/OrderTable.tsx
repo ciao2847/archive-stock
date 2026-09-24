@@ -13,7 +13,10 @@ import {
 import swal from "sweetalert";
 import { isOrderPackable } from "@/constants";
 import type { Order } from "@/lib/types";
-import { ResponsiveTable, type TableColumn } from "@/components/ui/ResponsiveTable";
+import {
+  ResponsiveTable,
+  type TableColumn,
+} from "@/components/ui/ResponsiveTable";
 
 const ORDER_COLUMNS: TableColumn[] = [
   { key: "order", label: "訂單" },
@@ -42,7 +45,7 @@ export function OrderTable({
     void swal({
       title: "訂單已鎖定",
       text: "此訂單已完成或已鎖定，不能再編輯、刪除或包貨。",
-      icon: "warning",
+      type: "warning",
     });
     return false;
   };
@@ -70,7 +73,7 @@ export function OrderTable({
   return (
     <ResponsiveTable
       columns={ORDER_COLUMNS}
-      wrapperClassName="!overflow-visible max-md:!mx-0 max-md:!rounded-[10px]"
+      wrapperClassName="!overflow-visible max-md:!mx-0 max-md:!rounded-[8px]"
       tableClassName="max-md:!min-w-0"
       theadClassName="max-md:hidden"
       tbodyClassName="max-md:[&>tr:first-child]:!border-t-0"
@@ -98,7 +101,7 @@ export function OrderTable({
           </td>
           <td className="max-md:hidden">{order.createdAt}</td>
           <td className="hidden max-md:col-start-1 max-md:col-end-5 max-md:row-start-2 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:!border-0 max-md:!p-0">
-            <span className="inline-flex items-center gap-1 rounded-full bg-light px-2 py-1 text-[11px] text-default">
+            <span className="inline-flex items-center gap-1 rounded-[8px] bg-light px-2 py-1 text-[11px] text-default">
               <Boxes className="hidden max-md:block" size={13} />
               {order.itemIds.length} 件
             </span>

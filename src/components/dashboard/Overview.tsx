@@ -4,6 +4,7 @@ import {
   Boxes,
   ChevronRight,
   ClipboardList,
+  Megaphone,
   PackageCheck,
   QrCode,
   Warehouse,
@@ -195,6 +196,40 @@ export function Overview({
           )}
         </section>
       </div>
+      <section className="card mb-4">
+        <div className="card-head">
+          <div>
+            <h2>公開喊單管理</h2>
+            <p>社群預購需求收集與商品專用設定</p>
+          </div>
+          <button onClick={() => onNavigate("claims")}>
+            進入喊單管理 <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="flex flex-col items-start justify-between gap-4 p-5 md:flex-row md:items-center">
+          <div className="flex items-center gap-3.5">
+            <span className="grid size-11 shrink-0 place-items-center rounded-[8px] bg-primary-soft text-primary">
+              <Megaphone size={22} />
+            </span>
+            <div>
+              <b className="block text-[14px] text-dark">
+                社群喊單專用商品與公開表單
+              </b>
+              <small className="block text-[12px] text-muted">
+                買家免登入填寫電話暱稱即可喊單；可自訂前台特惠價格與限購數量，自動統計廠商叫貨需求。
+              </small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="outline shrink-0 text-[13px]"
+            onClick={() => onNavigate("claims")}
+          >
+            <Megaphone size={15} />
+            前往喊單商品設定與明細
+          </button>
+        </div>
+      </section>
       <section className="card">
         <div className="card-head">
           <div>

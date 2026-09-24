@@ -86,7 +86,7 @@ export function ProductPanel({
         </div>
         <button
           type="button"
-          className={`relative m-6 grid h-[185px] w-[calc(100%-48px)] place-items-center rounded-[9px] border-0 text-[30px] tracking-[0.15em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1875)] ${p.image ? "cursor-zoom-in overflow-hidden p-0" : ""}`}
+          className={`relative m-6 grid h-[185px] w-[calc(100%-48px)] place-items-center rounded-[8px] border-0 text-[30px] tracking-[0.15em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1875)] ${p.image ? "cursor-zoom-in overflow-hidden p-0" : ""}`}
           style={{
             background: `linear-gradient(145deg,${p.accent},var(--color-dark))`,
           }}
@@ -95,7 +95,7 @@ export function ProductPanel({
           {p.image ? (
             <>
               <ProductImage src={p.image} alt={`${p.work} 商品主圖`} />
-              <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/65 px-3 py-2 text-[12px] tracking-normal text-white">
+              <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-[8px] bg-black/65 px-3 py-2 text-[12px] tracking-normal text-white">
                 <ZoomIn size={15} />
                 點擊放大
               </span>

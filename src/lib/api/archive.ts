@@ -4,9 +4,15 @@ import { archiveOrder } from "@/lib/api/orders";
 import type { AccountData, Product } from "@/lib/types";
 
 export type OrderItemRow = {
+  id: string;
   quantity: number;
   scanned_quantity: number;
-  products: { sku: string | null } | { sku: string | null }[] | null;
+  packed_quantity: number;
+  unit_price: number;
+  products:
+    | { id: string; sku: string | null; name: string | null }
+    | { id: string; sku: string | null; name: string | null }[]
+    | null;
 };
 
 export type OrderRow = {
@@ -17,8 +23,16 @@ export type OrderRow = {
   status: string;
   created_at: string;
   customers:
-    | { name: string | null; nickname: string | null }
-    | { name: string | null; nickname: string | null }[]
+    | {
+        name: string | null;
+        nickname: string | null;
+        contact: string | null;
+      }
+    | {
+        name: string | null;
+        nickname: string | null;
+        contact: string | null;
+      }[]
     | null;
   order_items: OrderItemRow[] | null;
 };

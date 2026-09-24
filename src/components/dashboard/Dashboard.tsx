@@ -1,11 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import swal from "sweetalert";
 import {
   Boxes,
   ChevronRight,
   ClipboardList,
   LayoutDashboard,
+  Megaphone,
   Menu,
   Plus,
   Printer,
@@ -25,7 +26,6 @@ import { SystemSettings } from "@/components/settings/SystemSettings";
 import { NewOrder } from "@/components/orders/NewOrder";
 import { SettlementPanel } from "@/components/settlement/SettlementPanel";
 import { EditOrderAmount } from "@/components/orders/EditOrderAmount";
-import { PACKING_ORDER_STATUSES } from "@/constants";
 import { DataState } from "@/components/ui/DataState";
 import { useProductsData } from "@/hooks/useProductsData";
 import { useOrdersData } from "@/hooks/useOrdersData";
@@ -36,10 +36,53 @@ import { BrandLogo } from "@/components/ui/BrandLogo";
 import { OrderTable } from "@/components/orders/OrderTable";
 import { ProductTable } from "@/components/products/ProductTable";
 import { Overview } from "./Overview";
-import { PackingQueue } from "@/components/packing/PackingQueue";
+import {
+  groupOrdersByCustomer,
+  PackingQueue,
+  type PackingCustomer,
+} from "@/components/packing/PackingQueue";
 import { downloadPrintLabels } from "@/lib/api/print-labels";
+import { ClaimFormPanel } from "@/components/claims/ClaimFormPanel";
 
 type View = DashboardView;
+
+type SearchValue = string | number | null | undefined | readonly SearchValue[];
+
+const HEADER_SEARCH_CONFIG: Partial<
+  Record<View, { label: string; placeholder: string }>
+> = {
+  products: {
+    label: "搜尋商品庫存",
+    placeholder: "搜尋作品、商品 ID、版本、庫位…",
+  },
+  orders: {
+    label: "搜尋訂單",
+    placeholder: "搜尋訂單編號、客戶、電話、商品…",
+  },
+  packing: {
+    label: "搜尋待包貨客人",
+    placeholder: "搜尋客戶、電話、訂單或商品…",
+  },
+  locations: {
+    label: "搜尋庫位",
+    placeholder: "搜尋庫位代碼或說明…",
+  },
+};
+
+function searchValueToText(value: SearchValue): string {
+  if (Array.isArray(value)) return value.map(searchValueToText).join(" ");
+  return value == null ? "" : String(value);
+}
+
+function matchesSearch(query: string, values: readonly SearchValue[]) {
+  const normalizedQuery = query.trim().toLocaleLowerCase("zh-TW");
+  if (!normalizedQuery) return true;
+  return values
+    .map(searchValueToText)
+    .join(" ")
+    .toLocaleLowerCase("zh-TW")
+    .includes(normalizedQuery);
+}
 
 const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
@@ -68,6 +111,7 @@ export function Dashboard() {
   const products = productsData ?? EMPTY_PRODUCTS;
   const orders = ordersData ?? EMPTY_ORDERS;
   const isAdmin = accountData?.isAdmin ?? false;
+  const canManageOrders = Boolean(accountData);
   const roleLoaded = !accountLoading;
   const userName = accountData?.userName ?? "使用者";
   const availableOwners = accountData?.availableOwners ?? EMPTY_OWNERS;
@@ -90,12 +134,16 @@ export function Dashboard() {
   }, [reloadAccount, reloadOrders, reloadProducts]);
 
   const [view, setView] = useState<View>("dashboard");
-  const [query, setQuery] = useState("");
+  const [searchQueries, setSearchQueries] = useState<
+    Partial<Record<View, string>>
+  >({});
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [mobile, setMobile] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<PackingCustomer | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [greeting, setGreeting] = useState("您好");
   const [todayLabel, setTodayLabel] = useState("");
@@ -105,9 +153,35 @@ export function Dashboard() {
     () => new Set(),
   );
   const [preparingPrint, setPreparingPrint] = useState(false);
+  const query = searchQueries[view] ?? "";
+  const searchConfig =
+    view === "packing" && selectedCustomer
+      ? undefined
+      : HEADER_SEARCH_CONFIG[view];
+  const setQuery = useCallback(
+    (value: string) => {
+      setSearchQueries((current) => ({ ...current, [view]: value }));
+    },
+    [view],
+  );
   const activeInventoryName =
     availableOwners.find((owner) => owner.id === selectedOwnerId)?.name ??
     "目前庫藏";
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (
+        searchConfig &&
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "k"
+      ) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, [searchConfig]);
   useEffect(() => {
     const updateGreeting = () => {
       const now = new Date();
@@ -169,23 +243,64 @@ export function Dashboard() {
   const finance = selectedOwnerId
     ? (accountData?.financeByOwner[selectedOwnerId] ?? null)
     : null;
-  const filtered = useMemo(
+  const filteredProducts = useMemo(
     () =>
-      scopedProducts.filter((p) =>
-        Object.values(p)
-          .flat()
-          .join(" ")
-          .toLowerCase()
-          .includes(query.toLowerCase()),
+      scopedProducts.filter((product) =>
+        matchesSearch(query, [
+          product.id,
+          product.dbId,
+          product.name,
+          product.ownerName,
+          product.work,
+          product.category,
+          product.country,
+          product.source,
+          product.format,
+          product.size,
+          product.crafts,
+          product.location,
+          product.status,
+          product.feature,
+          product.description,
+          product.stock,
+          product.price,
+        ]),
       ),
     [query, scopedProducts],
   );
-  const packingCount = scopedOrders.filter((order) =>
-    PACKING_ORDER_STATUSES.has(order.status),
-  ).length;
+  const filteredOrders = useMemo(
+    () =>
+      scopedOrders.filter((order) =>
+        matchesSearch(query, [
+          order.id,
+          order.customer,
+          order.customerNickname,
+          order.customerContact,
+          order.createdAt,
+          order.status,
+          order.payment,
+          order.itemIds,
+          order.total,
+          order.items.flatMap((item) => [item.sku, item.name]),
+        ]),
+      ),
+    [query, scopedOrders],
+  );
+  const packingCount = groupOrdersByCustomer(scopedOrders).length;
+  const selectCustomerForOrder = useCallback(
+    (order: Order) => {
+      const customer = groupOrdersByCustomer(scopedOrders).find(
+        (candidate) => candidate.key === order.customerKey,
+      );
+      setSelectedCustomer(customer ?? null);
+      setView("packing");
+    },
+    [scopedOrders],
+  );
   const nav = [
     { id: "dashboard", label: "總覽", icon: LayoutDashboard },
     { id: "products", label: "商品庫存", icon: Boxes },
+    { id: "claims", label: "喊單管理", icon: Megaphone },
     { id: "orders", label: "訂單管理", icon: ClipboardList },
     { id: "packing", label: "掃碼出貨", icon: QrCode },
   ] as const;
@@ -279,26 +394,64 @@ export function Dashboard() {
           >
             <Menu />
           </button>
-          <div className="search">
-            <Search size={18} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜尋作品、商品 ID、版本、庫位…"
+          {view === "claims" ? (
+            <div
+              id="claim-customer-search-slot"
+              className="min-w-0 flex-1"
+              aria-live="polite"
             />
-            <kbd>⌘ K</kbd>
-          </div>
+          ) : searchConfig ? (
+            <form
+              className="search"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                searchInputRef.current?.blur();
+              }}
+            >
+              <Search className="shrink-0" size={18} aria-hidden="true" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape") return;
+                  if (query) setQuery("");
+                  else event.currentTarget.blur();
+                }}
+                placeholder={searchConfig.placeholder}
+                aria-label={searchConfig.label}
+                autoComplete="off"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  onClick={() => {
+                    setQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  aria-label="清除搜尋"
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+              <button type="submit" className="search-submit" aria-label="查詢">
+                <Search size={14} aria-hidden="true" />
+                <span>查詢</span>
+              </button>
+            </form>
+          ) : null}
         </header>
         <div className="content">
           {view === "packing" ? (
-            selectedOrder ? (
+            selectedCustomer ? (
               <PackingPanel
-                order={selectedOrder}
-                products={scopedProducts.filter((product) =>
-                  selectedOrder.itemIds.includes(product.id),
-                )}
+                customer={selectedCustomer}
+                products={scopedProducts}
                 onBack={() => {
-                  setSelectedOrder(null);
+                  setSelectedCustomer(null);
                   setView("orders");
                 }}
                 onCompleted={() => {
@@ -315,7 +468,8 @@ export function Dashboard() {
               >
                 <PackingQueue
                   orders={scopedOrders}
-                  onPack={(order) => setSelectedOrder(order)}
+                  query={query}
+                  onPack={(customer) => setSelectedCustomer(customer)}
                 />
               </DataState>
             )
@@ -327,26 +481,30 @@ export function Dashboard() {
                   <h1>
                     {view === "products"
                       ? "商品庫存"
-                      : view === "orders"
-                        ? "訂單管理"
-                        : view === "locations"
-                          ? "庫位管理"
-                          : view === "settlement"
-                            ? "財務結算"
-                            : view === "settings"
-                              ? "系統設定"
-                              : `${greeting}，${userName}`}
+                      : view === "claims"
+                        ? "喊單管理"
+                        : view === "orders"
+                          ? "訂單管理"
+                          : view === "locations"
+                            ? "庫位管理"
+                            : view === "settlement"
+                              ? "財務結算"
+                              : view === "settings"
+                                ? "系統設定"
+                                : `${greeting}，${userName}`}
                   </h1>
                   <p>
                     {view === "dashboard"
                       ? activeInventoryName
-                      : view === "locations"
-                        ? "建立並查看收藏品的實際存放位置。"
-                        : view === "settlement"
-                          ? "彙整銷售收入、批次成本與目前淨利。"
-                          : view === "settings"
-                            ? "管理帳號與系統連線資訊。"
-                            : "快速找到每一件收藏品，減少人工核對。"}
+                      : view === "claims"
+                        ? "管理公開商品、顧客喊單與採購數量。"
+                        : view === "locations"
+                          ? "建立並查看收藏品的實際存放位置。"
+                          : view === "settlement"
+                            ? "彙整銷售收入、批次成本與目前淨利。"
+                            : view === "settings"
+                              ? "管理帳號與系統連線資訊。"
+                              : "快速找到每一件收藏品，減少人工核對。"}
                   </p>
                 </div>
                 {view === "orders" ? (
@@ -383,7 +541,8 @@ export function Dashboard() {
                 ) : (
                   view !== "settings" &&
                   view !== "locations" &&
-                  view !== "settlement" && (
+                  view !== "settlement" &&
+                  view !== "claims" && (
                     <button
                       className="primary"
                       onClick={() => setCreating(true)}
@@ -414,8 +573,7 @@ export function Dashboard() {
                     isAdmin={isAdmin}
                     roleLoaded={roleLoaded}
                     onPack={(order) => {
-                      setSelectedOrder(order);
-                      setView("packing");
+                      selectCustomerForOrder(order);
                     }}
                     onSelectProduct={setSelected}
                   />
@@ -424,10 +582,12 @@ export function Dashboard() {
               {view === "products" && (
                 <DataState
                   loading={loading}
-                  isEmpty={filtered.length === 0}
+                  isEmpty={filteredProducts.length === 0}
                   loadingText="正在讀取商品…"
                   emptyText={
-                    query ? `找不到符合「${query}」的商品` : "目前沒有商品"
+                    query.trim()
+                      ? `找不到符合「${query.trim()}」的商品`
+                      : "目前沒有商品"
                   }
                 >
                   {printSelectionMode && (
@@ -437,7 +597,7 @@ export function Dashboard() {
                           type="button"
                           className="outline"
                           onClick={() => {
-                            const ids = filtered
+                            const ids = filteredProducts
                               .map((product) => product.dbId)
                               .filter((id): id is string => Boolean(id));
                             const allSelected = ids.every((id) =>
@@ -469,7 +629,7 @@ export function Dashboard() {
                                 error instanceof Error
                                   ? error.message
                                   : "列印檔案產生失敗",
-                              icon: "error",
+                              type: "error",
                             });
                           } finally {
                             setPreparingPrint(false);
@@ -484,7 +644,7 @@ export function Dashboard() {
                     </div>
                   )}
                   <ProductTable
-                    items={filtered}
+                    items={filteredProducts}
                     onSelect={printSelectionMode ? undefined : setSelected}
                     selectionMode={printSelectionMode}
                     selectedIds={printProductIds}
@@ -502,15 +662,19 @@ export function Dashboard() {
               {view === "orders" && (
                 <DataState
                   loading={ordersLoading}
-                  isEmpty={scopedOrders.length === 0}
+                  isEmpty={filteredOrders.length === 0}
                   loadingText="正在讀取訂單…"
-                  emptyText="目前沒有正式訂單"
+                  emptyText={
+                    query.trim()
+                      ? `找不到符合「${query.trim()}」的訂單`
+                      : "目前沒有正式訂單"
+                  }
                 >
                   <OrderTable
-                    orders={scopedOrders}
-                    onEditAmount={isAdmin ? setEditingOrder : undefined}
+                    orders={filteredOrders}
+                    onEditAmount={canManageOrders ? setEditingOrder : undefined}
                     onDelete={
-                      isAdmin
+                      canManageOrders
                         ? async (order) => {
                             if (
                               !window.confirm(
@@ -536,14 +700,22 @@ export function Dashboard() {
                         : undefined
                     }
                     onPack={(order) => {
-                      setSelectedOrder(order);
-                      setView("packing");
+                      selectCustomerForOrder(order);
                     }}
                   />
                 </DataState>
               )}
+              {view === "claims" && selectedOwnerId && (
+                <ClaimFormPanel
+                  ownerId={selectedOwnerId}
+                  inventoryName={activeInventoryName}
+                  products={scopedProducts}
+                  orders={scopedOrders}
+                  onReloadProducts={loadProducts}
+                />
+              )}
               {view === "locations" && selectedOwnerId && (
-                <LocationManager ownerId={selectedOwnerId} />
+                <LocationManager ownerId={selectedOwnerId} query={query} />
               )}
               {view === "settlement" && selectedOwnerId && (
                 <SettlementPanel ownerId={selectedOwnerId} />
@@ -562,7 +734,7 @@ export function Dashboard() {
                       inventoryId,
                     );
                     setSelected(null);
-                    setSelectedOrder(null);
+                    setSelectedCustomer(null);
                     setPrintSelectionMode(false);
                     setPrintProductIds(new Set());
                   }}

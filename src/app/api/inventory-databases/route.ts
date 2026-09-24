@@ -1,10 +1,25 @@
 import { z } from "zod";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 
+const qrDestinationUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => {
+    if (!value) return true;
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  })
+  .optional();
+
 const updateInventoryDatabaseSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(80),
   ownerIds: z.array(z.string().uuid()).min(1),
+  qrDestinationUrl: qrDestinationUrlSchema,
 });
 
 const createInventoryDatabaseSchema = updateInventoryDatabaseSchema.omit({
@@ -32,6 +47,9 @@ async function updateInventoryDatabase(
       p_inventory_id: inventoryId,
       p_name: parsed.data.name,
       p_owner_ids: [...new Set(parsed.data.ownerIds)],
+      ...(parsed.data.qrDestinationUrl === undefined
+        ? {}
+        : { p_qr_destination_url: parsed.data.qrDestinationUrl }),
     },
   );
   if (error) return apiFailure(error.message, 400, error.code);
@@ -44,9 +62,15 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const body = await request.clone().json().catch(() => null);
+  const body = await request
+    .clone()
+    .json()
+    .catch(() => null);
   const inventoryId =
-    body && typeof body === "object" && "id" in body && typeof body.id === "string"
+    body &&
+    typeof body === "object" &&
+    "id" in body &&
+    typeof body.id === "string"
       ? body.id
       : null;
   if (!inventoryId) return apiFailure("資料庫 ID 無效", 400);

@@ -30,16 +30,32 @@ export type Product = {
     printedAt?: string;
   }[];
 };
+
+export type OrderItem = {
+  orderItemId: string;
+  productId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  packedQuantity: number;
+  scannedQuantity: number;
+  unitPrice: number;
+};
+
 export type Order = {
   dbId: string;
   id: string;
   ownerId: string;
   customer: string;
+  customerKey: string;
+  customerNickname: string;
+  customerContact: string;
   createdAt: string;
   status: string;
   payment: string;
   itemIds: string[];
   packedIds: string[];
+  items: OrderItem[];
   total?: number;
 };
 
@@ -61,6 +77,7 @@ export type AccountData = {
     id: string;
     name: string;
     ownerIds: string[];
+    qrDestinationUrl: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
 };
@@ -68,9 +85,9 @@ export type AccountData = {
 export type DashboardView =
   | "dashboard"
   | "products"
+  | "claims"
   | "orders"
   | "packing"
   | "locations"
   | "settlement"
   | "settings";
-

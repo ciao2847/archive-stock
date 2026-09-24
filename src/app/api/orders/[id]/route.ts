@@ -73,7 +73,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireApiUser(["admin"]);
+  const auth = await requireApiUser();
   if (!auth.ok) return auth.response;
 
   const parsedId = z

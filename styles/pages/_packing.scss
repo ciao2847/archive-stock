@@ -25,6 +25,84 @@
   }
 }
 
+// 依客人包貨清單 | Customer packing queue
+.packing-customer-list {
+  display: grid;
+  gap: 12px;
+}
+
+.packing-customer-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: $radius-xl;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+
+  p,
+  small {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+
+  .primary {
+    margin-left: auto;
+    flex: none;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    flex-wrap: wrap;
+
+    .packing-customer-progress {
+      margin-left: 56px;
+      flex: 1;
+    }
+
+    .primary {
+      width: 100%;
+      margin-left: 0;
+      justify-content: center;
+    }
+  }
+}
+
+.packing-customer-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  flex: 1;
+}
+
+.packing-customer-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.packing-customer-progress {
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+
+  strong {
+    color: var(--color-accent-strong);
+    font-size: 14px;
+  }
+}
+
 // 打包網格 | Packing Grid
 .packing-grid {
   display: grid;
@@ -230,6 +308,22 @@
 
   @media (max-width: $breakpoint-md) {
     margin-top: $spacing-3;
+  }
+}
+
+.packing-order-divider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 20px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-main);
+  font: 600 12px var(--font-mono);
+
+  small {
+    color: var(--color-muted);
+    font: 400 11px var(--font-sans);
   }
 }
 

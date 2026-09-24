@@ -22,7 +22,7 @@ export async function GET() {
   if (auth.role !== "admin") {
     const { data: inventory, error: inventoryError } = await auth.supabase
       .from("inventory_databases")
-      .select("id,name")
+      .select("id,name,qr_destination_url")
       .eq("id", auth.inventoryOwnerId)
       .maybeSingle();
     if (inventoryError)
@@ -41,6 +41,7 @@ export async function GET() {
           id: auth.inventoryOwnerId,
           name: inventoryName,
           ownerIds: [auth.userId],
+          qrDestinationUrl: inventory?.qr_destination_url ?? "",
         },
       ],
       availableUsers: [],
@@ -66,7 +67,10 @@ export async function GET() {
       .select("id,display_name,inventory_owner_id")
       .order("display_name"),
     auth.supabase.from("products").select("id,owner_id"),
-    auth.supabase.from("inventory_databases").select("id,name").order("name"),
+    auth.supabase
+      .from("inventory_databases")
+      .select("id,name,qr_destination_url")
+      .order("name"),
     auth.supabase
       .from("inventory_database_members")
       .select("inventory_id,user_id,is_owner"),
@@ -155,6 +159,7 @@ export async function GET() {
     inventoryDatabases: canonicalOwners.map((inventory) => ({
       id: inventory.id,
       name: inventory.name,
+      qrDestinationUrl: inventory.qr_destination_url ?? "",
       ownerIds: (memberships ?? [])
         .filter(
           (membership) =>

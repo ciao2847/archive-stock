@@ -14,6 +14,197 @@ export type Database = {
   }
   public: {
     Tables: {
+      claim_form_products: {
+        Row: {
+          display_name: string
+          form_id: number
+          max_quantity_per_customer: number
+          product_id: string
+          published_at: string
+          sort_order: number
+          unit_price: number
+        }
+        Insert: {
+          display_name: string
+          form_id: number
+          max_quantity_per_customer?: number
+          product_id: string
+          published_at?: string
+          sort_order?: number
+          unit_price: number
+        }
+        Update: {
+          display_name?: string
+          form_id?: number
+          max_quantity_per_customer?: number
+          product_id?: string
+          published_at?: string
+          sort_order?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_form_products_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "claim_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_form_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_forms: {
+        Row: {
+          closes_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: number
+          is_open: boolean
+          owner_id: string
+          public_token: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          closes_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          is_open?: boolean
+          owner_id: string
+          public_token?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          closes_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          is_open?: boolean
+          owner_id?: string
+          public_token?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_forms_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_databases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_submission_items: {
+        Row: {
+          created_at: string
+          id: number
+          product_id: string | null
+          product_name: string
+          product_sku: string
+          quantity: number
+          submission_id: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          product_id?: string | null
+          product_name: string
+          product_sku: string
+          quantity: number
+          submission_id: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          product_id?: string | null
+          product_name?: string
+          product_sku?: string
+          quantity?: number
+          submission_id?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_submission_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_submission_items_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "claim_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_submissions: {
+        Row: {
+          confirmation_code: string
+          created_at: string
+          form_id: number
+          id: number
+          nickname: string
+          notes: string | null
+          phone: string
+          phone_normalized: string
+          request_id: string
+        }
+        Insert: {
+          confirmation_code?: string
+          created_at?: string
+          form_id: number
+          id?: never
+          nickname: string
+          notes?: string | null
+          phone: string
+          phone_normalized: string
+          request_id: string
+        }
+        Update: {
+          confirmation_code?: string
+          created_at?: string
+          form_id?: number
+          id?: never
+          nickname?: string
+          notes?: string | null
+          phone?: string
+          phone_normalized?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "claim_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_database_members: {
         Row: {
           created_at: string
@@ -56,6 +247,7 @@ export type Database = {
           created_by: string
           id: string
           name: string
+          qr_destination_url: string | null
           updated_at: string
         }
         Insert: {
@@ -63,6 +255,7 @@ export type Database = {
           created_by: string
           id?: string
           name: string
+          qr_destination_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -70,6 +263,7 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+          qr_destination_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -231,6 +425,7 @@ export type Database = {
         Row: {
           id: string
           order_id: string
+          packed_quantity: number
           product_id: string
           quantity: number
           scanned_quantity: number
@@ -239,6 +434,7 @@ export type Database = {
         Insert: {
           id?: string
           order_id: string
+          packed_quantity?: number
           product_id: string
           quantity?: number
           scanned_quantity?: number
@@ -247,6 +443,7 @@ export type Database = {
         Update: {
           id?: string
           order_id?: string
+          packed_quantity?: number
           product_id?: string
           quantity?: number
           scanned_quantity?: number
@@ -817,7 +1014,50 @@ export type Database = {
         Returns: number
       }
       archive_order: { Args: { p_order_id: string }; Returns: boolean }
+      complete_packing_package: {
+        Args: { p_package_id: string }
+        Returns: Json
+      }
       complete_order_packing: { Args: { p_order_id: string }; Returns: boolean }
+      configure_claim_form: {
+        Args: {
+          p_closes_at: string | null
+          p_description: string
+          p_form_id: number | null
+          p_is_open: boolean
+          p_owner_id: string
+          p_products: Json
+          p_title: string
+        }
+        Returns: {
+          form_id: number
+          public_token: string
+        }[]
+      }
+      consume_product_package_qr: {
+        Args: { p_package_id: string; p_token: string }
+        Returns: {
+          order_id: string | null
+          order_item_id: string | null
+          order_no: string | null
+          product_id: string | null
+          reason: string
+          sku: string | null
+          valid: boolean
+        }[]
+      }
+      consume_product_package_sku: {
+        Args: { p_package_id: string; p_sku: string }
+        Returns: {
+          order_id: string | null
+          order_item_id: string | null
+          order_no: string | null
+          product_id: string | null
+          reason: string
+          sku: string | null
+          valid: boolean
+        }[]
+      }
       consume_product_qr: {
         Args: { p_order_id: string; p_token: string }
         Returns: {
@@ -894,6 +1134,18 @@ export type Database = {
         }
         Returns: string
       }
+      create_packing_package: {
+        Args: { p_customer_key: string; p_owner_id: string }
+        Returns: string
+      }
+      delete_claim_submission: {
+        Args: {
+          p_form_id: number
+          p_owner_id: string
+          p_submission_id: number
+        }
+        Returns: boolean
+      }
       delete_inventory_product: {
         Args: { p_product_id: string }
         Returns: string[]
@@ -906,11 +1158,31 @@ export type Database = {
           product_id: string
         }[]
       }
+      get_packing_package_progress: {
+        Args: { p_package_id: string }
+        Returns: Json
+      }
+      get_claim_form_summary: {
+        Args: { p_form_id: number }
+        Returns: Json
+      }
+      get_public_claim_form: {
+        Args: { p_token: string }
+        Returns: {
+          closes_at: string | null
+          description: string | null
+          is_open: boolean
+          products: Json
+          store_name: string
+          title: string
+        }[]
+      }
       get_public_qr_landing: {
         Args: { p_channel?: string; p_token: string }
         Returns: {
           order_no: string
           order_status: string
+          purchase_url: string | null
           qr_status: string
           recommendations: Json
           sales_channel: string
@@ -927,6 +1199,20 @@ export type Database = {
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
+      }
+      submit_public_claim: {
+        Args: {
+          p_items: Json
+          p_nickname: string
+          p_notes: string
+          p_phone: string
+          p_request_id: string
+          p_token: string
+        }
+        Returns: {
+          confirmation_code: string
+          submitted_at: string
+        }[]
       }
       update_inventory_product: {
         Args: {
@@ -954,6 +1240,7 @@ export type Database = {
           p_inventory_id: string | null
           p_name: string
           p_owner_ids: string[]
+          p_qr_destination_url?: string
         }
         Returns: string
       }

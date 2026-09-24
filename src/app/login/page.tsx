@@ -41,7 +41,7 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-screen place-items-center p-5 bg-gradient-to-br from-dark via-secondary to-accent ml-0">
-      <section className="w-full max-w-[420px] rounded-[12px] bg-paper p-10 shadow-[0_25px_80px_rgba(0,0,0,0.05)] max-sm:px-6 max-sm:py-7">
+      <section className="w-full max-w-[420px] rounded-[8px] bg-paper p-10 shadow-[0_25px_80px_rgba(0,0,0,0.05)] max-sm:px-6 max-sm:py-7">
         <BrandLogo className="mb-9" preload size="large" />
         <span className="eyebrow">內部管理系統</span>
         <h1 className="my-2 text-[30px]">登入工作台</h1>
