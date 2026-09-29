@@ -23,31 +23,42 @@ import {
   blendHexColors,
   getContrastColor,
   normalizeClaimFormBannerPosition,
+  normalizeHexColor,
   type ClaimFormBannerPosition,
   type ClaimFormTheme,
 } from "@/lib/claim-form-theme";
 
-function themesMatch(left: ClaimFormTheme, right: ClaimFormTheme) {
+function themesMatch(
+  left?: Partial<ClaimFormTheme> | null,
+  right?: Partial<ClaimFormTheme> | null,
+) {
+  if (!left || !right) return false;
   return (
-    left.primaryColor.toUpperCase() === right.primaryColor.toUpperCase() &&
-    left.backgroundColor.toUpperCase() ===
-      right.backgroundColor.toUpperCase() &&
-    left.surfaceColor.toUpperCase() === right.surfaceColor.toUpperCase() &&
-    left.headerTextColor.toUpperCase() === right.headerTextColor.toUpperCase()
+    (left.primaryColor || "").toUpperCase() ===
+      (right.primaryColor || "").toUpperCase() &&
+    (left.backgroundColor || "").toUpperCase() ===
+      (right.backgroundColor || "").toUpperCase() &&
+    (left.surfaceColor || "").toUpperCase() ===
+      (right.surfaceColor || "").toUpperCase() &&
+    (left.headerTextColor || "").toUpperCase() ===
+      (right.headerTextColor || "").toUpperCase()
   );
 }
 
 function ColorControl({
   label,
   value,
+  fallback = "#5A87B1",
   onChange,
   disabled,
 }: {
   label: string;
-  value: string;
+  value?: string;
+  fallback?: string;
   onChange: (value: string) => void;
   disabled: boolean;
 }) {
+  const safeValue = normalizeHexColor(value || "", fallback);
   return (
     <label className="grid min-h-14 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border border-line bg-white px-3 py-2.5">
       <span className="whitespace-nowrap text-[12px] font-semibold text-dark">
@@ -55,12 +66,12 @@ function ColorControl({
       </span>
       <span className="flex shrink-0 items-center gap-2">
         <span className="whitespace-nowrap font-mono text-[11px] text-muted">
-          {value.toUpperCase()}
+          {safeValue}
         </span>
         <input
           className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
           type="color"
-          value={value}
+          value={safeValue}
           onChange={(event) => onChange(event.target.value.toUpperCase())}
           disabled={disabled}
           aria-label={label}
@@ -124,11 +135,17 @@ export function ClaimFormAppearanceSettings({
 
   const previewImageUrl =
     localPreviewUrl || (!bannerImageRemoved ? bannerImageUrl : undefined);
-  const primaryText = getContrastColor(theme.primaryColor);
-  const surfaceText = getContrastColor(theme.surfaceColor);
+  const safeTheme: ClaimFormTheme = {
+    primaryColor: normalizeHexColor(theme?.primaryColor || "", "#5A87B1"),
+    backgroundColor: normalizeHexColor(theme?.backgroundColor || "", "#F3F7FB"),
+    surfaceColor: normalizeHexColor(theme?.surfaceColor || "", "#FFFFFF"),
+    headerTextColor: normalizeHexColor(theme?.headerTextColor || "", "#172433"),
+  };
+  const primaryText = getContrastColor(safeTheme.primaryColor);
+  const surfaceText = getContrastColor(safeTheme.surfaceColor);
   const previewBorder = blendHexColors(
-    theme.surfaceColor,
-    theme.primaryColor,
+    safeTheme.surfaceColor,
+    safeTheme.primaryColor,
     0.28,
   );
 
@@ -330,7 +347,7 @@ export function ClaimFormAppearanceSettings({
             <b className="block text-[13px] text-dark">快速套用色系</b>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {CLAIM_FORM_THEME_PRESETS.map((preset) => {
-                const selected = themesMatch(theme, preset.theme);
+                const selected = themesMatch(safeTheme, preset.theme);
                 return (
                   <button
                     key={preset.id}
@@ -373,33 +390,37 @@ export function ClaimFormAppearanceSettings({
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <ColorControl
                 label="主色"
-                value={theme.primaryColor}
+                value={safeTheme.primaryColor}
+                fallback="#5A87B1"
                 onChange={(primaryColor) =>
-                  onThemeChange({ ...theme, primaryColor })
+                  onThemeChange({ ...safeTheme, primaryColor })
                 }
                 disabled={disabled}
               />
               <ColorControl
                 label="頁面背景"
-                value={theme.backgroundColor}
+                value={safeTheme.backgroundColor}
+                fallback="#F3F7FB"
                 onChange={(backgroundColor) =>
-                  onThemeChange({ ...theme, backgroundColor })
+                  onThemeChange({ ...safeTheme, backgroundColor })
                 }
                 disabled={disabled}
               />
               <ColorControl
                 label="卡片底色"
-                value={theme.surfaceColor}
+                value={safeTheme.surfaceColor}
+                fallback="#FFFFFF"
                 onChange={(surfaceColor) =>
-                  onThemeChange({ ...theme, surfaceColor })
+                  onThemeChange({ ...safeTheme, surfaceColor })
                 }
                 disabled={disabled}
               />
               <ColorControl
                 label="表頭文字"
-                value={theme.headerTextColor}
+                value={safeTheme.headerTextColor}
+                fallback="#172433"
                 onChange={(headerTextColor) =>
-                  onThemeChange({ ...theme, headerTextColor })
+                  onThemeChange({ ...safeTheme, headerTextColor })
                 }
                 disabled={disabled}
               />
@@ -412,26 +433,26 @@ export function ClaimFormAppearanceSettings({
           <div
             className="mt-2 overflow-hidden rounded-[8px] border p-3 shadow-sm"
             style={{
-              backgroundColor: theme.backgroundColor,
+              backgroundColor: safeTheme.backgroundColor,
               borderColor: previewBorder,
             }}
           >
             <div
               className="relative min-h-32 overflow-hidden rounded-[8px] bg-cover p-4"
               style={{
-                backgroundColor: theme.primaryColor,
+                backgroundColor: safeTheme.primaryColor,
                 backgroundImage: previewImageUrl
                   ? `linear-gradient(rgba(5, 16, 32, 0.28), rgba(5, 16, 32, 0.28)), url(${JSON.stringify(previewImageUrl)})`
                   : undefined,
                 backgroundPosition: `${bannerPosition.x}% ${bannerPosition.y}%`,
-                color: theme.headerTextColor,
+                color: safeTheme.headerTextColor,
               }}
             >
               <div className="relative">
                 <span
                   className="inline-flex rounded-[8px] px-2 py-1 text-[9px] font-bold"
                   style={{
-                    backgroundColor: theme.surfaceColor,
+                    backgroundColor: safeTheme.surfaceColor,
                     color: surfaceText,
                   }}
                 >
@@ -439,14 +460,14 @@ export function ClaimFormAppearanceSettings({
                 </span>
                 <h4
                   className="mb-0 mt-3 text-[17px] leading-tight"
-                  style={{ color: theme.headerTextColor }}
+                  style={{ color: safeTheme.headerTextColor }}
                 >
                   {title.trim() || "喊單標題預覽"}
                 </h4>
                 {description.trim() && (
                   <p
                     className="mb-0 mt-1 line-clamp-2 text-[10px] leading-4 opacity-80"
-                    style={{ color: theme.headerTextColor }}
+                    style={{ color: safeTheme.headerTextColor }}
                   >
                     {description}
                   </p>
@@ -459,14 +480,14 @@ export function ClaimFormAppearanceSettings({
                   key={name}
                   className="rounded-[8px] border p-3"
                   style={{
-                    backgroundColor: theme.surfaceColor,
+                    backgroundColor: safeTheme.surfaceColor,
                     borderColor: previewBorder,
                     color: surfaceText,
                   }}
                 >
                   <span
                     className="text-[9px] font-bold"
-                    style={{ color: theme.primaryColor }}
+                    style={{ color: safeTheme.primaryColor }}
                   >
                     海報 · A3
                   </span>
@@ -475,7 +496,7 @@ export function ClaimFormAppearanceSettings({
                     type="button"
                     className="mt-3 w-full rounded-[8px] border-0 px-2 py-1.5 text-[10px] font-bold"
                     style={{
-                      backgroundColor: theme.primaryColor,
+                      backgroundColor: safeTheme.primaryColor,
                       color: primaryText,
                     }}
                     tabIndex={-1}

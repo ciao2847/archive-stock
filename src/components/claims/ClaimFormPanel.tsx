@@ -698,8 +698,8 @@ export function ClaimFormPanel({
             >
               <Settings2 className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">商品設定</span>
-                <span className="hidden md:inline">喊單商品設定頁（專用）</span>
+                <span className="md:hidden">外觀與商品</span>
+                <span className="hidden md:inline">表單外觀與商品設定</span>
               </span>
               {selectedIds.size > 0 && (
                 <span
