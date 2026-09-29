@@ -87,6 +87,10 @@ from public.inventory_databases inventory
 where inventory.id = form.owner_id;
 
 -- 5. Privileged function to update the inventory appearance safely
+drop function if exists private.update_inventory_claim_appearance(
+  uuid, text, integer, integer, text, text, text, text
+);
+
 create or replace function private.update_inventory_claim_appearance(
   p_inventory_id uuid,
   p_banner_image_path text,
@@ -121,6 +125,11 @@ revoke all on function private.update_inventory_claim_appearance(
 ) from public, anon, authenticated;
 
 -- 6. Replace configure_claim_form so that appearance updates the inventory and syncs to all IP claim forms
+drop function if exists public.configure_claim_form(
+  bigint, uuid, text, text, boolean, timestamptz, jsonb,
+  text, integer, integer, text, text, text, text
+);
+
 create or replace function public.configure_claim_form(
   p_form_id bigint,
   p_owner_id uuid,
@@ -388,7 +397,9 @@ grant execute on function public.configure_claim_form(
 ) to authenticated;
 
 -- 7. Ensure get_public_claim_form always uses the inventory's unified appearance
-create or replace function public.get_public_claim_form(p_token uuid)
+drop function if exists public.get_public_claim_form(uuid);
+
+create function public.get_public_claim_form(p_token uuid)
 returns table(
   store_name text,
   title text,
@@ -396,8 +407,8 @@ returns table(
   is_open boolean,
   closes_at timestamptz,
   banner_image_path text,
-  banner_position_x integer,
-  banner_position_y integer,
+  banner_position_x smallint,
+  banner_position_y smallint,
   theme_primary_color text,
   theme_background_color text,
   theme_surface_color text,
@@ -405,18 +416,19 @@ returns table(
   products jsonb
 )
 language sql
-security invoker
+stable
+security definer
 set search_path = ''
 as $$
   select
     coalesce(inventory.name, '庫藏預購'),
     form.title,
     form.description,
-    form.is_open,
+    form.is_open and (form.closes_at is null or form.closes_at > now()) as is_open,
     form.closes_at,
     coalesce(inventory.claim_banner_image_path, form.banner_image_path),
-    coalesce(inventory.claim_banner_position_x, form.banner_position_x, 50),
-    coalesce(inventory.claim_banner_position_y, form.banner_position_y, 50),
+    coalesce(inventory.claim_banner_position_x, form.banner_position_x, 50)::smallint,
+    coalesce(inventory.claim_banner_position_y, form.banner_position_y, 50)::smallint,
     coalesce(inventory.claim_theme_primary_color, form.theme_primary_color, '#5A87B1'),
     coalesce(inventory.claim_theme_background_color, form.theme_background_color, '#F3F7FB'),
     coalesce(inventory.claim_theme_surface_color, form.theme_surface_color, '#FFFFFF'),
