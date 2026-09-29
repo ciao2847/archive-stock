@@ -26,7 +26,7 @@ supabase/migrations/20260903001511_harden_rls_and_rpc_privileges.sql
 
 ## 公開喊單頁
 
-登入後從側邊欄進入「喊單管理」，每個 IP（例如蜘蛛人、蝙蝠俠）都能建立一條固定且獨立的 `/claim/{token}` 分享連結，並可隨新品釋出持續更新該 IP 頁面的商品。各 IP 的商品、顧客喊單與統計互相分開；管理者可個別自訂公開名稱、喊單金額、單次數量上限、表單說明、截止時間、頂部橫幅背景圖、圖片焦點位置、表頭文字顏色與頁面色系。這些自訂內容不會修改庫藏商品主檔。消費者不需登入，可以選擇多項商品與數量，最後填寫電話、群組暱稱後送出；喊單管理頁會依商品彙整採購數量，也可下載 CSV。
+登入後從側邊欄進入「喊單管理」，每個 IP（例如蜘蛛人、蝙蝠俠）都能建立一條固定且獨立的 `/claim/{token}` 分享連結，並可隨新品釋出持續更新該 IP 頁面的商品。各 IP 的商品、顧客喊單與統計互相分開；管理者可個別自訂公開名稱、喊單金額、單次數量上限、表單說明與截止時間。頂部橫幅背景圖、焦點位置與頁面色系則由庫藏統一設定，該庫藏的所有 IP 喊單頁共用同一組外觀風格。這些自訂內容不會修改庫藏商品主檔。消費者不需登入，可以選擇多項商品與數量，最後填寫電話、群組暱稱後送出；喊單管理頁會依商品彙整採購數量，也可下載 CSV。
 
 喊單屬於預購需求蒐集，不會預留或扣除現有庫存，也不會直接進入掃碼包貨流程。尚未進貨的商品可先用庫存 `0`、空白庫位建檔；日後補上實際庫存時才會產生 QR 標籤。正式啟用前需套用：
 
@@ -42,6 +42,7 @@ supabase/migrations/20260929062040_merge_claim_form_appearance_into_public_rpc.s
 supabase/migrations/20260929063538_adjust_claim_form_header_and_banner_position.sql
 supabase/migrations/20260929064248_lighten_existing_poster_owner_claim_forms.sql
 supabase/migrations/20260929085500_allow_delete_claim_forms_and_fix_creation.sql
+supabase/migrations/20260929091500_unify_claim_form_appearance_per_inventory.sql
 ```
 
 橫幅會壓縮成 WebP 後存入公開的 `claim-form-assets` bucket；只有該庫倉成員可上傳或刪除。公開 RPC 只回傳表單外觀與商品展示欄位，電話與暱稱所在資料表不提供匿名角色直接存取，匿名送單統一透過受驗證的原子化 RPC 寫入。

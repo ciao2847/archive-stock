@@ -264,6 +264,13 @@ export type Database = {
       }
       inventory_databases: {
         Row: {
+          claim_banner_image_path: string | null
+          claim_banner_position_x: number
+          claim_banner_position_y: number
+          claim_theme_background_color: string
+          claim_theme_header_text_color: string
+          claim_theme_primary_color: string
+          claim_theme_surface_color: string
           created_at: string
           created_by: string
           id: string
@@ -274,6 +281,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          claim_banner_image_path?: string | null
+          claim_banner_position_x?: number
+          claim_banner_position_y?: number
+          claim_theme_background_color?: string
+          claim_theme_header_text_color?: string
+          claim_theme_primary_color?: string
+          claim_theme_surface_color?: string
           created_at?: string
           created_by: string
           id?: string
@@ -284,6 +298,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          claim_banner_image_path?: string | null
+          claim_banner_position_x?: number
+          claim_banner_position_y?: number
+          claim_theme_background_color?: string
+          claim_theme_header_text_color?: string
+          claim_theme_primary_color?: string
+          claim_theme_surface_color?: string
           created_at?: string
           created_by?: string
           id?: string

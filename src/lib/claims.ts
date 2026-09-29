@@ -122,9 +122,17 @@ export type ClaimFormProductSettings = {
   maxQuantity: number;
 };
 
+export type ClaimFormAppearance = {
+  bannerImagePath?: string;
+  bannerImageUrl?: string;
+  bannerPosition: ClaimFormBannerPosition;
+  theme: ClaimFormTheme;
+};
+
 export type ClaimFormManagement = {
   forms: ClaimFormListItem[];
   form: ClaimFormSettings | null;
+  appearance?: ClaimFormAppearance;
   summary: {
     submissionCount: number;
     customerCount: number;

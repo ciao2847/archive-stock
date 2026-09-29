@@ -142,14 +142,21 @@ export function ClaimFormPanel({
           setDescription(next.form?.description ?? "");
           setIsOpen(next.form?.isOpen ?? false);
           setClosesAt(toLocalDateTimeInput(next.form?.closesAt));
-          setBannerImagePath(next.form?.bannerImagePath ?? "");
-          setBannerImageUrl(next.form?.bannerImageUrl ?? "");
+          const appearance = next.appearance ?? {
+            bannerImagePath: next.form?.bannerImagePath ?? "",
+            bannerImageUrl: next.form?.bannerImageUrl ?? "",
+            bannerPosition:
+              next.form?.bannerPosition ?? DEFAULT_CLAIM_FORM_BANNER_POSITION,
+            theme: next.form?.theme ?? getDefaultClaimFormTheme(inventoryName),
+          };
+          setBannerImagePath(appearance.bannerImagePath ?? "");
+          setBannerImageUrl(appearance.bannerImageUrl ?? "");
           setBannerImageFile(null);
           setBannerImageRemoved(false);
           setBannerPosition(
-            next.form?.bannerPosition ?? DEFAULT_CLAIM_FORM_BANNER_POSITION,
+            appearance.bannerPosition ?? DEFAULT_CLAIM_FORM_BANNER_POSITION,
           );
-          setTheme(next.form?.theme ?? getDefaultClaimFormTheme(inventoryName));
+          setTheme(appearance.theme ?? getDefaultClaimFormTheme(inventoryName));
           setSelectedIds(
             new Set(next.form?.products.map((product) => product.productId)),
           );
@@ -308,12 +315,17 @@ export function ClaimFormPanel({
     setDescription("");
     setIsOpen(false);
     setClosesAt("");
-    setBannerImagePath("");
-    setBannerImageUrl("");
+    const appearance = data?.appearance;
+    if (appearance) {
+      setBannerImagePath(appearance.bannerImagePath ?? "");
+      setBannerImageUrl(appearance.bannerImageUrl ?? "");
+      setBannerPosition(
+        appearance.bannerPosition ?? DEFAULT_CLAIM_FORM_BANNER_POSITION,
+      );
+      setTheme(appearance.theme ?? getDefaultClaimFormTheme(inventoryName));
+    }
     setBannerImageFile(null);
     setBannerImageRemoved(false);
-    setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
-    setTheme(getDefaultClaimFormTheme(inventoryName));
     setSelectedIds(new Set());
     setProductDrafts({});
   }
@@ -349,15 +361,10 @@ export function ClaimFormPanel({
     setError("");
     setSavedMessage("");
     try {
-      const result = await deleteClaimForm({
+      await deleteClaimForm({
         ownerId,
         formId: currentForm.id,
       });
-
-      const bannerToDelete = result.bannerImagePath || currentForm.bannerImagePath;
-      if (bannerToDelete) {
-        await removeClaimFormBanner(bannerToDelete).catch(() => undefined);
-      }
 
       const remainingForms =
         data?.forms.filter((form) => form.id !== currentForm.id) ?? [];

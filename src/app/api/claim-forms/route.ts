@@ -8,10 +8,12 @@ import {
 } from "@/lib/api/server-auth";
 import { getClaimFormAssetPublicUrl } from "@/lib/claim-form-assets";
 import {
-  DEFAULT_CLAIM_FORM_THEME,
+  DEFAULT_CLAIM_FORM_BANNER_POSITION,
+  getDefaultClaimFormTheme,
   HEX_COLOR_PATTERN,
 } from "@/lib/claim-form-theme";
 import type {
+  ClaimFormAppearance,
   ClaimFormManagement,
   ClaimProductTotal,
   ClaimSubmission,
@@ -138,20 +140,68 @@ export async function GET(request: Request) {
       return apiFailure("無法查看這個庫藏的喊單", 403);
     }
 
-    const { data: forms, error: formError } = await auth.supabase
-      .from("claim_forms")
-      .select(
-        "id,public_token,title,description,is_open,closes_at,banner_image_path,banner_position_x,banner_position_y,theme_primary_color,theme_background_color,theme_surface_color,theme_header_text_color,created_at",
-      )
-      .eq("owner_id", ownerId)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false });
+    const [{ data: forms, error: formError }, { data: inventoryData }] =
+      await Promise.all([
+        auth.supabase
+          .from("claim_forms")
+          .select(
+            "id,public_token,title,description,is_open,closes_at,banner_image_path,banner_position_x,banner_position_y,theme_primary_color,theme_background_color,theme_surface_color,theme_header_text_color,created_at",
+          )
+          .eq("owner_id", ownerId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }),
+        auth.supabase
+          .from("inventory_databases")
+          .select(
+            "name,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color",
+          )
+          .eq("id", ownerId)
+          .maybeSingle(),
+      ]);
     if (formError) return apiFailure(formError.message, 400, formError.code);
 
     const form = formId
       ? forms?.find((candidate) => candidate.id === formId)
       : forms?.[0];
     if (formId && !form) return apiFailure("找不到這個 IP 喊單連結", 404);
+
+    const defaultTheme = getDefaultClaimFormTheme(inventoryData?.name || "");
+    const unifiedBannerPath =
+      inventoryData?.claim_banner_image_path ||
+      forms?.[0]?.banner_image_path ||
+      undefined;
+    const unifiedAppearance: ClaimFormAppearance = {
+      bannerImagePath: unifiedBannerPath,
+      bannerImageUrl: getClaimFormAssetPublicUrl(unifiedBannerPath),
+      bannerPosition: {
+        x:
+          inventoryData?.claim_banner_position_x ??
+          forms?.[0]?.banner_position_x ??
+          DEFAULT_CLAIM_FORM_BANNER_POSITION.x,
+        y:
+          inventoryData?.claim_banner_position_y ??
+          forms?.[0]?.banner_position_y ??
+          DEFAULT_CLAIM_FORM_BANNER_POSITION.y,
+      },
+      theme: {
+        primaryColor:
+          inventoryData?.claim_theme_primary_color ??
+          forms?.[0]?.theme_primary_color ??
+          defaultTheme.primaryColor,
+        backgroundColor:
+          inventoryData?.claim_theme_background_color ??
+          forms?.[0]?.theme_background_color ??
+          defaultTheme.backgroundColor,
+        surfaceColor:
+          inventoryData?.claim_theme_surface_color ??
+          forms?.[0]?.theme_surface_color ??
+          defaultTheme.surfaceColor,
+        headerTextColor:
+          inventoryData?.claim_theme_header_text_color ??
+          forms?.[0]?.theme_header_text_color ??
+          defaultTheme.headerTextColor,
+      },
+    };
 
     const mappedForms = (forms ?? []).map((candidate) => ({
       id: candidate.id,
@@ -164,6 +214,7 @@ export async function GET(request: Request) {
     const emptyResult: ClaimFormManagement = {
       forms: mappedForms,
       form: null,
+      appearance: unifiedAppearance,
       summary: {
         submissionCount: 0,
         customerCount: 0,
@@ -261,24 +312,10 @@ export async function GET(request: Request) {
         description: form.description || "",
         isOpen: form.is_open,
         closesAt: form.closes_at || undefined,
-        bannerImagePath: form.banner_image_path || undefined,
-        bannerImageUrl: getClaimFormAssetPublicUrl(form.banner_image_path),
-        bannerPosition: {
-          x: form.banner_position_x,
-          y: form.banner_position_y,
-        },
-        theme: {
-          primaryColor:
-            form.theme_primary_color ?? DEFAULT_CLAIM_FORM_THEME.primaryColor,
-          backgroundColor:
-            form.theme_background_color ??
-            DEFAULT_CLAIM_FORM_THEME.backgroundColor,
-          surfaceColor:
-            form.theme_surface_color ?? DEFAULT_CLAIM_FORM_THEME.surfaceColor,
-          headerTextColor:
-            form.theme_header_text_color ??
-            DEFAULT_CLAIM_FORM_THEME.headerTextColor,
-        },
+        bannerImagePath: unifiedAppearance.bannerImagePath,
+        bannerImageUrl: unifiedAppearance.bannerImageUrl,
+        bannerPosition: unifiedAppearance.bannerPosition,
+        theme: unifiedAppearance.theme,
         products: (listings ?? []).map((listing) => ({
           productId: listing.product_id,
           name: listing.display_name,
@@ -286,6 +323,7 @@ export async function GET(request: Request) {
           maxQuantity: listing.max_quantity_per_customer,
         })),
       },
+      appearance: unifiedAppearance,
       summary: {
         submissionCount: numberOf(summary.submission_count),
         customerCount: numberOf(summary.customer_count),
@@ -436,13 +474,6 @@ export async function DELETE(request: Request) {
     }
 
     // Delete entire claim form
-    const { data: existingForm } = await auth.supabase
-      .from("claim_forms")
-      .select("banner_image_path")
-      .eq("id", input.formId)
-      .eq("owner_id", input.ownerId)
-      .maybeSingle();
-
     const { data, error } = await auth.supabase.rpc("delete_claim_form", {
       p_form_id: input.formId,
       p_owner_id: input.ownerId,
@@ -488,7 +519,7 @@ export async function DELETE(request: Request) {
     return apiSuccess({
       deleted: true,
       formId: input.formId,
-      bannerImagePath: existingForm?.banner_image_path || null,
+      bannerImagePath: null,
     });
   });
 }
