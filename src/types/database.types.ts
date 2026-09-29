@@ -61,6 +61,9 @@ export type Database = {
       }
       claim_forms: {
         Row: {
+          banner_image_path: string | null
+          banner_position_x: number
+          banner_position_y: number
           closes_at: string | null
           created_at: string
           created_by: string | null
@@ -69,10 +72,17 @@ export type Database = {
           is_open: boolean
           owner_id: string
           public_token: string
+          theme_background_color: string
+          theme_header_text_color: string
+          theme_primary_color: string
+          theme_surface_color: string
           title: string
           updated_at: string
         }
         Insert: {
+          banner_image_path?: string | null
+          banner_position_x?: number
+          banner_position_y?: number
           closes_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -81,10 +91,17 @@ export type Database = {
           is_open?: boolean
           owner_id: string
           public_token?: string
+          theme_background_color?: string
+          theme_header_text_color?: string
+          theme_primary_color?: string
+          theme_surface_color?: string
           title: string
           updated_at?: string
         }
         Update: {
+          banner_image_path?: string | null
+          banner_position_x?: number
+          banner_position_y?: number
           closes_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -93,6 +110,10 @@ export type Database = {
           is_open?: boolean
           owner_id?: string
           public_token?: string
+          theme_background_color?: string
+          theme_header_text_color?: string
+          theme_primary_color?: string
+          theme_surface_color?: string
           title?: string
           updated_at?: string
         }
@@ -248,6 +269,8 @@ export type Database = {
           id: string
           name: string
           qr_destination_url: string | null
+          qr_other_destination_url: string | null
+          qr_shopee_destination_url: string | null
           updated_at: string
         }
         Insert: {
@@ -256,6 +279,8 @@ export type Database = {
           id?: string
           name: string
           qr_destination_url?: string | null
+          qr_other_destination_url?: string | null
+          qr_shopee_destination_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -264,6 +289,8 @@ export type Database = {
           id?: string
           name?: string
           qr_destination_url?: string | null
+          qr_other_destination_url?: string | null
+          qr_shopee_destination_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1021,12 +1048,19 @@ export type Database = {
       complete_order_packing: { Args: { p_order_id: string }; Returns: boolean }
       configure_claim_form: {
         Args: {
+          p_banner_image_path: string
+          p_banner_position_x: number
+          p_banner_position_y: number
           p_closes_at: string | null
           p_description: string
           p_form_id: number | null
           p_is_open: boolean
           p_owner_id: string
           p_products: Json
+          p_theme_background_color: string
+          p_theme_header_text_color: string
+          p_theme_primary_color: string
+          p_theme_surface_color: string
           p_title: string
         }
         Returns: {
@@ -1169,11 +1203,18 @@ export type Database = {
       get_public_claim_form: {
         Args: { p_token: string }
         Returns: {
+          banner_image_path: string | null
+          banner_position_x: number
+          banner_position_y: number
           closes_at: string | null
           description: string | null
           is_open: boolean
           products: Json
           store_name: string
+          theme_background_color: string
+          theme_header_text_color: string
+          theme_primary_color: string
+          theme_surface_color: string
           title: string
         }[]
       }
@@ -1241,6 +1282,14 @@ export type Database = {
           p_name: string
           p_owner_ids: string[]
           p_qr_destination_url?: string
+        }
+        Returns: string
+      }
+      update_inventory_qr_destinations: {
+        Args: {
+          p_inventory_id: string
+          p_other_destination_url: string
+          p_shopee_destination_url: string
         }
         Returns: string
       }

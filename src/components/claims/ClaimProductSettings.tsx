@@ -22,8 +22,13 @@ import {
 } from "lucide-react";
 
 import { NewProduct } from "@/components/products/NewProduct";
+import type {
+  ClaimFormBannerPosition,
+  ClaimFormTheme,
+} from "@/lib/claim-form-theme";
 import type { ClaimFormSettings } from "@/lib/claims";
 import type { Product } from "@/lib/types";
+import { ClaimFormAppearanceSettings } from "./ClaimFormAppearanceSettings";
 
 const currency = new Intl.NumberFormat("zh-TW", {
   style: "currency",
@@ -59,6 +64,15 @@ export interface ClaimProductSettingsProps {
   setIsOpen: (val: boolean) => void;
   closesAt: string;
   setClosesAt: (val: string) => void;
+  bannerImageUrl?: string;
+  bannerImageFile: File | null;
+  bannerImageRemoved: boolean;
+  bannerPosition: ClaimFormBannerPosition;
+  onSelectBannerImage: (file: File) => void;
+  onRemoveBannerImage: () => void;
+  onBannerPositionChange: (position: ClaimFormBannerPosition) => void;
+  theme: ClaimFormTheme;
+  setTheme: (theme: ClaimFormTheme) => void;
   selectedIds: Set<string>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   productDrafts: Record<string, ProductDraft>;
@@ -87,6 +101,15 @@ export function ClaimProductSettings({
   setIsOpen,
   closesAt,
   setClosesAt,
+  bannerImageUrl,
+  bannerImageFile,
+  bannerImageRemoved,
+  bannerPosition,
+  onSelectBannerImage,
+  onRemoveBannerImage,
+  onBannerPositionChange,
+  theme,
+  setTheme,
   selectedIds,
   setSelectedIds,
   productDrafts,
@@ -515,6 +538,22 @@ export function ClaimProductSettings({
         )}
       </section>
 
+      <ClaimFormAppearanceSettings
+        inventoryName={inventoryName}
+        title={title}
+        description={description}
+        bannerImageUrl={bannerImageUrl}
+        bannerImageFile={bannerImageFile}
+        bannerImageRemoved={bannerImageRemoved}
+        bannerPosition={bannerPosition}
+        onSelectBannerImage={onSelectBannerImage}
+        onRemoveBannerImage={onRemoveBannerImage}
+        onBannerPositionChange={onBannerPositionChange}
+        theme={theme}
+        onThemeChange={setTheme}
+        disabled={saving}
+      />
+
       {/* Section 2: 喊單專用商品清單 (已選入的商品與專屬設定) */}
       <section className="rounded-[8px] border border-line bg-white p-5 shadow-sm md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-4">
@@ -595,6 +634,7 @@ export function ClaimProductSettings({
                       <div className="min-w-0 flex-1">
                         <span className="text-[11px] font-semibold text-muted">
                           {product.id} · {product.work}
+                          {product.size ? ` · ${product.size}` : ""}
                         </span>
                         <h4
                           className="mb-0 truncate text-[14px] font-bold text-dark"

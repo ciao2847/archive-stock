@@ -1,3 +1,8 @@
+import type {
+  ClaimFormBannerPosition,
+  ClaimFormTheme,
+} from "@/lib/claim-form-theme";
+
 export const TAIWAN_MOBILE_PHONE_PATTERN = /^09\d{8}$/;
 export const TAIWAN_MOBILE_PHONE_HTML_PATTERN = "09[0-9]{8}";
 export const TAIWAN_MOBILE_PHONE_ERROR =
@@ -5,6 +10,22 @@ export const TAIWAN_MOBILE_PHONE_ERROR =
 
 export function sanitizeTaiwanMobilePhoneInput(value: string) {
   return value.replace(/\D/g, "").slice(0, 10);
+}
+
+export function formatTaipeiDateTime(dateInput?: string | Date | null): string {
+  if (!dateInput) return "";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(date.getTime())) return "";
+
+  // Asia/Taipei is UTC+8 with no daylight saving time
+  const taipei = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const year = taipei.getUTCFullYear();
+  const month = String(taipei.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(taipei.getUTCDate()).padStart(2, "0");
+  const hour = String(taipei.getUTCHours()).padStart(2, "0");
+  const minute = String(taipei.getUTCMinutes()).padStart(2, "0");
+
+  return `${year}/${month}/${day} ${hour}:${minute}`;
 }
 
 export type PublicClaimProduct = {
@@ -32,6 +53,9 @@ export type PublicClaimForm = {
   description?: string;
   isOpen: boolean;
   closesAt?: string;
+  bannerImageUrl?: string;
+  bannerPosition: ClaimFormBannerPosition;
+  theme: ClaimFormTheme;
   products: PublicClaimProduct[];
 };
 
@@ -76,6 +100,10 @@ export type ClaimFormSettings = {
   description: string;
   isOpen: boolean;
   closesAt?: string;
+  bannerImagePath?: string;
+  bannerImageUrl?: string;
+  bannerPosition: ClaimFormBannerPosition;
+  theme: ClaimFormTheme;
   products: ClaimFormProductSettings[];
 };
 
@@ -120,5 +148,8 @@ export type SaveClaimFormInput = {
   description: string;
   isOpen: boolean;
   closesAt?: string;
+  bannerImagePath: string;
+  bannerPosition: ClaimFormBannerPosition;
+  theme: ClaimFormTheme;
   products: ClaimFormProductSettings[];
 };

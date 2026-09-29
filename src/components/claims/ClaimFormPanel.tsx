@@ -22,8 +22,17 @@ import {
 import {
   deleteClaimSubmission,
   fetchClaimFormManagement,
+  removeClaimFormBanner,
   saveClaimForm,
+  uploadClaimFormBanner,
 } from "@/lib/api/claims";
+import { createClaimFormBannerImage } from "@/lib/claim-form-assets";
+import {
+  DEFAULT_CLAIM_FORM_BANNER_POSITION,
+  getDefaultClaimFormTheme,
+  type ClaimFormBannerPosition,
+  type ClaimFormTheme,
+} from "@/lib/claim-form-theme";
 import {
   sanitizeTaiwanMobilePhoneInput,
   TAIWAN_MOBILE_PHONE_ERROR,
@@ -86,6 +95,16 @@ export function ClaimFormPanel({
   const [description, setDescription] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [closesAt, setClosesAt] = useState("");
+  const [bannerImagePath, setBannerImagePath] = useState("");
+  const [bannerImageUrl, setBannerImageUrl] = useState("");
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [bannerImageRemoved, setBannerImageRemoved] = useState(false);
+  const [bannerPosition, setBannerPosition] = useState<ClaimFormBannerPosition>(
+    DEFAULT_CLAIM_FORM_BANNER_POSITION,
+  );
+  const [theme, setTheme] = useState<ClaimFormTheme>(() =>
+    getDefaultClaimFormTheme(inventoryName),
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [productDrafts, setProductDrafts] = useState<
     Record<string, ProductDraft>
@@ -120,6 +139,14 @@ export function ClaimFormPanel({
           setDescription(next.form?.description ?? "");
           setIsOpen(next.form?.isOpen ?? false);
           setClosesAt(toLocalDateTimeInput(next.form?.closesAt));
+          setBannerImagePath(next.form?.bannerImagePath ?? "");
+          setBannerImageUrl(next.form?.bannerImageUrl ?? "");
+          setBannerImageFile(null);
+          setBannerImageRemoved(false);
+          setBannerPosition(
+            next.form?.bannerPosition ?? DEFAULT_CLAIM_FORM_BANNER_POSITION,
+          );
+          setTheme(next.form?.theme ?? getDefaultClaimFormTheme(inventoryName));
           setSelectedIds(
             new Set(next.form?.products.map((product) => product.productId)),
           );
@@ -147,7 +174,7 @@ export function ClaimFormPanel({
         setLoading(false);
       }
     },
-    [ownerId],
+    [inventoryName, ownerId],
   );
 
   useEffect(() => {
@@ -278,6 +305,12 @@ export function ClaimFormPanel({
     setDescription("");
     setIsOpen(false);
     setClosesAt("");
+    setBannerImagePath("");
+    setBannerImageUrl("");
+    setBannerImageFile(null);
+    setBannerImageRemoved(false);
+    setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
+    setTheme(getDefaultClaimFormTheme(inventoryName));
     setSelectedIds(new Set());
     setProductDrafts({});
   }
@@ -301,7 +334,15 @@ export function ClaimFormPanel({
     setError("");
     setSavedMessage("");
     const nextIsOpen = customIsOpen !== undefined ? customIsOpen : isOpen;
+    let uploadedBannerPath = "";
     try {
+      let nextBannerPath = bannerImageRemoved ? "" : bannerImagePath;
+      if (bannerImageFile) {
+        const bannerImage = await createClaimFormBannerImage(bannerImageFile);
+        uploadedBannerPath = await uploadClaimFormBanner(bannerImage, ownerId);
+        nextBannerPath = uploadedBannerPath;
+      }
+
       const saved = await saveClaimForm({
         formId: currentForm?.id,
         ownerId,
@@ -309,14 +350,23 @@ export function ClaimFormPanel({
         description,
         isOpen: nextIsOpen,
         closesAt: closesAt ? new Date(closesAt).toISOString() : undefined,
+        bannerImagePath: nextBannerPath,
+        bannerPosition,
+        theme,
         products: selectedClaimProducts,
       });
+      if (bannerImagePath && bannerImagePath !== nextBannerPath) {
+        await removeClaimFormBanner(bannerImagePath).catch(() => undefined);
+      }
       setCreatingForm(false);
       await load(1, true, saved.formId, customerPhone || undefined);
       setSavedMessage(
         nextIsOpen ? "設定已儲存，公開頁目前可接受喊單。" : "設定已儲存。",
       );
     } catch (saveError) {
+      if (uploadedBannerPath) {
+        await removeClaimFormBanner(uploadedBannerPath).catch(() => undefined);
+      }
       setError(
         saveError instanceof Error ? saveError.message : "喊單設定儲存失敗",
       );
@@ -609,6 +659,23 @@ export function ClaimFormPanel({
             setIsOpen={setIsOpen}
             closesAt={closesAt}
             setClosesAt={setClosesAt}
+            bannerImageUrl={bannerImageUrl}
+            bannerImageFile={bannerImageFile}
+            bannerImageRemoved={bannerImageRemoved}
+            bannerPosition={bannerPosition}
+            onSelectBannerImage={(file) => {
+              setBannerImageFile(file);
+              setBannerImageRemoved(false);
+              setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
+            }}
+            onRemoveBannerImage={() => {
+              setBannerImageFile(null);
+              setBannerImageRemoved(true);
+              setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
+            }}
+            onBannerPositionChange={setBannerPosition}
+            theme={theme}
+            setTheme={setTheme}
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
             productDrafts={productDrafts}

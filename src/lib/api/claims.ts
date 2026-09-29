@@ -1,5 +1,7 @@
 import { readApiResponse } from "@/lib/api/http-client";
 import { API_ROUTES } from "@/constants";
+import { CLAIM_FORM_ASSET_BUCKET } from "@/lib/claim-form-assets";
+import { createClient } from "@/utils/supabase/client";
 import type {
   ClaimFormManagement,
   PublicClaimSubmissionResult,
@@ -28,6 +30,29 @@ export async function saveClaimForm(input: SaveClaimFormInput) {
     body: JSON.stringify(input),
   });
   return readApiResponse<{ formId: number; publicToken: string }>(response);
+}
+
+export async function uploadClaimFormBanner(
+  image: Blob,
+  inventoryOwnerId: string,
+) {
+  const path = `${inventoryOwnerId}/${crypto.randomUUID()}.webp`;
+  const { data, error } = await createClient()
+    .storage.from(CLAIM_FORM_ASSET_BUCKET)
+    .upload(path, image, {
+      contentType: "image/webp",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+  if (error) throw new Error(`橫幅圖片上傳失敗：${error.message}`);
+  return data.path;
+}
+
+export async function removeClaimFormBanner(path: string) {
+  const { error } = await createClient()
+    .storage.from(CLAIM_FORM_ASSET_BUCKET)
+    .remove([path]);
+  if (error) throw new Error(`橫幅圖片移除失敗：${error.message}`);
 }
 
 export async function deleteClaimSubmission(input: {

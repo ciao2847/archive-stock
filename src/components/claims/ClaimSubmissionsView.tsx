@@ -21,17 +21,8 @@ import {
   Users,
 } from "lucide-react";
 
-import type { ClaimFormManagement } from "@/lib/claims";
+import { formatTaipeiDateTime, type ClaimFormManagement } from "@/lib/claims";
 import type { Order } from "@/lib/types";
-
-const dateTime = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-});
 
 export interface ClaimSubmissionsViewProps {
   data: ClaimFormManagement;
@@ -437,7 +428,7 @@ export function ClaimSubmissionsView({
                         aria-hidden="true"
                       />
                       <time className="text-[11px]">
-                        {dateTime.format(new Date(submission.createdAt))}
+                        {formatTaipeiDateTime(submission.createdAt)}
                       </time>
                     </div>
                   </div>

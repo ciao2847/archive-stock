@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Database,
   LogOut,
+  QrCode,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -29,7 +30,8 @@ export function SystemSettings({
     id: string;
     name: string;
     ownerIds: string[];
-    qrDestinationUrl: string;
+    qrShopeeDestinationUrl: string;
+    qrOtherDestinationUrl: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
   selectedInventoryId: string;
@@ -73,6 +75,10 @@ export function SystemSettings({
   const cardClass = "card flex gap-5 p-6";
   const iconClass =
     "grid h-12 w-12 shrink-0 place-items-center rounded-[8px] bg-accent-soft text-rust";
+  const activeInventory =
+    inventoryDatabases.find(
+      (inventory) => inventory.id === selectedInventoryId,
+    ) ?? inventoryDatabases[0];
   return (
     <DataState
       loading={loading}
@@ -114,10 +120,9 @@ export function SystemSettings({
             <div className="flex items-start justify-between gap-4 max-lg:flex-col">
               <div>
                 <span className="eyebrow">庫藏資料庫權限</span>
-                <h2 className="mb-1 mt-2">命名、擁有者與 QR 網址</h2>
+                <h2 className="mb-1 mt-2">命名與擁有者</h2>
                 <p className="mb-5 mt-0 text-muted">
-                  每個資料庫至少需要一位擁有者，並可設定包裝完成後的 QR
-                  前往網址。
+                  每個資料庫至少需要一位擁有者；QR 購買入口由下方獨立設定。
                 </p>
               </div>
               <button
@@ -136,7 +141,6 @@ export function SystemSettings({
                     id: "",
                     name: "",
                     ownerIds: [],
-                    qrDestinationUrl: "",
                   }}
                   users={availableUsers}
                   onSaved={async () => {
@@ -147,13 +151,31 @@ export function SystemSettings({
               )}
               {inventoryDatabases.map((inventory) => (
                 <InventoryDatabaseEditor
-                  key={`${inventory.id}:${inventory.name}:${inventory.qrDestinationUrl}:${inventory.ownerIds.join(",")}`}
+                  key={`${inventory.id}:${inventory.name}:${inventory.ownerIds.join(",")}`}
                   inventory={inventory}
                   users={availableUsers}
                   onSaved={onInventoryDatabaseUpdated}
                 />
               ))}
             </div>
+          </section>
+        )}
+        {activeInventory && (
+          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
+            <div className={`${iconClass} bg-primary-soft text-primary`}>
+              <QrCode />
+            </div>
+            <SettingsCardContent
+              eyebrow="包裝完成 QR Code"
+              title={`${activeInventory.name} 的購買入口`}
+              description="顧客掃描已完成包裝的 QR Code 時，系統會依訂單通路顯示對應入口。此庫藏的所有登入使用者都可調整。"
+            >
+              <InventoryQrDestinationEditor
+                key={activeInventory.id}
+                inventory={activeInventory}
+                onSaved={onInventoryDatabaseUpdated}
+              />
+            </SettingsCardContent>
           </section>
         )}
         <section className={cardClass}>
@@ -212,16 +234,12 @@ function InventoryDatabaseEditor({
     id: string;
     name: string;
     ownerIds: string[];
-    qrDestinationUrl: string;
   };
   users: Array<{ id: string; name: string }>;
   onSaved: () => Promise<unknown>;
 }) {
   const [databaseName, setDatabaseName] = useState(inventory.name);
   const [ownerIds, setOwnerIds] = useState(inventory.ownerIds);
-  const [qrDestinationUrl, setQrDestinationUrl] = useState(
-    inventory.qrDestinationUrl,
-  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -229,17 +247,6 @@ function InventoryDatabaseEditor({
     if (!databaseName.trim() || ownerIds.length === 0) {
       setMessage("請輸入名稱並至少選擇一位擁有者");
       return;
-    }
-    const normalizedQrDestinationUrl = qrDestinationUrl.trim();
-    if (normalizedQrDestinationUrl) {
-      try {
-        if (new URL(normalizedQrDestinationUrl).protocol !== "https:") {
-          throw new Error();
-        }
-      } catch {
-        setMessage("QR 前往網址必須是完整的 HTTPS 網址");
-        return;
-      }
     }
     setSaving(true);
     setMessage("");
@@ -253,12 +260,10 @@ function InventoryDatabaseEditor({
                 id: inventory.id,
                 name: databaseName.trim(),
                 ownerIds,
-                qrDestinationUrl: normalizedQrDestinationUrl,
               }
             : {
                 name: databaseName.trim(),
                 ownerIds,
-                qrDestinationUrl: normalizedQrDestinationUrl,
               },
         ),
       });
@@ -289,21 +294,6 @@ function InventoryDatabaseEditor({
           onChange={(event) => setDatabaseName(event.target.value)}
         />
       </label>
-      <label className="mt-4 block text-[12px] font-semibold">
-        包裝完成 QR 前往網址
-        <input
-          className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
-          type="url"
-          inputMode="url"
-          value={qrDestinationUrl}
-          maxLength={2048}
-          placeholder="https://example.com/checkout"
-          onChange={(event) => setQrDestinationUrl(event.target.value)}
-        />
-        <span className="mt-2 block font-normal leading-5 text-muted">
-          留空時沿用原本依出貨通路設定的蝦皮或 LINE 連結。
-        </span>
-      </label>
       <fieldset className="mt-4 border-0 p-0">
         <legend className="text-[12px] font-semibold">擁有者</legend>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -332,13 +322,131 @@ function InventoryDatabaseEditor({
         </div>
       </fieldset>
       <div className="mt-4 flex items-center gap-3">
-        <button className="primary" disabled={saving} onClick={save}>
+        <button
+          className="primary"
+          type="button"
+          disabled={saving}
+          onClick={save}
+        >
           {saving ? "儲存中…" : "儲存設定"}
         </button>
         {message && <span className="text-[12px] text-muted">{message}</span>}
       </div>
     </div>
   );
+}
+
+function InventoryQrDestinationEditor({
+  inventory,
+  onSaved,
+}: {
+  inventory: {
+    id: string;
+    qrShopeeDestinationUrl: string;
+    qrOtherDestinationUrl: string;
+  };
+  onSaved: () => Promise<unknown>;
+}) {
+  const [shopeeUrl, setShopeeUrl] = useState(inventory.qrShopeeDestinationUrl);
+  const [otherUrl, setOtherUrl] = useState(inventory.qrOtherDestinationUrl);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function save() {
+    const normalizedShopeeUrl = shopeeUrl.trim();
+    const normalizedOtherUrl = otherUrl.trim();
+    if (
+      !isOptionalHttpsUrl(normalizedShopeeUrl) ||
+      !isOptionalHttpsUrl(normalizedOtherUrl)
+    ) {
+      setMessage("購買入口必須是完整的 HTTPS 網址，或留空使用預設值");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(API_ROUTES.getInventoryDatabases, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: inventory.id,
+          qrShopeeDestinationUrl: normalizedShopeeUrl,
+          qrOtherDestinationUrl: normalizedOtherUrl,
+        }),
+      });
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+      };
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "儲存失敗");
+      }
+      setShopeeUrl(normalizedShopeeUrl);
+      setOtherUrl(normalizedOtherUrl);
+      await onSaved();
+      setMessage("QR 購買入口已更新");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "儲存失敗");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 grid gap-4">
+      <label className="block text-[12px] font-semibold">
+        蝦皮訂單入口
+        <input
+          className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+          type="url"
+          inputMode="url"
+          value={shopeeUrl}
+          maxLength={2048}
+          placeholder="https://shopee.tw/你的賣場"
+          onChange={(event) => setShopeeUrl(event.target.value)}
+        />
+        <span className="mt-2 block font-normal leading-5 text-muted">
+          留空時使用系統原本的蝦皮賣場連結。
+        </span>
+      </label>
+      <label className="block text-[12px] font-semibold">
+        其他通路入口
+        <input
+          className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+          type="url"
+          inputMode="url"
+          value={otherUrl}
+          maxLength={2048}
+          placeholder="https://line.me/ti/p/~你的官方帳號"
+          onChange={(event) => setOtherUrl(event.target.value)}
+        />
+        <span className="mt-2 block font-normal leading-5 text-muted">
+          留空時使用系統原本的官方 LINE 連結；佛系可將兩欄都設為賣貨便。
+        </span>
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          className="primary"
+          type="button"
+          disabled={saving}
+          onClick={save}
+        >
+          {saving ? "儲存中…" : "儲存購買入口"}
+        </button>
+        {message && <span className="text-[12px] text-muted">{message}</span>}
+      </div>
+    </div>
+  );
+}
+
+function isOptionalHttpsUrl(value: string) {
+  if (!value) return true;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function SettingsCardContent({
@@ -353,7 +461,7 @@ function SettingsCardContent({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <span className="eyebrow">{eyebrow}</span>
       <h2 className="mb-1 mt-2">{title}</h2>
       <p className="mb-3 mt-0 text-muted max-lg:[overflow-wrap:anywhere]">

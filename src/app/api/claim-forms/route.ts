@@ -6,6 +6,11 @@ import {
   requireApiUser,
   withApiErrorHandling,
 } from "@/lib/api/server-auth";
+import { getClaimFormAssetPublicUrl } from "@/lib/claim-form-assets";
+import {
+  DEFAULT_CLAIM_FORM_THEME,
+  HEX_COLOR_PATTERN,
+} from "@/lib/claim-form-theme";
 import type {
   ClaimFormManagement,
   ClaimProductTotal,
@@ -14,6 +19,8 @@ import type {
 import { TAIWAN_MOBILE_PHONE_PATTERN } from "@/lib/claims";
 
 const PAGE_SIZE = 50;
+const CLAIM_FORM_BANNER_PATH_PATTERN =
+  /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.webp$/;
 
 const querySchema = z.object({
   ownerId: z.string().uuid(),
@@ -41,6 +48,20 @@ const saveSchema = z.object({
   description: z.string().trim().max(2000),
   isOpen: z.boolean(),
   closesAt: z.string().datetime({ offset: true }).optional(),
+  bannerImagePath: z.union([
+    z.literal(""),
+    z.string().max(500).regex(CLAIM_FORM_BANNER_PATH_PATTERN),
+  ]),
+  theme: z.object({
+    primaryColor: z.string().regex(HEX_COLOR_PATTERN),
+    backgroundColor: z.string().regex(HEX_COLOR_PATTERN),
+    surfaceColor: z.string().regex(HEX_COLOR_PATTERN),
+    headerTextColor: z.string().regex(HEX_COLOR_PATTERN),
+  }),
+  bannerPosition: z.object({
+    x: z.number().int().min(0).max(100),
+    y: z.number().int().min(0).max(100),
+  }),
   products: z
     .array(claimProductSchema)
     .max(200)
@@ -115,7 +136,9 @@ export async function GET(request: Request) {
 
     const { data: forms, error: formError } = await auth.supabase
       .from("claim_forms")
-      .select("id,public_token,title,description,is_open,closes_at,created_at")
+      .select(
+        "id,public_token,title,description,is_open,closes_at,banner_image_path,banner_position_x,banner_position_y,theme_primary_color,theme_background_color,theme_surface_color,theme_header_text_color,created_at",
+      )
       .eq("owner_id", ownerId)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false });
@@ -234,6 +257,24 @@ export async function GET(request: Request) {
         description: form.description || "",
         isOpen: form.is_open,
         closesAt: form.closes_at || undefined,
+        bannerImagePath: form.banner_image_path || undefined,
+        bannerImageUrl: getClaimFormAssetPublicUrl(form.banner_image_path),
+        bannerPosition: {
+          x: form.banner_position_x,
+          y: form.banner_position_y,
+        },
+        theme: {
+          primaryColor:
+            form.theme_primary_color ?? DEFAULT_CLAIM_FORM_THEME.primaryColor,
+          backgroundColor:
+            form.theme_background_color ??
+            DEFAULT_CLAIM_FORM_THEME.backgroundColor,
+          surfaceColor:
+            form.theme_surface_color ?? DEFAULT_CLAIM_FORM_THEME.surfaceColor,
+          headerTextColor:
+            form.theme_header_text_color ??
+            DEFAULT_CLAIM_FORM_THEME.headerTextColor,
+        },
         products: (listings ?? []).map((listing) => ({
           productId: listing.product_id,
           name: listing.display_name,
@@ -266,6 +307,12 @@ export async function PUT(request: Request) {
     if (!canAccessOwner(auth.role, auth.inventoryOwnerId, input.ownerId)) {
       return apiFailure("無法管理這個庫藏的喊單", 403);
     }
+    if (
+      input.bannerImagePath &&
+      !input.bannerImagePath.startsWith(`${input.ownerId}/`)
+    ) {
+      return apiFailure("橫幅圖片不屬於這個庫藏", 400);
+    }
 
     const { data, error } = await auth.supabase.rpc("configure_claim_form", {
       p_form_id: input.formId || null,
@@ -274,6 +321,13 @@ export async function PUT(request: Request) {
       p_description: input.description,
       p_is_open: input.isOpen,
       p_closes_at: input.closesAt || null,
+      p_banner_image_path: input.bannerImagePath,
+      p_banner_position_x: input.bannerPosition.x,
+      p_banner_position_y: input.bannerPosition.y,
+      p_theme_primary_color: input.theme.primaryColor,
+      p_theme_background_color: input.theme.backgroundColor,
+      p_theme_surface_color: input.theme.surfaceColor,
+      p_theme_header_text_color: input.theme.headerTextColor,
       p_products: input.products.map((product) => ({
         product_id: product.productId,
         name: product.name,
@@ -291,6 +345,9 @@ export async function PUT(request: Request) {
         "claim form product is not available": "部分商品不屬於目前庫藏。",
         "invalid claim form product": "請確認商品名稱、金額與數量上限。",
         "invalid claim form products": "喊單商品設定格式錯誤。",
+        "invalid claim form banner image": "請重新選擇橫幅背景圖片。",
+        "invalid claim form banner position": "請重新調整橫幅圖片位置。",
+        "invalid claim form theme": "請確認表單色系設定。",
         "owner access required": "無法管理這個庫藏的喊單。",
       };
       return apiFailure(

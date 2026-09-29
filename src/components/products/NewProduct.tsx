@@ -17,7 +17,12 @@ import {
 import { PosterSpecFields } from "./PosterSpecFields";
 import { validateProductImage } from "./product-image-validation";
 import { ProductFormField as Field } from "./ProductFormField";
-import { COUNTRIES, POSTER_CATEGORY, PRODUCT_CATEGORIES } from "@/constants";
+import {
+  COUNTRIES,
+  POSTER_CATEGORY,
+  POSTER_SIZES,
+  PRODUCT_CATEGORIES,
+} from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
 import { createProductImageVariants } from "@/lib/product-images";
 import {
@@ -57,12 +62,19 @@ export function NewProduct({
   } = useForm<Form>({
     resolver: zodResolver(schema),
     defaultValues: {
+      work: preorderOnly ? "預購商品" : undefined,
       category: POSTER_CATEGORY,
+      country: preorderOnly ? "" : undefined,
+      source: preorderOnly ? "" : undefined,
       stock: preorderOnly ? 0 : (initialStock ?? DEFAULT_VALUES.productStock),
       location: preorderOnly ? "" : (initialLocation ?? ""),
       price: DEFAULT_VALUES.amount,
       cost: DEFAULT_VALUES.amount,
+      format: preorderOnly ? "" : undefined,
+      size: preorderOnly ? POSTER_SIZES[0] : undefined,
       crafts: [],
+      description: preorderOnly ? "" : undefined,
+      feature: preorderOnly ? "" : undefined,
     },
   });
 
@@ -162,55 +174,58 @@ export function NewProduct({
           </button>
         </div>
         <form onSubmit={handleSubmit(createProduct)}>
-          {previewUrl ? (
-            <div className="upload-preview">
-              {/* blob URL is only used for a local preview. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl} alt="商品主圖預覽" />
-              <div className="upload-preview-info">
-                <span className="upload-success">
-                  <CheckCircle2 size={16} />
-                  圖片已選擇
-                </span>
-                <b title={image?.name}>{image?.name}</b>
-                <small>
-                  {image && `${(image.size / 1024 / 1024).toFixed(2)} MB`}
-                </small>
-                <div>
-                  <label className="outline image-change">
-                    更換圖片
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={selectImage}
-                      hidden
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="image-remove"
-                    onClick={removeImage}
-                  >
-                    <Trash2 size={15} />
-                    移除
-                  </button>
+          {!preorderOnly &&
+            (previewUrl ? (
+              <div className="upload-preview">
+                {/* blob URL is only used for a local preview. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="商品主圖預覽" />
+                <div className="upload-preview-info">
+                  <span className="upload-success">
+                    <CheckCircle2 size={16} />
+                    圖片已選擇
+                  </span>
+                  <b title={image?.name}>{image?.name}</b>
+                  <small>
+                    {image && `${(image.size / 1024 / 1024).toFixed(2)} MB`}
+                  </small>
+                  <div>
+                    <label className="outline image-change">
+                      更換圖片
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={selectImage}
+                        hidden
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="image-remove"
+                      onClick={removeImage}
+                    >
+                      <Trash2 size={15} />
+                      移除
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <label className="upload">
-              <ImagePlus />
-              <b>上傳商品主圖</b>
-              <span>JPG、PNG、WebP，最多 10MB</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={selectImage}
-                hidden
-              />
-            </label>
+            ) : (
+              <label className="upload">
+                <ImagePlus />
+                <b>上傳商品主圖</b>
+                <span>JPG、PNG、WebP，最多 10MB</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={selectImage}
+                  hidden
+                />
+              </label>
+            ))}
+          {!preorderOnly && imageError && (
+            <p className="upload-error">{imageError}</p>
           )}
-          {imageError && <p className="upload-error">{imageError}</p>}
           {preorderOnly && (
             <div className="mb-5 flex items-start gap-3 rounded-[8px] border border-[#cbdde9] bg-[#eef5fa] px-4 py-3.5 text-[#29485f]">
               <span className="grid size-9 shrink-0 place-items-center rounded-[8px] bg-white text-[#5a87b1]">
@@ -219,47 +234,73 @@ export function NewProduct({
               <div>
                 <b className="block text-[13px]">先收喊單，再依總數叫貨</b>
                 <p className="mb-0 mt-1 text-[12px] leading-5 text-[#526b80]">
-                  商品會以庫存 0
-                  建立，不佔用現貨，也不需要先填庫位或成本。截止後依喊單彙總採購，到貨時再辦理入庫。
+                  只要填寫商品名稱、尺寸與販售金額。系統會自動以庫存 0
+                  建立，不佔用現貨；截止後再依喊單總數採購。
                 </p>
               </div>
             </div>
           )}
           <div className="form-grid">
-            <Field label="商品名稱" error={errors.name?.message}>
-              <input {...register("name")} placeholder="例：烘焙款 IMAX 海報" />
-            </Field>
-            <Field label="作品名稱" error={errors.work?.message}>
-              <input {...register("work")} placeholder="搜尋或建立作品" />
-            </Field>
-            <Field label="商品類型">
-              <select
-                {...register("category")}
-                onChange={(e) => setPoster(e.target.value === POSTER_CATEGORY)}
-              >
-                {PRODUCT_CATEGORIES.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="國家">
-              <select {...register("country")}>
-                {COUNTRIES.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="發行來源">
-              <input {...register("source")} placeholder="CGV、官方快閃…" />
-            </Field>
             {preorderOnly ? (
               <>
-                <input type="hidden" {...register("location")} />
-                <input type="hidden" {...register("stock")} />
-                <input type="hidden" {...register("cost")} />
+                <Field label="商品名稱" error={errors.name?.message}>
+                  <input
+                    {...register("name")}
+                    placeholder="例：烘焙款 IMAX 海報"
+                    required
+                  />
+                </Field>
+                <Field label="尺寸" error={errors.size?.message}>
+                  <select {...register("size")} required>
+                    {POSTER_SIZES.map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="販售金額" error={errors.price?.message}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    {...register("price")}
+                    placeholder="每件販售金額"
+                    required
+                  />
+                </Field>
               </>
             ) : (
               <>
+                <Field label="商品名稱" error={errors.name?.message}>
+                  <input
+                    {...register("name")}
+                    placeholder="例：烘焙款 IMAX 海報"
+                  />
+                </Field>
+                <Field label="作品名稱" error={errors.work?.message}>
+                  <input {...register("work")} placeholder="搜尋或建立作品" />
+                </Field>
+                <Field label="商品類型">
+                  <select
+                    {...register("category")}
+                    onChange={(e) =>
+                      setPoster(e.target.value === POSTER_CATEGORY)
+                    }
+                  >
+                    {PRODUCT_CATEGORIES.map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="國家">
+                  <select {...register("country")}>
+                    {COUNTRIES.map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="發行來源">
+                  <input {...register("source")} placeholder="CGV、官方快閃…" />
+                </Field>
                 <Field label="庫位" error={errors.location?.message}>
                   <input {...register("location")} placeholder="A-03-02" />
                   <small>尚未進貨、庫存填 0 時可先留空。</small>
@@ -267,38 +308,40 @@ export function NewProduct({
                 <Field label="庫存數量">
                   <input type="number" {...register("stock")} />
                 </Field>
+                <Field label="商品售價（每件）" error={errors.price?.message}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    {...register("price")}
+                    placeholder="每件售價"
+                  />
+                </Field>
+                <Field label="本批成本總額" error={errors.cost?.message}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    {...register("cost")}
+                    placeholder="整批成本，不必拆單件"
+                  />
+                </Field>
+                {poster && <PosterSpecFields register={register} />}
+                <Field
+                  label="功能描述"
+                  wide
+                  error={errors.description?.message}
+                >
+                  <textarea
+                    {...register("description")}
+                    rows={5}
+                    placeholder="商品內容、特色或故事背景"
+                    aria-invalid={Boolean(errors.description)}
+                  />
+                  <small>選填，最多 2,000 字元，支援換行。</small>
+                </Field>
               </>
             )}
-            <Field label="商品售價（每件）" error={errors.price?.message}>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("price")}
-                placeholder="每件售價"
-              />
-            </Field>
-            {!preorderOnly && (
-              <Field label="本批成本總額" error={errors.cost?.message}>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  {...register("cost")}
-                  placeholder="整批成本，不必拆單件"
-                />
-              </Field>
-            )}
-            {poster && <PosterSpecFields register={register} />}
-            <Field label="功能描述" wide error={errors.description?.message}>
-              <textarea
-                {...register("description")}
-                rows={5}
-                placeholder="商品內容、特色或故事背景"
-                aria-invalid={Boolean(errors.description)}
-              />
-              <small>選填，最多 2,000 字元，支援換行。</small>
-            </Field>
           </div>
           {submitError && (
             <p className="upload-error">儲存失敗：{submitError}</p>

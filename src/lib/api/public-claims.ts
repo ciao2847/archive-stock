@@ -1,6 +1,12 @@
 import "server-only";
 
 import { QR_TOKEN_PATTERN } from "@/constants";
+import { getClaimFormAssetPublicUrl } from "@/lib/claim-form-assets";
+import {
+  DEFAULT_CLAIM_FORM_THEME,
+  normalizeClaimFormBannerPosition,
+  normalizeHexColor,
+} from "@/lib/claim-form-theme";
 import type { PublicClaimForm, PublicClaimProduct } from "@/lib/claims";
 import { createClient } from "@/utils/supabase/server";
 
@@ -10,6 +16,13 @@ type PublicClaimFormRow = {
   description: string | null;
   is_open: boolean;
   closes_at: string | null;
+  banner_image_path: string | null;
+  banner_position_x: number;
+  banner_position_y: number;
+  theme_primary_color: string;
+  theme_background_color: string;
+  theme_surface_color: string;
+  theme_header_text_color: string;
   products: unknown;
 };
 
@@ -94,6 +107,29 @@ export async function fetchPublicClaimForm(
     description: row.description || undefined,
     isOpen: row.is_open,
     closesAt: row.closes_at || undefined,
+    bannerImageUrl: getClaimFormAssetPublicUrl(row.banner_image_path),
+    bannerPosition: {
+      x: normalizeClaimFormBannerPosition(row.banner_position_x),
+      y: normalizeClaimFormBannerPosition(row.banner_position_y),
+    },
+    theme: {
+      primaryColor: normalizeHexColor(
+        row.theme_primary_color,
+        DEFAULT_CLAIM_FORM_THEME.primaryColor,
+      ),
+      backgroundColor: normalizeHexColor(
+        row.theme_background_color,
+        DEFAULT_CLAIM_FORM_THEME.backgroundColor,
+      ),
+      surfaceColor: normalizeHexColor(
+        row.theme_surface_color,
+        DEFAULT_CLAIM_FORM_THEME.surfaceColor,
+      ),
+      headerTextColor: normalizeHexColor(
+        row.theme_header_text_color,
+        DEFAULT_CLAIM_FORM_THEME.headerTextColor,
+      ),
+    },
     products: mapProducts(row.products),
   };
 }
