@@ -16,10 +16,12 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Trash2,
   X,
 } from "lucide-react";
 
 import {
+  deleteClaimForm,
   deleteClaimSubmission,
   fetchClaimFormManagement,
   removeClaimFormBanner,
@@ -83,6 +85,7 @@ export function ClaimFormPanel({
   const [creatingForm, setCreatingForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingForm, setDeletingForm] = useState(false);
   const [error, setError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -325,7 +328,66 @@ export function ClaimFormPanel({
     void load(1, true, formId);
   }
 
+  function cancelNewForm() {
+    const defaultFormId = data?.forms[0]?.id;
+    if (defaultFormId) {
+      selectForm(defaultFormId);
+    } else {
+      startNewForm();
+    }
+  }
+
+  async function removeForm() {
+    if (!currentForm) return;
+    const formTitle = currentForm.title;
+    const confirmed = window.confirm(
+      `確定要移除「${formTitle}」IP 喊單頁嗎？\n此 IP 的商品設定、公開連結與全部顧客喊單紀錄都將被刪除，且無法復原。`,
+    );
+    if (!confirmed) return;
+
+    setDeletingForm(true);
+    setError("");
+    setSavedMessage("");
+    try {
+      const result = await deleteClaimForm({
+        ownerId,
+        formId: currentForm.id,
+      });
+
+      const bannerToDelete = result.bannerImagePath || currentForm.bannerImagePath;
+      if (bannerToDelete) {
+        await removeClaimFormBanner(bannerToDelete).catch(() => undefined);
+      }
+
+      const remainingForms =
+        data?.forms.filter((form) => form.id !== currentForm.id) ?? [];
+      const nextFormId = remainingForms[0]?.id;
+
+      if (nextFormId) {
+        setCreatingForm(false);
+        await load(1, true, nextFormId);
+      } else {
+        startNewForm();
+        await load(1, true);
+      }
+      setSavedMessage(`已成功移除「${formTitle}」IP 喊單頁。`);
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "移除 IP 喊單失敗，請稍後再試。",
+      );
+    } finally {
+      setDeletingForm(false);
+    }
+  }
+
   async function save(customIsOpen?: boolean) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("請填寫 IP 名稱／喊單標題。");
+      return;
+    }
     if (hasInvalidProductSettings) {
       setError("請確認公開商品的名稱、金額與單次數量上限。");
       return;
@@ -333,6 +395,7 @@ export function ClaimFormPanel({
     setSaving(true);
     setError("");
     setSavedMessage("");
+    const isNewForm = !currentForm;
     const nextIsOpen = customIsOpen !== undefined ? customIsOpen : isOpen;
     let uploadedBannerPath = "";
     try {
@@ -346,8 +409,8 @@ export function ClaimFormPanel({
       const saved = await saveClaimForm({
         formId: currentForm?.id,
         ownerId,
-        title,
-        description,
+        title: trimmedTitle,
+        description: description.trim(),
         isOpen: nextIsOpen,
         closesAt: closesAt ? new Date(closesAt).toISOString() : undefined,
         bannerImagePath: nextBannerPath,
@@ -361,7 +424,11 @@ export function ClaimFormPanel({
       setCreatingForm(false);
       await load(1, true, saved.formId, customerPhone || undefined);
       setSavedMessage(
-        nextIsOpen ? "設定已儲存，公開頁目前可接受喊單。" : "設定已儲存。",
+        isNewForm
+          ? `「${trimmedTitle}」IP 喊單頁已成功建立！`
+          : nextIsOpen
+            ? "設定已儲存，公開頁目前可接受喊單。"
+            : "設定已儲存。",
       );
     } catch (saveError) {
       if (uploadedBannerPath) {
@@ -543,15 +610,45 @@ export function ClaimFormPanel({
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              className="primary w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
-              onClick={startNewForm}
-              disabled={creatingForm || saving}
-            >
-              <Plus size={16} />
-              新增 IP 喊單
-            </button>
+            {creatingForm ? (
+              data?.forms && data.forms.length > 0 && (
+                <button
+                  type="button"
+                  className="outline w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
+                  onClick={cancelNewForm}
+                  disabled={saving || loading}
+                >
+                  <X size={16} />
+                  取消新增
+                </button>
+              )
+            ) : (
+              <button
+                type="button"
+                className="primary w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
+                onClick={startNewForm}
+                disabled={creatingForm || saving || deletingForm}
+              >
+                <Plus size={16} />
+                新增 IP 喊單
+              </button>
+            )}
+            {currentForm && !creatingForm && (
+              <button
+                type="button"
+                className="outline w-full justify-center whitespace-nowrap text-[13px] text-danger hover:border-danger hover:bg-danger-soft md:w-auto"
+                onClick={() => void removeForm()}
+                disabled={saving || loading || deletingForm}
+                title={`移除「${currentForm.title}」IP 喊單頁`}
+              >
+                {deletingForm ? (
+                  <LoaderCircle className="animate-spin" size={16} />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                移除 IP
+              </button>
+            )}
           </div>
         </div>
 
@@ -688,6 +785,15 @@ export function ClaimFormPanel({
             onReloadProducts={onReloadProducts}
             onNavigateToSubmissions={
               currentForm ? () => setActiveTab("submissions") : undefined
+            }
+            onDeleteForm={
+              currentForm && !creatingForm ? () => void removeForm() : undefined
+            }
+            deletingForm={deletingForm}
+            onCancelNew={
+              creatingForm && data?.forms && data.forms.length > 0
+                ? cancelNewForm
+                : undefined
             }
           />
         )}

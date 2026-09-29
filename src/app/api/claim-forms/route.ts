@@ -42,16 +42,19 @@ const claimProductSchema = z.object({
 });
 
 const saveSchema = z.object({
-  formId: z.number().int().positive().optional(),
+  formId: z.number().int().positive().nullish().transform((v) => v || undefined),
   ownerId: z.string().uuid(),
-  title: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(2000),
+  title: z.string().trim().min(1, "請填寫 IP 名稱／喊單標題").max(120),
+  description: z.string().trim().max(2000).nullish().transform((v) => v ?? ""),
   isOpen: z.boolean(),
-  closesAt: z.string().datetime({ offset: true }).optional(),
-  bannerImagePath: z.union([
-    z.literal(""),
-    z.string().max(500).regex(CLAIM_FORM_BANNER_PATH_PATTERN),
-  ]),
+  closesAt: z.string().datetime({ offset: true }).nullish().transform((v) => v || undefined),
+  bannerImagePath: z
+    .union([
+      z.literal(""),
+      z.string().max(500).regex(CLAIM_FORM_BANNER_PATH_PATTERN),
+    ])
+    .nullish()
+    .transform((v) => v ?? ""),
   theme: z.object({
     primaryColor: z.string().regex(HEX_COLOR_PATTERN),
     backgroundColor: z.string().regex(HEX_COLOR_PATTERN),
@@ -65,6 +68,7 @@ const saveSchema = z.object({
   products: z
     .array(claimProductSchema)
     .max(200)
+    .default([])
     .refine(
       (products) =>
         new Set(products.map((product) => product.productId)).size ===
@@ -75,7 +79,7 @@ const saveSchema = z.object({
 const deleteSchema = z.object({
   ownerId: z.string().uuid(),
   formId: z.number().int().positive(),
-  submissionId: z.number().int().positive(),
+  submissionId: z.number().int().positive().optional(),
 });
 
 function canAccessOwner(
@@ -381,8 +385,65 @@ export async function DELETE(request: Request) {
       return apiFailure("無法管理這個庫藏的喊單", 403);
     }
 
-    const { data, error } = await auth.supabase.rpc("delete_claim_submission", {
-      p_submission_id: input.submissionId,
+    if (input.submissionId) {
+      const { data, error } = await auth.supabase.rpc(
+        "delete_claim_submission",
+        {
+          p_submission_id: input.submissionId,
+          p_form_id: input.formId,
+          p_owner_id: input.ownerId,
+        },
+      );
+      if (error) {
+        if (error.code === "PGRST202") {
+          return apiFailure("移除功能尚未安裝，請先執行最新 migration。", 503);
+        }
+        const messages: Record<string, { message: string; status: number }> = {
+          "admin access required": {
+            message: "無法移除這個庫藏的顧客喊單明細。",
+            status: 403,
+          },
+          "employee access required": {
+            message: "請先登入庫藏帳號。",
+            status: 403,
+          },
+          "owner access required": {
+            message: "無法移除其他庫藏的顧客喊單明細。",
+            status: 403,
+          },
+          "claim submission not found": {
+            message: "找不到這筆喊單明細，可能已被其他使用者移除。",
+            status: 404,
+          },
+          "invalid claim submission target": {
+            message: "喊單明細刪除目標格式錯誤。",
+            status: 400,
+          },
+        };
+        const mapped = messages[error.message];
+        return apiFailure(
+          mapped?.message || "喊單明細移除失敗，請重新整理後再試。",
+          mapped?.status || 400,
+          error.code,
+        );
+      }
+
+      if (data !== true) {
+        return apiFailure("喊單明細未移除，請重新整理後再試。", 409);
+      }
+
+      return apiSuccess({ deleted: true, submissionId: input.submissionId });
+    }
+
+    // Delete entire claim form
+    const { data: existingForm } = await auth.supabase
+      .from("claim_forms")
+      .select("banner_image_path")
+      .eq("id", input.formId)
+      .eq("owner_id", input.ownerId)
+      .maybeSingle();
+
+    const { data, error } = await auth.supabase.rpc("delete_claim_form", {
       p_form_id: input.formId,
       p_owner_id: input.ownerId,
     });
@@ -392,7 +453,7 @@ export async function DELETE(request: Request) {
       }
       const messages: Record<string, { message: string; status: number }> = {
         "admin access required": {
-          message: "無法移除這個庫藏的顧客喊單明細。",
+          message: "無法移除這個庫藏的 IP 喊單頁。",
           status: 403,
         },
         "employee access required": {
@@ -400,30 +461,34 @@ export async function DELETE(request: Request) {
           status: 403,
         },
         "owner access required": {
-          message: "無法移除其他庫藏的顧客喊單明細。",
+          message: "無法移除其他庫藏的 IP 喊單頁。",
           status: 403,
         },
-        "claim submission not found": {
-          message: "找不到這筆喊單明細，可能已被其他使用者移除。",
+        "claim form not found": {
+          message: "找不到這個 IP 喊單頁，可能已被移除。",
           status: 404,
         },
-        "invalid claim submission target": {
-          message: "喊單明細刪除目標格式錯誤。",
+        "invalid claim form target": {
+          message: "喊單頁刪除目標格式錯誤。",
           status: 400,
         },
       };
       const mapped = messages[error.message];
       return apiFailure(
-        mapped?.message || "喊單明細移除失敗，請重新整理後再試。",
+        mapped?.message || "IP 喊單頁移除失敗，請重新整理後再試。",
         mapped?.status || 400,
         error.code,
       );
     }
 
     if (data !== true) {
-      return apiFailure("喊單明細未移除，請重新整理後再試。", 409);
+      return apiFailure("IP 喊單頁未移除，請重新整理後再試。", 409);
     }
 
-    return apiSuccess({ deleted: true, submissionId: input.submissionId });
+    return apiSuccess({
+      deleted: true,
+      formId: input.formId,
+      bannerImagePath: existingForm?.banner_image_path || null,
+    });
   });
 }

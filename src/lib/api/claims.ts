@@ -68,6 +68,22 @@ export async function deleteClaimSubmission(input: {
   return readApiResponse<{ deleted: true; submissionId: number }>(response);
 }
 
+export async function deleteClaimForm(input: {
+  ownerId: string;
+  formId: number;
+}) {
+  const response = await fetch(API_ROUTES.getClaimForms, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readApiResponse<{
+    deleted: true;
+    formId: number;
+    bannerImagePath?: string | null;
+  }>(response);
+}
+
 export async function submitPublicClaim(
   token: string,
   input: {

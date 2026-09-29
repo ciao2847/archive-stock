@@ -1172,6 +1172,13 @@ export type Database = {
         Args: { p_customer_key: string; p_owner_id: string }
         Returns: string
       }
+      delete_claim_form: {
+        Args: {
+          p_form_id: number
+          p_owner_id: string
+        }
+        Returns: boolean
+      }
       delete_claim_submission: {
         Args: {
           p_form_id: number

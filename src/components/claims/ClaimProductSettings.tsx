@@ -86,6 +86,9 @@ export interface ClaimProductSettingsProps {
   publicPath: string;
   onReloadProducts?: () => Promise<void>;
   onNavigateToSubmissions?: () => void;
+  onDeleteForm?: () => void;
+  deletingForm?: boolean;
+  onCancelNew?: () => void;
 }
 
 export function ClaimProductSettings({
@@ -121,6 +124,9 @@ export function ClaimProductSettings({
   publicPath,
   onReloadProducts,
   onNavigateToSubmissions,
+  onDeleteForm,
+  deletingForm = false,
+  onCancelNew,
 }: ClaimProductSettingsProps) {
   const [showBasicSettings, setShowBasicSettings] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -334,6 +340,31 @@ export function ClaimProductSettings({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {onCancelNew && !form && (
+            <button
+              type="button"
+              className="outline text-[13px]"
+              onClick={onCancelNew}
+              disabled={saving}
+            >
+              取消新增
+            </button>
+          )}
+          {onDeleteForm && form && (
+            <button
+              type="button"
+              className="outline text-[13px] text-danger hover:border-danger hover:bg-danger-soft"
+              onClick={onDeleteForm}
+              disabled={saving || deletingForm}
+            >
+              {deletingForm ? (
+                <LoaderCircle className="animate-spin" size={15} />
+              ) : (
+                <Trash2 size={15} />
+              )}
+              移除此 IP
+            </button>
+          )}
           {publicPath && (
             <>
               <button
@@ -534,6 +565,32 @@ export function ClaimProductSettings({
                 />
               </label>
             </div>
+
+            {onDeleteForm && form && (
+              <div className="flex flex-col gap-2 rounded-[8px] border border-danger/25 bg-danger-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
+                <div>
+                  <h4 className="mb-0 text-[14px] font-bold text-danger">
+                    危險操作：移除此 IP 喊單頁
+                  </h4>
+                  <p className="mb-0 text-[12px] text-muted">
+                    移除後將刪除「{form.title}」的商品設定、公開連結與全部顧客喊單紀錄，且無法復原。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="outline shrink-0 text-[13px] text-danger hover:border-danger hover:bg-danger-soft"
+                  onClick={onDeleteForm}
+                  disabled={saving || deletingForm}
+                >
+                  {deletingForm ? (
+                    <LoaderCircle className="animate-spin" size={15} />
+                  ) : (
+                    <Trash2 size={15} />
+                  )}
+                  移除此 IP 喊單頁
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -948,6 +1005,16 @@ export function ClaimProductSettings({
                 預覽前台
               </a>
             )}
+            {onCancelNew && !form && (
+              <button
+                type="button"
+                className="outline min-h-10 flex-1 justify-center text-[13px] sm:flex-none"
+                onClick={onCancelNew}
+                disabled={saving}
+              >
+                取消新增
+              </button>
+            )}
             <button
               type="button"
               className="primary min-h-10 flex-1 justify-center sm:min-w-[150px] sm:flex-none"
@@ -959,7 +1026,7 @@ export function ClaimProductSettings({
               ) : (
                 <Send size={17} />
               )}
-              {saving ? "儲存中…" : "儲存商品設定"}
+              {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈喊單頁"}
             </button>
           </div>
         </div>

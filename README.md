@@ -41,6 +41,7 @@ supabase/migrations/20260929060712_customize_claim_form_appearance.sql
 supabase/migrations/20260929062040_merge_claim_form_appearance_into_public_rpc.sql
 supabase/migrations/20260929063538_adjust_claim_form_header_and_banner_position.sql
 supabase/migrations/20260929064248_lighten_existing_poster_owner_claim_forms.sql
+supabase/migrations/20260929085500_allow_delete_claim_forms_and_fix_creation.sql
 ```
 
 橫幅會壓縮成 WebP 後存入公開的 `claim-form-assets` bucket；只有該庫倉成員可上傳或刪除。公開 RPC 只回傳表單外觀與商品展示欄位，電話與暱稱所在資料表不提供匿名角色直接存取，匿名送單統一透過受驗證的原子化 RPC 寫入。
