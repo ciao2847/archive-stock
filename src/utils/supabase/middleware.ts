@@ -58,6 +58,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/auth") ||
     request.nextUrl.pathname.startsWith("/qr/") ||
+    request.nextUrl.pathname.startsWith("/form/") ||
     request.nextUrl.pathname.startsWith("/claim/") ||
     request.nextUrl.pathname.startsWith("/api/public/claim-forms/");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");

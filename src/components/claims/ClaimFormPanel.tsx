@@ -245,7 +245,7 @@ export function ClaimFormPanel({
   const formCount = data?.forms.length ?? 0;
   const canSwitchForm = creatingForm ? formCount > 0 : formCount > 1;
   const publicPath = currentForm?.publicToken
-    ? `/claim/${currentForm.publicToken}`
+    ? `/form/${currentForm.publicToken}`
     : "";
 
   async function removeSubmission(submissionId: number, formId: number) {

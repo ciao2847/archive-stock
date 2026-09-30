@@ -34,8 +34,7 @@ const currency = new Intl.NumberFormat("zh-TW", {
   maximumFractionDigits: 0,
 });
 
-type ClaimThemeStyle = CSSProperties &
-  Record<`--${string}`, string | number>;
+type ClaimThemeStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 function createRequestId() {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -328,7 +327,11 @@ export function PublicClaimFormView({
                 style={{ color: "#D6A84B" }}
                 suppressHydrationWarning
               >
-                <Clock size={14} className="shrink-0 opacity-90" aria-hidden="true" />
+                <Clock
+                  size={14}
+                  className="shrink-0 opacity-90"
+                  aria-hidden="true"
+                />
                 <span>截止時間：{formatTaipeiDateTime(form.closesAt)}</span>
               </p>
             )}
@@ -474,16 +477,8 @@ export function PublicClaimFormView({
                       maxLength={10}
                       pattern={TAIWAN_MOBILE_PHONE_HTML_PATTERN}
                       placeholder="例：0912345678"
-                      aria-describedby="claim-phone-format"
                       required
                     />
-                    <small
-                      id="claim-phone-format"
-                      className="mt-1.5 block text-[11px] leading-5 text-[var(--claim-surface-muted)]"
-                    >
-                      請輸入 09 開頭的 10
-                      位數手機號碼，只能使用數字；之後會用這支電話查詢你的紀錄。
-                    </small>
                   </label>
                 </div>
                 <label className="mt-5 block">
@@ -588,37 +583,37 @@ export function PublicClaimFormView({
                             color: surfaceText,
                           }}
                         >
-                        {product.imageUrl ? (
-                          <button
-                            type="button"
-                            className="group relative grid size-[52px] shrink-0 cursor-zoom-in place-items-center overflow-hidden rounded-[10px] border-0 bg-[var(--claim-soft)] p-0 text-[var(--claim-soft-text)] transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--claim-primary)] md:size-[58px]"
-                            onClick={() =>
-                              setLightboxImage({
-                                src: product.imageUrl!,
-                                alt: `${product.name} 商品圖片`,
-                                label: `${product.name} (${currency.format(product.price)})`,
-                              })
-                            }
-                            aria-label={`放大查看 ${product.name} 圖片`}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                              src={product.imageUrl}
-                              alt={`${product.name} 商品圖片`}
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          </button>
-                        ) : (
-                          <div className="grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-[58px]">
-                            <ImageIcon
-                              className="opacity-45"
-                              size={22}
-                              aria-hidden="true"
-                            />
-                          </div>
-                        )}
+                          {product.imageUrl ? (
+                            <button
+                              type="button"
+                              className="group relative grid size-[52px] shrink-0 cursor-zoom-in place-items-center overflow-hidden rounded-[10px] border-0 bg-[var(--claim-soft)] p-0 text-[var(--claim-soft-text)] transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--claim-primary)] md:size-[58px]"
+                              onClick={() =>
+                                setLightboxImage({
+                                  src: product.imageUrl!,
+                                  alt: `${product.name} 商品圖片`,
+                                  label: `${product.name} (${currency.format(product.price)})`,
+                                })
+                              }
+                              aria-label={`放大查看 ${product.name} 圖片`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                src={product.imageUrl}
+                                alt={`${product.name} 商品圖片`}
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            </button>
+                          ) : (
+                            <div className="grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-[58px]">
+                              <ImageIcon
+                                className="opacity-45"
+                                size={22}
+                                aria-hidden="true"
+                              />
+                            </div>
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
                               <span className="shrink-0 rounded-[5px] bg-[var(--claim-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--claim-primary)] md:text-[11px]">
@@ -684,7 +679,11 @@ export function PublicClaimFormView({
                               }
                               aria-label={`增加${product.name}數量`}
                             >
-                              <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
+                              <Plus
+                                size={13}
+                                strokeWidth={2.5}
+                                aria-hidden="true"
+                              />
                             </button>
                           </div>
                         </article>
