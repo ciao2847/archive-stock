@@ -326,12 +326,12 @@ export function ClaimProductSettings({
   }
 
   return (
-    <div className="space-y-6 pb-24 md:pb-28">
+    <div className="w-full min-w-0 max-w-full space-y-6 pb-24 md:pb-28">
       {/* Top Banner with Quick Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
-        <div>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
+        <div className="min-w-0">
           <span className="eyebrow">喊單頁專用商品設定 · {inventoryName}</span>
-          <h2 className="mb-0 mt-1 text-[20px] font-bold text-dark">
+          <h2 className="mb-0 mt-1 break-words text-[20px] font-bold text-dark">
             {form ? `${form.title}｜公開喊單設定` : "新增 IP 喊單頁"}
           </h2>
           <p className="mb-0 mt-1 text-[13px] text-muted">
@@ -464,13 +464,13 @@ export function ClaimProductSettings({
       </section>
 
       {/* Section 1: 表單基本資訊設定 (可收合/展開) */}
-      <section className="rounded-[8px] border border-line bg-white p-5 shadow-sm md:p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-[8px] bg-primary-soft text-primary">
+      <section className="rounded-[8px] border border-line bg-white p-4 shadow-sm md:p-6">
+        <div className="flex min-w-0 items-start justify-between gap-3 sm:items-center">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-[8px] bg-primary-soft text-primary">
               <Link2 size={18} />
             </span>
-            <div>
+            <div className="min-w-0">
               <h3 className="mb-0 text-[17px] font-bold text-dark">
                 表單資訊與規則
               </h3>
@@ -481,16 +481,17 @@ export function ClaimProductSettings({
           </div>
           <button
             type="button"
-            className="outline text-[12px]"
+            className="outline size-10 shrink-0 p-0"
             onClick={() => setShowBasicSettings((v) => !v)}
             aria-expanded={showBasicSettings}
+            aria-label={showBasicSettings ? "收合表單設定" : "展開表單設定"}
+            title={showBasicSettings ? "收合表單設定" : "展開表單設定"}
           >
             <ChevronDown
-              size={15}
+              size={18}
               className={`transition-transform ${showBasicSettings ? "rotate-180" : ""}`}
               aria-hidden="true"
             />
-            {showBasicSettings ? "收合設定" : "展開設定"}
           </button>
         </div>
 
@@ -501,7 +502,7 @@ export function ClaimProductSettings({
                 IP 名稱／喊單標題 <span className="text-danger">*</span>
               </span>
               <input
-                className="min-h-11 w-full rounded-[8px] border border-line px-3 text-[14px]"
+                className="min-h-11 w-full rounded-[8px] border border-line px-3 text-[16px] sm:text-[14px]"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={120}
@@ -517,7 +518,7 @@ export function ClaimProductSettings({
                 表單說明與購物須知
               </span>
               <textarea
-                className="min-h-24 w-full resize-y rounded-[8px] border border-line px-3 py-2 text-[13px]"
+                className="min-h-24 w-full resize-y rounded-[8px] border border-line px-3 py-2 text-[16px] sm:text-[13px]"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
@@ -530,7 +531,7 @@ export function ClaimProductSettings({
                 自動截止時間（選填）
               </span>
               <input
-                className="min-h-11 w-full rounded-[8px] border border-line px-3 text-[13px]"
+                className="min-h-11 w-full min-w-0 max-w-full rounded-[8px] border border-line px-3 text-[16px] sm:text-[13px]"
                 type="datetime-local"
                 value={closesAt}
                 onChange={(e) => setClosesAt(e.target.value)}
@@ -573,7 +574,7 @@ export function ClaimProductSettings({
                     危險操作：移除此 IP 喊單頁
                   </h4>
                   <p className="mb-0 text-[12px] text-muted">
-                    移除後將刪除「{form.title}」的商品設定、公開連結與全部顧客喊單紀錄，且無法復原。
+                    {`移除後將刪除「${form.title}」的商品設定、公開連結與全部顧客喊單紀錄，且無法復原。`}
                   </p>
                 </div>
                 <button
@@ -612,8 +613,8 @@ export function ClaimProductSettings({
       />
 
       {/* Section 2: 喊單專用商品清單 (已選入的商品與專屬設定) */}
-      <section className="rounded-[8px] border border-line bg-white p-5 shadow-sm md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-4">
+      <section className="rounded-[8px] border border-line bg-white p-4 shadow-sm md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-3 md:pb-4">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="mb-0 text-[18px] font-bold text-dark">
@@ -635,7 +636,10 @@ export function ClaimProductSettings({
               onClick={() => setCreatingPreorder(true)}
             >
               <PackagePlus size={16} className="text-primary" />
-              新增預購商品（不用先開庫存）
+              <span className="sm:hidden">新增預購商品</span>
+              <span className="hidden sm:inline">
+                新增預購商品（不用先開庫存）
+              </span>
             </button>
             {selectedProductList.length > 0 && (
               <button
@@ -660,7 +664,7 @@ export function ClaimProductSettings({
             </p>
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-2 md:mt-4 md:space-y-3">
             {selectedProductList.map(({ product, draft }) => {
               const id = product.dbId!;
               const isModified =
@@ -671,25 +675,25 @@ export function ClaimProductSettings({
               return (
                 <div
                   key={id}
-                  className="relative rounded-[8px] border border-primary/40 bg-white p-4 shadow-sm transition hover:border-primary"
+                  className="relative rounded-[8px] border border-primary/40 bg-white p-3 shadow-sm transition hover:border-primary md:p-4"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:items-center lg:justify-between lg:gap-4">
                     {/* Product Master Info */}
-                    <div className="flex items-center gap-3 lg:w-1/3">
+                    <div className="flex min-w-0 items-center gap-2.5 lg:w-1/3 lg:gap-3">
                       {product.thumbnail || product.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          className="size-16 shrink-0 rounded-[8px] bg-light object-cover border border-line"
+                          className="size-12 shrink-0 rounded-[8px] border border-line bg-light object-cover md:size-14 lg:size-16"
                           src={product.thumbnail || product.image}
                           alt=""
                         />
                       ) : (
-                        <span className="grid size-16 shrink-0 place-items-center rounded-[8px] bg-light text-muted border border-line">
+                        <span className="grid size-12 shrink-0 place-items-center rounded-[8px] border border-line bg-light text-muted md:size-14 lg:size-16">
                           <ImageIcon size={22} aria-hidden="true" />
                         </span>
                       )}
                       <div className="min-w-0 flex-1">
-                        <span className="text-[11px] font-semibold text-muted">
+                        <span className="block truncate text-[11px] font-semibold text-muted">
                           {product.id} · {product.work}
                           {product.size ? ` · ${product.size}` : ""}
                         </span>
@@ -699,32 +703,65 @@ export function ClaimProductSettings({
                         >
                           {product.name}
                         </h4>
-                        <div className="mt-1 flex items-center gap-2 text-[12px] text-muted">
-                          <span>原價 {currency.format(product.price)}</span>
-                          <span>·</span>
+                        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted sm:mt-1 sm:gap-2 sm:text-[12px]">
+                          <span className="shrink-0">
+                            原價 {currency.format(product.price)}
+                          </span>
+                          <span className="shrink-0">·</span>
                           <span
-                            className={
+                            className={`min-w-0 truncate font-medium ${
                               product.stock > 0
-                                ? "text-success font-medium"
-                                : "text-amber-600 font-medium"
-                            }
+                                ? "text-success"
+                                : "text-amber-600"
+                            }`}
                           >
-                            {product.stock > 0
-                              ? `主檔現貨 ${product.stock} 件（喊單不扣）`
-                              : "預購｜尚未入庫"}
+                            <span className="sm:hidden">
+                              {product.stock > 0
+                                ? `現貨 ${product.stock}`
+                                : "預購未入庫"}
+                            </span>
+                            <span className="hidden sm:inline">
+                              {product.stock > 0
+                                ? `主檔現貨 ${product.stock} 件（喊單不扣）`
+                                : "預購｜尚未入庫"}
+                            </span>
                           </span>
                         </div>
                       </div>
                     </div>
 
+                    {/* Actions stay beside the product summary on narrow screens. */}
+                    <div className="flex shrink-0 items-center gap-1.5 lg:order-3 lg:gap-2">
+                      {isModified && (
+                        <button
+                          type="button"
+                          className="outline size-9 p-0"
+                          title="還原為庫藏原設定"
+                          aria-label={`還原 ${product.name} 為庫藏原設定`}
+                          onClick={() => resetProductDraft(id)}
+                        >
+                          <RotateCcw size={15} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="outline size-9 p-0 text-danger hover:border-danger hover:bg-danger-soft"
+                        title="移出喊單"
+                        aria-label={`將 ${product.name} 移出喊單`}
+                        onClick={() => removeSelectedProduct(id)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+
                     {/* Claim Specific Form Fields */}
-                    <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3 lg:w-1/2">
-                      <label className="block">
+                    <div className="col-span-2 grid min-w-0 grid-cols-2 gap-2.5 lg:order-2 lg:w-1/2 lg:flex-1 lg:grid-cols-3 lg:gap-3">
+                      <label className="col-span-2 block lg:col-span-1">
                         <span className="mb-1 block text-[11px] font-bold text-dark">
                           公開商品名稱
                         </span>
                         <input
-                          className="min-h-10 w-full rounded-[8px] border border-line bg-white px-3 text-[13px] font-medium"
+                          className="h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-medium lg:text-[13px]"
                           value={draft.name}
                           maxLength={300}
                           onChange={(e) =>
@@ -740,7 +777,7 @@ export function ClaimProductSettings({
                           喊單金額 (TWD)
                         </span>
                         <input
-                          className="min-h-10 w-full rounded-[8px] border border-line bg-white px-3 text-[13px] font-medium"
+                          className="h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-medium lg:text-[13px]"
                           type="number"
                           min="0"
                           max="9999999999.99"
@@ -758,7 +795,7 @@ export function ClaimProductSettings({
                           單次限購數量
                         </span>
                         <input
-                          className="min-h-10 w-full rounded-[8px] border border-line bg-white px-3 text-[13px] font-medium"
+                          className="h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-medium lg:text-[13px]"
                           type="number"
                           min="1"
                           max="99"
@@ -771,28 +808,6 @@ export function ClaimProductSettings({
                         />
                       </label>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-2 border-t border-line/60 pt-3 lg:border-t-0 lg:pt-0">
-                      {isModified && (
-                        <button
-                          type="button"
-                          className="outline size-9 p-0"
-                          title="還原為庫藏原設定"
-                          onClick={() => resetProductDraft(id)}
-                        >
-                          <RotateCcw size={15} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="outline size-9 p-0 text-danger hover:border-danger hover:bg-danger-soft"
-                        title="移出喊單"
-                        onClick={() => removeSelectedProduct(id)}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
@@ -802,7 +817,7 @@ export function ClaimProductSettings({
       </section>
 
       {/* Section 3: 從既有商品主檔帶入喊單資料 */}
-      <section className="rounded-[8px] border border-line bg-white p-5 shadow-sm md:p-6">
+      <section className="rounded-[8px] border border-line bg-white p-4 shadow-sm md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="mb-0 text-[18px] font-bold text-dark">
@@ -829,21 +844,21 @@ export function ClaimProductSettings({
         </div>
 
         {/* Filters Toolbar */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-          <label className="flex min-h-10 items-center gap-2 rounded-[8px] border border-line px-3">
-            <Search size={16} className="text-muted" />
+        <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-3">
+          <label className="flex h-11 min-w-0 items-center gap-2 rounded-[8px] border border-line px-3">
+            <Search size={16} className="shrink-0 text-muted" />
             <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none"
+              className="h-full min-w-0 flex-1 border-0 bg-transparent text-[16px] outline-none sm:text-[13px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜尋品名、作品、SKU 或類別…"
             />
           </label>
 
-          <div className="flex items-center gap-1 overflow-x-auto rounded-[8px] border border-line p-1">
+          <div className="flex h-11 min-w-0 items-center gap-1 overflow-hidden rounded-[8px] border border-line p-1">
             <button
               type="button"
-              className={`rounded-[8px] px-2.5 py-1 text-[12px] font-medium transition ${
+              className={`h-9 min-w-0 flex-1 rounded-[8px] px-2.5 text-[12px] font-medium transition sm:flex-none ${
                 scopeFilter === "all"
                   ? "bg-primary text-white"
                   : "text-muted hover:bg-light"
@@ -854,7 +869,7 @@ export function ClaimProductSettings({
             </button>
             <button
               type="button"
-              className={`rounded-[8px] px-2.5 py-1 text-[12px] font-medium transition ${
+              className={`h-9 min-w-0 flex-1 rounded-[8px] px-2.5 text-[12px] font-medium transition sm:flex-none ${
                 scopeFilter === "unselected"
                   ? "bg-primary text-white"
                   : "text-muted hover:bg-light"
@@ -865,7 +880,7 @@ export function ClaimProductSettings({
             </button>
             <button
               type="button"
-              className={`rounded-[8px] px-2.5 py-1 text-[12px] font-medium transition ${
+              className={`h-9 min-w-0 flex-1 rounded-[8px] px-2.5 text-[12px] font-medium transition sm:flex-none ${
                 scopeFilter === "selected"
                   ? "bg-primary text-white"
                   : "text-muted hover:bg-light"
@@ -877,10 +892,10 @@ export function ClaimProductSettings({
           </div>
 
           {categories.length > 2 && (
-            <div className="flex items-center gap-1 overflow-x-auto rounded-[8px] border border-line p-1">
-              <Filter size={14} className="ml-1.5 text-muted" />
+            <div className="flex h-11 min-w-0 items-center gap-1 overflow-hidden rounded-[8px] border border-line p-1 sm:max-w-[190px]">
+              <Filter size={14} className="ml-1.5 shrink-0 text-muted" />
               <select
-                className="border-0 bg-transparent text-[12px] font-medium text-dark outline-none pr-2"
+                className="h-full min-w-0 flex-1 border-0 bg-transparent pr-2 text-[16px] font-medium text-dark outline-none sm:text-[12px]"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >

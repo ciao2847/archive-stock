@@ -568,7 +568,7 @@ export function ClaimFormPanel({
           headerSearchTarget,
         )}
 
-      <div className="claim-management min-w-0 space-y-5">
+      <div className="claim-management w-full min-w-0 max-w-full space-y-5">
         {phoneSearchError && (
           <div
             id="claim-header-phone-error"
@@ -618,7 +618,8 @@ export function ClaimFormPanel({
               ))}
             </select>
             {creatingForm ? (
-              data?.forms && data.forms.length > 0 && (
+              data?.forms &&
+              data.forms.length > 0 && (
                 <button
                   type="button"
                   className="outline w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
