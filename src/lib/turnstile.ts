@@ -82,14 +82,26 @@ export async function verifyClaimTurnstile(input: {
       signal: controller.signal,
     });
 
-    if (!response.ok) return { ok: false, reason: "unavailable" };
-
     const parsed = turnstileResponseSchema.safeParse(
       await response.json().catch(() => null),
     );
     if (!parsed.success) return { ok: false, reason: "unavailable" };
 
     const result = parsed.data;
+    const errorCodes = result["error-codes"] ?? [];
+    if (
+      errorCodes.includes("missing-input-secret") ||
+      errorCodes.includes("invalid-input-secret")
+    ) {
+      return { ok: false, reason: "misconfigured", errorCodes };
+    }
+    if (errorCodes.includes("internal-error")) {
+      return { ok: false, reason: "unavailable", errorCodes };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: "unavailable", errorCodes };
+    }
+
     const usesTestingKey = result.metadata?.result_with_testing_key === true;
     if (usesTestingKey && !isDevelopment()) {
       return { ok: false, reason: "misconfigured" };
@@ -105,7 +117,7 @@ export async function verifyClaimTurnstile(input: {
       return {
         ok: false,
         reason: "rejected",
-        errorCodes: result["error-codes"],
+        errorCodes,
       };
     }
 
