@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Database,
@@ -39,6 +40,7 @@ export function SystemSettings({
   onInventoryDatabaseUpdated: () => Promise<unknown>;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("載入中…");
   const [name, setName] = useState("—");
   const [role, setRole] = useState("staff");
@@ -68,6 +70,8 @@ export function SystemSettings({
     })();
   }, []);
   async function logout() {
+    queryClient.clear();
+    window.localStorage.removeItem("archive-stock-owner-id");
     await createClient().auth.signOut();
     router.replace("/login");
     router.refresh();

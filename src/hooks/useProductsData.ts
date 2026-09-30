@@ -3,8 +3,9 @@
 import { useCallback } from "react";
 import { useProductsQuery } from "@/api/productQueries";
 
-export function useProductsData() {
-  const { data, error, isLoading, isFetching, refetch } = useProductsQuery();
+export function useProductsData(authScope: string) {
+  const { data, error, isLoading, isFetching, refetch } =
+    useProductsQuery(authScope);
 
   const refresh = useCallback(async () => {
     const result = await refetch();

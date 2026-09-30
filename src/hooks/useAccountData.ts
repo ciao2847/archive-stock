@@ -3,8 +3,9 @@
 import { useCallback } from "react";
 import { useAccountQuery } from "@/api/accountQueries";
 
-export function useAccountData() {
-  const { data, error, isLoading, isFetching, refetch } = useAccountQuery();
+export function useAccountData(authScope: string) {
+  const { data, error, isLoading, isFetching, refetch } =
+    useAccountQuery(authScope);
 
   const refresh = useCallback(async () => {
     const result = await refetch();

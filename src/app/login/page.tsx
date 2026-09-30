@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -13,6 +14,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,6 +37,8 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    queryClient.clear();
+    window.localStorage.removeItem("archive-stock-owner-id");
     router.replace("/");
     router.refresh();
   }
@@ -69,7 +73,11 @@ export default function LoginPage() {
               placeholder="至少 6 個字元"
             />
           </FormLabel>
-          {error && <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">{error}</div>}
+          {error && (
+            <div className="bg-danger-soft text-danger-strong p-2.5 rounded-lg text-xs mb-4">
+              {error}
+            </div>
+          )}
           <FormPrimaryButton disabled={loading}>
             {loading ? <LoaderCircle className="animate-spin" /> : <LogIn />}
             {loading ? "登入中…" : "登入"}

@@ -88,26 +88,26 @@ const EMPTY_PRODUCTS: Product[] = [];
 const EMPTY_ORDERS: Order[] = [];
 const EMPTY_OWNERS: Array<{ id: string; name: string }> = [];
 
-export function Dashboard() {
+export function Dashboard({ authScope }: { authScope: string }) {
   const dispatch = useAppDispatch();
   const {
     data: productsData,
     error: productsError,
     loading,
     refresh: reloadProducts,
-  } = useProductsData();
+  } = useProductsData(authScope);
   const {
     data: ordersData,
     error: ordersError,
     loading: ordersLoading,
     refresh: reloadOrders,
-  } = useOrdersData();
+  } = useOrdersData(authScope);
   const {
     data: accountData,
     error: accountError,
     loading: accountLoading,
     refresh: reloadAccount,
-  } = useAccountData();
+  } = useAccountData(authScope);
   const products = productsData ?? EMPTY_PRODUCTS;
   const orders = ordersData ?? EMPTY_ORDERS;
   const isAdmin = accountData?.isAdmin ?? false;

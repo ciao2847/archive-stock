@@ -3,8 +3,9 @@
 import { useCallback } from "react";
 import { useOrdersQuery } from "@/api/orderQueries";
 
-export function useOrdersData() {
-  const { data, error, isLoading, isFetching, refetch } = useOrdersQuery();
+export function useOrdersData(authScope: string) {
+  const { data, error, isLoading, isFetching, refetch } =
+    useOrdersQuery(authScope);
 
   const refresh = useCallback(async () => {
     const result = await refetch();
