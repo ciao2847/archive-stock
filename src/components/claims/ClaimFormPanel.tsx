@@ -5,10 +5,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  ChevronDown,
   ClipboardList,
   Link2,
   LoaderCircle,
@@ -64,6 +66,106 @@ function csvCell(value: string | number) {
 }
 
 export type ClaimTab = "submissions" | "settings";
+
+type ClaimFormListItem = ClaimFormManagement["forms"][number];
+
+function ClaimFormSelector({
+  forms,
+  selectedId,
+  selectedLabel,
+  disabled,
+  onSelect,
+}: {
+  forms: ClaimFormListItem[];
+  selectedId: number | null;
+  selectedLabel: string;
+  disabled: boolean;
+  onSelect: (formId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const availableForms = forms.filter((form) => form.id !== selectedId);
+  const canOpen = availableForms.length > 0 && !disabled;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  useEffect(() => setOpen(false), [disabled, selectedId]);
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative w-full min-w-0 md:min-w-[210px] md:flex-1 lg:w-auto lg:flex-initial"
+    >
+      <button
+        type="button"
+        className="flex min-h-10 w-full min-w-0 items-center justify-between gap-2 rounded-[8px] border border-line bg-white px-3 text-left text-[13px] font-semibold text-dark"
+        aria-label="選擇 IP 喊單連結"
+        aria-haspopup={canOpen ? "listbox" : undefined}
+        aria-expanded={canOpen ? open : undefined}
+        disabled={disabled}
+        onClick={() => canOpen && setOpen((current) => !current)}
+      >
+        <span className="min-w-0 truncate">{selectedLabel}</span>
+        {canOpen && (
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="relative z-20 mt-1 max-h-60 space-y-1 overflow-y-auto rounded-[8px] border border-line bg-white p-1 shadow-lg md:absolute md:inset-x-0 md:top-full"
+          role="listbox"
+          aria-label="可切換的 IP 喊單連結"
+        >
+          {availableForms.map((form) => (
+            <button
+              key={form.id}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className="flex min-h-10 w-full min-w-0 items-center justify-between gap-2 rounded-[8px] px-3 text-left text-[13px] text-dark hover:bg-light"
+              onClick={() => {
+                setOpen(false);
+                onSelect(form.id);
+              }}
+            >
+              <span className="min-w-0 truncate font-semibold">
+                {form.title}
+              </span>
+              <span
+                className={`shrink-0 text-[11px] font-semibold ${
+                  form.isOpen ? "text-success" : "text-muted"
+                }`}
+              >
+                {form.isOpen ? "接單中" : "已暫停"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ClaimFormPanel({
   ownerId,
@@ -595,28 +697,19 @@ export function ClaimFormPanel({
           </div>
 
           <div className="flex w-full min-w-0 flex-col items-stretch gap-2 md:w-auto md:min-w-[280px] md:flex-1 md:flex-row md:items-center md:justify-end lg:flex-initial">
-            <select
-              className="min-h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[13px] font-semibold text-dark md:min-w-[210px] md:flex-1 lg:flex-initial"
-              aria-label="選擇 IP 喊單連結"
-              value={
-                creatingForm ? "new" : currentForm ? String(currentForm.id) : ""
+            <ClaimFormSelector
+              forms={data?.forms ?? []}
+              selectedId={currentForm?.id ?? null}
+              selectedLabel={
+                creatingForm
+                  ? "新增 IP（尚未發佈）"
+                  : currentForm
+                    ? `${currentForm.title} · ${currentForm.isOpen ? "接單中" : "已暫停"}`
+                    : "尚未建立 IP 喊單"
               }
-              onChange={(event) => {
-                if (event.target.value === "new") return;
-                selectForm(Number(event.target.value));
-              }}
               disabled={loading || saving}
-            >
-              {!currentForm && !creatingForm && (
-                <option value="">尚未建立 IP 喊單</option>
-              )}
-              {creatingForm && <option value="new">新增 IP（尚未發佈）</option>}
-              {data?.forms.map((form) => (
-                <option key={form.id} value={form.id}>
-                  {form.title} · {form.isOpen ? "接單中" : "已暫停"}
-                </option>
-              ))}
-            </select>
+              onSelect={selectForm}
+            />
             {creatingForm ? (
               data?.forms &&
               data.forms.length > 0 && (

@@ -326,7 +326,7 @@ export function ClaimProductSettings({
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 pb-24 md:pb-28">
+    <div className="w-full min-w-0 max-w-full space-y-6 lg:pb-28">
       {/* Top Banner with Quick Actions */}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
         <div className="min-w-0">
@@ -993,8 +993,8 @@ export function ClaimProductSettings({
         </div>
       </section>
 
-      {/* Fixed Save Bar at Bottom */}
-      <div className="claim-fixed-actions fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur-md">
+      {/* Keep actions in normal flow on small screens so they never cover content. */}
+      <div className="claim-fixed-actions rounded-[8px] border border-line bg-white lg:fixed lg:inset-x-0 lg:bottom-0 lg:z-30 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-white/95 lg:backdrop-blur-md">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-9">
           <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <span className="text-[13px] font-semibold text-dark">
