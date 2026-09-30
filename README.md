@@ -48,6 +48,15 @@ supabase/migrations/20260930001853_harden_inventory_claim_appearance_update.sql
 
 橫幅會壓縮成 WebP 後存入公開的 `claim-form-assets` bucket；只有該庫倉成員可上傳或刪除。公開 RPC 只回傳表單外觀與商品展示欄位，電話與暱稱所在資料表不提供匿名角色直接存取，匿名送單統一透過受驗證的原子化 RPC 寫入。
 
+公開喊單送出前會通過 Cloudflare Turnstile Managed 驗證；後端會再次向 Cloudflare 驗證一次性 token、`claim-submit` 動作與送出網域，成功後才呼叫 Supabase RPC。請在 Cloudflare Turnstile 建立 widget，允許正式網域 `archive-stock.vercel.app`，再於本機 `.env.local` 與 Vercel Environment Variables 設定：
+
+```bash
+TURNSTILE_SITE_KEY=你的_site_key
+TURNSTILE_SECRET_KEY=你的_secret_key
+```
+
+`TURNSTILE_SECRET_KEY` 只能存在伺服器環境，不可加上 `NEXT_PUBLIC_` 或傳到瀏覽器。開發環境未設定金鑰時會使用 Cloudflare 官方測試金鑰；production 缺少正式金鑰時採 fail closed，暫停送單而不會繞過驗證。
+
 ## 資料流程
 
 共用資料採用以下固定流程：

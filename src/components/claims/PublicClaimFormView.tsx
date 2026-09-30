@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
+import { TurnstileWidget } from "@/components/claims/TurnstileWidget";
 import { submitPublicClaim } from "@/lib/api/claims";
 import { blendHexColors, getContrastColor } from "@/lib/claim-form-theme";
 import {
@@ -54,9 +55,11 @@ function createRequestId() {
 export function PublicClaimFormView({
   form,
   token,
+  turnstileSiteKey,
 }: {
   form: PublicClaimForm;
   token: string;
+  turnstileSiteKey: string | null;
 }) {
   const [step, setStep] = useState<"products" | "details" | "success">(
     "products",
@@ -67,6 +70,8 @@ export function PublicClaimFormView({
   const [notes, setNotes] = useState("");
   const [website, setWebsite] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<PublicClaimSubmissionResult | null>(
@@ -160,6 +165,10 @@ export function PublicClaimFormView({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!agreed || itemCount < 1) return;
+    if (!turnstileSiteKey || !turnstileToken) {
+      setError("請先完成人機驗證再送出。");
+      return;
+    }
     const confirmed = window.confirm(
       `喊單送出後就不能自行取消囉！這 ${itemCount} 件商品會列入管理者的採購數量。\n\n確定要送出嗎？`,
     );
@@ -174,6 +183,7 @@ export function PublicClaimFormView({
         notes,
         website,
         requestId,
+        turnstileToken,
         items: selectedProducts.map(({ product, quantity }) => ({
           productId: product.id,
           quantity,
@@ -183,6 +193,8 @@ export function PublicClaimFormView({
       setStep("success");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (submitError) {
+      setTurnstileToken("");
+      setTurnstileResetSignal((current) => current + 1);
       setError(
         submitError instanceof Error
           ? submitError.message
@@ -515,6 +527,20 @@ export function PublicClaimFormView({
                     我已確認品項與數量，了解送出後會列入預購採購數量且不能自行取消，並同意提供電話與群組暱稱供管理者核對。
                   </span>
                 </label>
+                {turnstileSiteKey ? (
+                  <TurnstileWidget
+                    siteKey={turnstileSiteKey}
+                    resetSignal={turnstileResetSignal}
+                    onTokenChange={setTurnstileToken}
+                  />
+                ) : (
+                  <p
+                    className="mb-0 mt-4 rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger"
+                    role="alert"
+                  >
+                    安全驗證尚未完成設定，目前暫停接收喊單，請聯絡表單管理者。
+                  </p>
+                )}
                 {error && (
                   <p
                     className="mb-0 mt-4 rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger"
@@ -526,7 +552,12 @@ export function PublicClaimFormView({
                 <button
                   className="mt-6 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-[8px] border-0 bg-[var(--claim-primary)] px-5 text-[15px] font-semibold text-[var(--claim-primary-text)] hover:bg-[var(--claim-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                   type="submit"
-                  disabled={submitting || !agreed}
+                  disabled={
+                    submitting ||
+                    !agreed ||
+                    !turnstileSiteKey ||
+                    !turnstileToken
+                  }
                 >
                   {submitting ? "正在送出…" : "確認送出喊單"}
                   {!submitting && <Check size={19} aria-hidden="true" />}

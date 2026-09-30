@@ -10,6 +10,11 @@ import {
   TAIWAN_MOBILE_PHONE_PATTERN,
   type PublicClaimSubmissionResult,
 } from "@/lib/claims";
+import {
+  getRequestIp,
+  verifyClaimTurnstile,
+} from "@/lib/turnstile";
+import { TURNSTILE_TOKEN_MAX_LENGTH } from "@/lib/turnstile-config";
 import { createClient } from "@/utils/supabase/server";
 
 const tokenSchema = z.string().uuid();
@@ -18,6 +23,7 @@ const submissionSchema = z.object({
   phone: z.string().regex(TAIWAN_MOBILE_PHONE_PATTERN),
   notes: z.string().trim().max(1000),
   requestId: z.string().uuid(),
+  turnstileToken: z.string().min(1).max(TURNSTILE_TOKEN_MAX_LENGTH),
   website: z.literal("").optional(),
   items: z
     .array(
@@ -52,15 +58,46 @@ export async function POST(
       const hasPhoneError = parsed.error.issues.some(
         (issue) => issue.path[0] === "phone",
       );
+      const hasTurnstileError = parsed.error.issues.some(
+        (issue) => issue.path[0] === "turnstileToken",
+      );
       return apiFailure(
         hasPhoneError
           ? TAIWAN_MOBILE_PHONE_ERROR
+          : hasTurnstileError
+            ? "請完成人機驗證後再送出。"
           : "請確認暱稱、電話與商品數量",
         400,
       );
     }
 
     const input = parsed.data;
+    const turnstile = await verifyClaimTurnstile({
+      token: input.turnstileToken,
+      expectedHostname: new URL(request.url).hostname,
+      remoteIp: getRequestIp(request.headers),
+      requestId: input.requestId,
+    });
+    if (!turnstile.ok) {
+      if (
+        turnstile.reason === "misconfigured" ||
+        turnstile.reason === "unavailable"
+      ) {
+        return apiFailure(
+          "安全驗證暫時無法使用，請稍後再試或聯絡表單管理者。",
+          503,
+          turnstile.reason === "misconfigured"
+            ? "TURNSTILE_MISCONFIGURED"
+            : "TURNSTILE_UNAVAILABLE",
+        );
+      }
+      return apiFailure(
+        "人機驗證已失效，請重新驗證後再送出。",
+        403,
+        "TURNSTILE_REJECTED",
+      );
+    }
+
     const { data, error } = await (await createClient()).rpc(
       "submit_public_claim",
       {

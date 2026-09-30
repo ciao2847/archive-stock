@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { PublicClaimFormView } from "@/components/claims/PublicClaimFormView";
 import { fetchPublicClaimForm } from "@/lib/api/public-claims";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -64,5 +65,11 @@ export default async function FormPage({ params }: FormPageProps) {
   const { token } = await params;
   const { form, loadFailed } = await loadPublicClaimForm(token);
   if (!form) return <Unavailable loadFailed={loadFailed} />;
-  return <PublicClaimFormView form={form} token={token} />;
+  return (
+    <PublicClaimFormView
+      form={form}
+      token={token}
+      turnstileSiteKey={getTurnstileSiteKey()}
+    />
+  );
 }

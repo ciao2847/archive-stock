@@ -91,6 +91,7 @@ export async function submitPublicClaim(
     phone: string;
     notes: string;
     requestId: string;
+    turnstileToken: string;
     website: string;
     items: Array<{ productId: string; quantity: number }>;
   },
