@@ -261,10 +261,10 @@ export function ClaimSubmissionsView({
         </section>
       )}
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+      <div className="grid min-w-0 gap-5 md:grid-cols-2">
         {/* Left: 預購採購數量 (截止後叫貨依據) */}
         <section className="min-w-0 rounded-[8px] border border-line bg-white p-4 shadow-sm sm:p-5 xl:p-6">
-          <div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">
               <span className="eyebrow inline-flex items-center gap-1.5">
                 <ShoppingCart size={12} aria-hidden="true" />
@@ -279,7 +279,7 @@ export function ClaimSubmissionsView({
             </div>
             <button
               type="button"
-              className="outline min-h-10 w-full whitespace-nowrap px-4 text-[12px] sm:w-auto"
+              className="outline min-h-10 w-full whitespace-nowrap px-4 text-[12px] lg:w-auto"
               disabled={!data.productTotals.length}
               onClick={onDownloadSummary}
             >
