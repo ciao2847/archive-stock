@@ -10,11 +10,80 @@
   }
 }
 
-// A single native option is display-only, but should not look faded.
-.claim-form-selector:disabled {
-  color: var(--color-dark);
-  opacity: 1;
-  -webkit-text-fill-color: var(--color-dark);
+// Keep the IP picker as a native select. Modern browsers can render its picker
+// inside the browser top layer, which avoids the incorrectly scaled macOS popup
+// seen in high-DPR mobile emulation. Older browsers retain their OS-native UI.
+.claim-form-selector {
+  max-width: 100%;
+
+  &:disabled {
+    color: var(--color-dark);
+    opacity: 1;
+    -webkit-text-fill-color: var(--color-dark);
+  }
+}
+
+@supports (appearance: base-select) {
+  .claim-form-selector,
+  .claim-form-selector::picker(select) {
+    appearance: base-select;
+  }
+
+  .claim-form-selector {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    line-height: 1.25;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: default;
+    }
+
+    &::picker(select) {
+      box-sizing: border-box;
+      inline-size: anchor-size(width);
+      max-inline-size: calc(100vw - 30px);
+      max-block-size: min(320px, calc(100dvh - 16px));
+      margin-block: 4px;
+      overflow-y: auto;
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: var(--color-white);
+      padding: 4px;
+      color: var(--color-dark);
+      box-shadow: 0 10px 28px rgb(23 36 51 / 16%);
+    }
+
+    option {
+      min-block-size: 40px;
+      max-inline-size: 100%;
+      overflow: hidden;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--color-dark);
+      font: 600 13px/1.4 var(--font-sans);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &:checked {
+        background: var(--color-primary);
+        color: var(--color-white);
+      }
+
+      &:hover,
+      &:focus-visible {
+        background: var(--color-primary-soft);
+        color: var(--color-dark);
+      }
+
+      &:checked:hover,
+      &:checked:focus-visible {
+        background: var(--color-primary);
+        color: var(--color-white);
+      }
+    }
+  }
 }
 
 // Keep mobile actions in document flow; pin them beside the sidebar only on

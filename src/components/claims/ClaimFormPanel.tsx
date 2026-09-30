@@ -598,7 +598,7 @@ export function ClaimFormPanel({
 
           <div className="flex w-full min-w-0 flex-col items-stretch gap-2 md:w-auto md:min-w-[280px] md:flex-1 md:flex-row md:items-center md:justify-end lg:flex-initial">
             <select
-              className="claim-form-selector min-h-10 w-full min-w-0 appearance-auto rounded-[8px] border border-line bg-white px-3 text-[16px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 md:min-w-[210px] md:flex-1 md:text-[13px] lg:flex-initial"
+              className="claim-form-selector min-h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 md:min-w-[210px] md:flex-1 md:text-[13px] lg:flex-initial"
               aria-label="選擇 IP 喊單連結"
               title={
                 canSwitchForm
