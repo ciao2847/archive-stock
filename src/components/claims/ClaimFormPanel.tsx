@@ -242,6 +242,8 @@ export function ClaimFormPanel({
   );
 
   const currentForm = creatingForm ? null : (data?.form ?? null);
+  const formCount = data?.forms.length ?? 0;
+  const canSwitchForm = creatingForm ? formCount > 0 : formCount > 1;
   const publicPath = currentForm?.publicToken
     ? `/claim/${currentForm.publicToken}`
     : "";
@@ -596,8 +598,13 @@ export function ClaimFormPanel({
 
           <div className="flex w-full min-w-0 flex-col items-stretch gap-2 md:w-auto md:min-w-[280px] md:flex-1 md:flex-row md:items-center md:justify-end lg:flex-initial">
             <select
-              className="min-h-10 w-full min-w-0 appearance-auto rounded-[8px] border border-line bg-white px-3 text-[16px] font-semibold text-dark md:min-w-[210px] md:flex-1 md:text-[13px] lg:flex-initial"
+              className="claim-form-selector min-h-10 w-full min-w-0 appearance-auto rounded-[8px] border border-line bg-white px-3 text-[16px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 md:min-w-[210px] md:flex-1 md:text-[13px] lg:flex-initial"
               aria-label="選擇 IP 喊單連結"
+              title={
+                canSwitchForm
+                  ? "切換 IP 喊單連結"
+                  : "目前沒有其他 IP 喊單可切換"
+              }
               value={
                 creatingForm ? "new" : currentForm ? String(currentForm.id) : ""
               }
@@ -605,7 +612,7 @@ export function ClaimFormPanel({
                 if (event.target.value === "new") return;
                 selectForm(Number(event.target.value));
               }}
-              disabled={loading || saving}
+              disabled={loading || saving || !canSwitchForm}
             >
               {!currentForm && !creatingForm && (
                 <option value="">尚未建立 IP 喊單</option>

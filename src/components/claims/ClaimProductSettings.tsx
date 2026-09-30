@@ -994,7 +994,7 @@ export function ClaimProductSettings({
       </section>
 
       {/* Keep actions in normal flow on small screens so they never cover content. */}
-      <div className="claim-fixed-actions rounded-[8px] border border-line bg-white lg:fixed lg:inset-x-0 lg:bottom-0 lg:z-30 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-white/95 lg:backdrop-blur-md">
+      <div className="claim-fixed-actions rounded-[8px] border border-line bg-white lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-white/95 lg:backdrop-blur-md">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-9">
           <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <span className="text-[13px] font-semibold text-dark">

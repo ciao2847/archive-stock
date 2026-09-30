@@ -10,10 +10,25 @@
   }
 }
 
-// Keep the fixed claim settings actions aligned with the main content. The
-// sidebar becomes persistent at 992px; below that it is an overlay.
+// A single native option is display-only, but should not look faded.
+.claim-form-selector:disabled {
+  color: var(--color-dark);
+  opacity: 1;
+  -webkit-text-fill-color: var(--color-dark);
+}
+
+// Keep mobile actions in document flow; pin them beside the sidebar only on
+// wider desktop screens.
 .claim-fixed-actions {
-  @media (min-width: 992px) {
+  position: static;
+  inset: auto;
+  z-index: auto;
+
+  @media (min-width: 1024px) {
+    position: fixed;
     left: 238px;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
   }
 }
