@@ -285,20 +285,24 @@ export async function GET(request: Request) {
       isOpen: candidate.is_open,
       closesAt: candidate.closes_at || undefined,
     }));
-    const transferAccount: ClaimTransferAccount | undefined =
+    const transferAccount: ClaimTransferAccount =
       inventoryData?.claim_transfer_enabled &&
       inventoryData.claim_bank_code &&
       inventoryData.claim_bank_name &&
-      inventoryData.claim_bank_account &&
-      inventoryData.claim_bank_account_name
+      inventoryData.claim_bank_account
         ? {
             bankCode: inventoryData.claim_bank_code,
             bankName: inventoryData.claim_bank_name,
             bankBranch: inventoryData.claim_bank_branch || undefined,
             account: inventoryData.claim_bank_account,
-            accountName: inventoryData.claim_bank_account_name,
+            accountName: inventoryData.claim_bank_account_name || "",
           }
-        : undefined;
+        : {
+            bankCode: "824",
+            bankName: "連線商業銀行 (LINE Bank)",
+            account: "111022318292",
+            accountName: "",
+          };
 
     if (scope === "all") {
       const formIds = mappedForms.map((candidate) => candidate.id);

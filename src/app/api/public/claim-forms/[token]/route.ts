@@ -171,16 +171,20 @@ export async function POST(
       transfer?.enabled &&
       transfer.bank_code &&
       transfer.bank_name &&
-      transfer.bank_account &&
-      transfer.bank_account_name
+      transfer.bank_account
         ? {
             bankCode: transfer.bank_code,
             bankName: transfer.bank_name,
             bankBranch: transfer.bank_branch || undefined,
             account: transfer.bank_account,
-            accountName: transfer.bank_account_name,
+            accountName: transfer.bank_account_name || "",
           }
-        : undefined;
+        : {
+            bankCode: "824",
+            bankName: "連線商業銀行 (LINE Bank)",
+            account: "111022318292",
+            accountName: "",
+          };
 
     return apiSuccess<PublicClaimSubmissionResult>(
       {

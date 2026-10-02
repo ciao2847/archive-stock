@@ -131,15 +131,27 @@ function formatCustomerClaimsMessage(
   lines.push(`共 ${data.unsettled_items_count} 件待結商品`);
   lines.push(`💰 待付總金額：$${data.unsettled_amount.toLocaleString()} 元`);
 
-  if (data.transfer_account?.enabled && data.transfer_account.account) {
+  const transferAccount =
+    data.transfer_account?.enabled && data.transfer_account.account
+      ? data.transfer_account
+      : {
+          enabled: true,
+          bank_code: "824",
+          bank_name: "連線商業銀行 (LINE Bank)",
+          bank_branch: "",
+          account: "111022318292",
+          account_name: "",
+        };
+
+  if (transferAccount.enabled && transferAccount.account) {
     lines.push("");
     lines.push("🏦 匯款帳號資訊：");
     lines.push(
-      `• 銀行：(${data.transfer_account.bank_code}) ${data.transfer_account.bank_name}${data.transfer_account.bank_branch ? ` ${data.transfer_account.bank_branch}` : ""}`,
+      `• 銀行：(${transferAccount.bank_code}) ${transferAccount.bank_name}${transferAccount.bank_branch ? ` ${transferAccount.bank_branch}` : ""}`,
     );
-    lines.push(`• 帳號：${data.transfer_account.account}`);
-    if (data.transfer_account.account_name) {
-      lines.push(`• 戶名：${data.transfer_account.account_name}`);
+    lines.push(`• 帳號：${transferAccount.account}`);
+    if (transferAccount.account_name) {
+      lines.push(`• 戶名：${transferAccount.account_name}`);
     }
   }
 

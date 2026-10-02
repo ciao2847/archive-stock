@@ -394,10 +394,14 @@ export function PublicClaimFormView({
                       {transferAccountCopied ? "已複製" : "複製"}
                     </button>
                   </dd>
-                  <dt className="text-[var(--claim-surface-muted)]">戶名</dt>
-                  <dd className="m-0 font-semibold">
-                    {result.transferAccount.accountName}
-                  </dd>
+                  {result.transferAccount.accountName ? (
+                    <>
+                      <dt className="text-[var(--claim-surface-muted)]">戶名</dt>
+                      <dd className="m-0 font-semibold">
+                        {result.transferAccount.accountName}
+                      </dd>
+                    </>
+                  ) : null}
                 </dl>
               </div>
             )}
