@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Database,
   LogOut,
+  MessageCircle,
   QrCode,
   ShieldCheck,
   UserRound,
@@ -14,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { DataState } from "@/components/ui/DataState";
 import { API_ROUTES } from "@/constants";
+import { OFFICIAL_LINE_ID_PATTERN } from "@/lib/claims";
 
 /** 系統設定面板。 */
 export function SystemSettings({
@@ -33,6 +35,7 @@ export function SystemSettings({
     ownerIds: string[];
     qrShopeeDestinationUrl: string;
     qrOtherDestinationUrl: string;
+    officialLineId: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
   selectedInventoryId: string;
@@ -175,6 +178,24 @@ export function SystemSettings({
               description="顧客掃描已完成包裝的 QR Code 時，系統會依訂單通路顯示對應入口。此庫藏的所有登入使用者都可調整。"
             >
               <InventoryQrDestinationEditor
+                key={activeInventory.id}
+                inventory={activeInventory}
+                onSaved={onInventoryDatabaseUpdated}
+              />
+            </SettingsCardContent>
+          </section>
+        )}
+        {activeInventory && (
+          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
+            <div className={`${iconClass} bg-secondary-soft text-green`}>
+              <MessageCircle />
+            </div>
+            <SettingsCardContent
+              eyebrow="喊單完成聯繫"
+              title={`${activeInventory.name} 的官方 LINE`}
+              description="顧客送出喊單後，完成頁會請他聯繫這個官方 LINE，並自動帶入確認編號。此設定套用到同一庫藏的所有 IP 喊單頁。"
+            >
+              <InventoryOfficialLineEditor
                 key={activeInventory.id}
                 inventory={activeInventory}
                 onSaved={onInventoryDatabaseUpdated}
@@ -437,6 +458,94 @@ function InventoryQrDestinationEditor({
           onClick={save}
         >
           {saving ? "儲存中…" : "儲存購買入口"}
+        </button>
+        {message && <span className="text-[12px] text-muted">{message}</span>}
+      </div>
+    </div>
+  );
+}
+
+function InventoryOfficialLineEditor({
+  inventory,
+  onSaved,
+}: {
+  inventory: {
+    id: string;
+    officialLineId: string;
+  };
+  onSaved: () => Promise<unknown>;
+}) {
+  const [lineId, setLineId] = useState(inventory.officialLineId);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function save() {
+    const input = lineId.trim();
+    const normalizedLineId =
+      input && !input.startsWith("@") ? `@${input}` : input;
+    if (normalizedLineId && !OFFICIAL_LINE_ID_PATTERN.test(normalizedLineId)) {
+      setMessage("請輸入正確的官方 LINE ID，例如 @youraccount");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(API_ROUTES.updateInventoryOfficialLine, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: inventory.id,
+          officialLineId: normalizedLineId,
+        }),
+      });
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+      };
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "儲存失敗");
+      }
+      setLineId(normalizedLineId);
+      await onSaved();
+      setMessage(
+        normalizedLineId ? "官方 LINE 已更新" : "已清除官方 LINE 設定",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "儲存失敗");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 grid gap-4">
+      <label className="block text-[12px] font-semibold">
+        官方 LINE ID
+        <input
+          className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+          type="text"
+          inputMode="text"
+          value={lineId}
+          maxLength={100}
+          placeholder="@youraccount"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={(event) => setLineId(event.target.value)}
+        />
+        <span className="mt-2 block font-normal leading-5 text-muted">
+          可輸入有或沒有 @ 的官方帳號 ID；留空時完成頁不顯示 LINE 聯繫按鈕。
+        </span>
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          className="primary"
+          type="button"
+          disabled={saving}
+          onClick={save}
+        >
+          {saving ? "儲存中…" : "儲存官方 LINE"}
         </button>
         {message && <span className="text-[12px] text-muted">{message}</span>}
       </div>

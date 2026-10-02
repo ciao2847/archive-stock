@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           display_name: string
           form_id: number
+          is_enabled: boolean
           max_quantity_per_customer: number
           product_id: string
           published_at: string
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           display_name: string
           form_id: number
+          is_enabled?: boolean
           max_quantity_per_customer?: number
           product_id: string
           published_at?: string
@@ -36,6 +38,7 @@ export type Database = {
         Update: {
           display_name?: string
           form_id?: number
+          is_enabled?: boolean
           max_quantity_per_customer?: number
           product_id?: string
           published_at?: string
@@ -226,6 +229,54 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          contact: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          nickname: string | null
+          notes: string | null
+          owner_id: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          nickname?: string | null
+          notes?: string | null
+          owner_id?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          nickname?: string | null
+          notes?: string | null
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_database_members: {
         Row: {
           created_at: string
@@ -275,6 +326,7 @@ export type Database = {
           created_by: string
           id: string
           name: string
+          official_line_id: string | null
           qr_destination_url: string | null
           qr_other_destination_url: string | null
           qr_shopee_destination_url: string | null
@@ -290,8 +342,9 @@ export type Database = {
           claim_theme_surface_color?: string
           created_at?: string
           created_by: string
-          id?: string
+          id: string
           name: string
+          official_line_id?: string | null
           qr_destination_url?: string | null
           qr_other_destination_url?: string | null
           qr_shopee_destination_url?: string | null
@@ -309,6 +362,7 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+          official_line_id?: string | null
           qr_destination_url?: string | null
           qr_other_destination_url?: string | null
           qr_shopee_destination_url?: string | null
@@ -322,51 +376,10 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      customers: {
-        Row: {
-          contact: string | null
-          created_at: string
-          created_by: string | null
-          id: string
-          name: string
-          nickname: string | null
-          notes: string | null
-          owner_id: string
-        }
-        Insert: {
-          contact?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name: string
-          nickname?: string | null
-          notes?: string | null
-          owner_id?: string
-        }
-        Update: {
-          contact?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name?: string
-          nickname?: string | null
-          notes?: string | null
-          owner_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "customers_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "customers_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
+            foreignKeyName: "inventory_databases_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -604,15 +617,141 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orders_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_packed_by_fkey"
             columns: ["packed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      packing_package_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          order_item_id: string
+          package_id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          order_item_id: string
+          package_id: string
+          product_id: string
+          quantity: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          order_item_id?: string
+          package_id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
           {
-            foreignKeyName: "orders_owner_id_fkey"
+            foreignKeyName: "packing_package_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_package_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packing_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_package_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      packing_packages: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_key: string
+          customer_name: string
+          id: string
+          owner_id: string
+          package_no: string
+          packed_at: string | null
+          packed_by: string | null
+          shipped_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_key: string
+          customer_name: string
+          id?: string
+          owner_id: string
+          package_no?: string
+          packed_at?: string | null
+          packed_by?: string | null
+          shipped_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_key?: string
+          customer_name?: string
+          id?: string
+          owner_id?: string
+          package_no?: string
+          packed_at?: string | null
+          packed_by?: string | null
+          shipped_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packing_packages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_packages_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_packages_packed_by_fkey"
+            columns: ["packed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -624,6 +763,8 @@ export type Database = {
           id: string
           is_valid: boolean
           order_id: string
+          order_item_id: string | null
+          package_id: string | null
           product_id: string
           scan_method: string
           scanned_at: string
@@ -633,6 +774,8 @@ export type Database = {
           id?: string
           is_valid: boolean
           order_id: string
+          order_item_id?: string | null
+          package_id?: string | null
           product_id: string
           scan_method?: string
           scanned_at?: string
@@ -642,6 +785,8 @@ export type Database = {
           id?: string
           is_valid?: boolean
           order_id?: string
+          order_item_id?: string | null
+          package_id?: string | null
           product_id?: string
           scan_method?: string
           scanned_at?: string
@@ -653,6 +798,20 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_scans_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "packing_scans_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packing_packages"
             referencedColumns: ["id"]
           },
           {
@@ -750,9 +909,9 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string | null
+          description: string | null
           edition: string | null
           id: string
-          description: string | null
           identifying_features: string | null
           image_paths: string[] | null
           is_art_set: boolean | null
@@ -780,9 +939,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
           edition?: string | null
           id?: string
-          description?: string | null
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
@@ -810,9 +969,9 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
           edition?: string | null
           id?: string
-          description?: string | null
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
@@ -876,7 +1035,7 @@ export type Database = {
           created_at?: string
           display_name: string
           id: string
-          inventory_owner_id?: string
+          inventory_owner_id: string
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
@@ -1062,54 +1221,134 @@ export type Database = {
         Returns: number
       }
       archive_order: { Args: { p_order_id: string }; Returns: boolean }
+      complete_order_packing: { Args: { p_order_id: string }; Returns: boolean }
       complete_packing_package: {
         Args: { p_package_id: string }
         Returns: Json
       }
-      complete_order_packing: { Args: { p_order_id: string }; Returns: boolean }
-      configure_claim_form: {
+      configure_claim_form:
+        | {
+            Args: {
+              p_closes_at: string
+              p_description: string
+              p_form_id: number
+              p_is_open: boolean
+              p_owner_id: string
+              p_products: Json
+              p_title: string
+            }
+            Returns: {
+              form_id: number
+              public_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_banner_image_path: string
+              p_banner_position_x: number
+              p_banner_position_y: number
+              p_closes_at: string
+              p_description: string
+              p_form_id: number
+              p_is_open: boolean
+              p_owner_id: string
+              p_products: Json
+              p_theme_background_color: string
+              p_theme_header_text_color: string
+              p_theme_primary_color: string
+              p_theme_surface_color: string
+              p_title: string
+            }
+            Returns: {
+              form_id: number
+              public_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_banner_image_path: string
+              p_closes_at: string
+              p_description: string
+              p_form_id: number
+              p_is_open: boolean
+              p_owner_id: string
+              p_products: Json
+              p_theme_background_color: string
+              p_theme_primary_color: string
+              p_theme_surface_color: string
+              p_title: string
+            }
+            Returns: {
+              form_id: number
+              public_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_closes_at: string
+              p_description: string
+              p_is_open: boolean
+              p_owner_id: string
+              p_product_ids: string[]
+              p_title: string
+            }
+            Returns: {
+              form_id: number
+              public_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_closes_at: string
+              p_description: string
+              p_is_open: boolean
+              p_owner_id: string
+              p_products: Json
+              p_title: string
+            }
+            Returns: {
+              form_id: number
+              public_token: string
+            }[]
+          }
+      consume_product_for_package: {
         Args: {
-          p_banner_image_path: string
-          p_banner_position_x: number
-          p_banner_position_y: number
-          p_closes_at: string | null
-          p_description: string
-          p_form_id: number | null
-          p_is_open: boolean
-          p_owner_id: string
-          p_products: Json
-          p_theme_background_color: string
-          p_theme_header_text_color: string
-          p_theme_primary_color: string
-          p_theme_surface_color: string
-          p_title: string
+          p_label_id?: string
+          p_package_id: string
+          p_product_id: string
+          p_scan_method: string
         }
         Returns: {
-          form_id: number
-          public_token: string
+          order_id: string
+          order_item_id: string
+          order_no: string
+          product_id: string
+          reason: string
+          sku: string
+          valid: boolean
         }[]
       }
       consume_product_package_qr: {
         Args: { p_package_id: string; p_token: string }
         Returns: {
-          order_id: string | null
-          order_item_id: string | null
-          order_no: string | null
-          product_id: string | null
+          order_id: string
+          order_item_id: string
+          order_no: string
+          product_id: string
           reason: string
-          sku: string | null
+          sku: string
           valid: boolean
         }[]
       }
       consume_product_package_sku: {
         Args: { p_package_id: string; p_sku: string }
         Returns: {
-          order_id: string | null
-          order_item_id: string | null
-          order_no: string | null
-          product_id: string | null
+          order_id: string
+          order_item_id: string
+          order_no: string
+          product_id: string
           reason: string
-          sku: string | null
+          sku: string
           valid: boolean
         }[]
       }
@@ -1193,19 +1432,16 @@ export type Database = {
         Args: { p_customer_key: string; p_owner_id: string }
         Returns: string
       }
+      customer_identity_key: {
+        Args: { p_contact: string; p_name: string; p_nickname: string }
+        Returns: string
+      }
       delete_claim_form: {
-        Args: {
-          p_form_id: number
-          p_owner_id: string
-        }
+        Args: { p_form_id: number; p_owner_id: string }
         Returns: boolean
       }
       delete_claim_submission: {
-        Args: {
-          p_form_id: number
-          p_owner_id: string
-          p_submission_id: number
-        }
+        Args: { p_form_id: number; p_owner_id: string; p_submission_id: number }
         Returns: boolean
       }
       delete_inventory_product: {
@@ -1220,23 +1456,23 @@ export type Database = {
           product_id: string
         }[]
       }
+      get_claim_form_summary:
+        | { Args: { p_form_id: number }; Returns: Json }
+        | { Args: { p_owner_id: string }; Returns: Json }
       get_packing_package_progress: {
         Args: { p_package_id: string }
-        Returns: Json
-      }
-      get_claim_form_summary: {
-        Args: { p_form_id: number }
         Returns: Json
       }
       get_public_claim_form: {
         Args: { p_token: string }
         Returns: {
-          banner_image_path: string | null
+          banner_image_path: string
           banner_position_x: number
           banner_position_y: number
-          closes_at: string | null
-          description: string | null
+          closes_at: string
+          description: string
           is_open: boolean
+          official_line_id: string
           products: Json
           store_name: string
           theme_background_color: string
@@ -1251,19 +1487,19 @@ export type Database = {
         Returns: {
           order_no: string
           order_status: string
-          purchase_url: string | null
+          purchase_url: string
           qr_status: string
           recommendations: Json
           sales_channel: string
         }[]
       }
-      my_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["user_role"]
-      }
       mark_product_qr_labels_printed: {
         Args: { p_label_ids: string[] }
         Returns: boolean
+      }
+      my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
       }
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
@@ -1283,35 +1519,39 @@ export type Database = {
           submitted_at: string
         }[]
       }
+      update_inventory_database_access: {
+        Args: {
+          p_inventory_id: string
+          p_name: string
+          p_owner_ids: string[]
+          p_qr_destination_url?: string
+        }
+        Returns: string
+      }
+      update_inventory_official_line_id: {
+        Args: { p_inventory_id: string; p_official_line_id: string }
+        Returns: string
+      }
       update_inventory_product: {
         Args: {
-          p_work?: string
-          p_poster_crafts?: string[]
-          p_image_paths?: string[]
           p_category: string
           p_cost: number
           p_country: string
           p_description?: string
           p_identifying_features: string
+          p_image_paths?: string[]
           p_location: string
           p_name: string
+          p_poster_crafts?: string[]
           p_poster_format: string
           p_poster_size: string
           p_price: number
           p_product_id: string
           p_source: string
           p_stock: number
+          p_work?: string
         }
         Returns: boolean
-      }
-      update_inventory_database_access: {
-        Args: {
-          p_inventory_id: string | null
-          p_name: string
-          p_owner_ids: string[]
-          p_qr_destination_url?: string
-        }
-        Returns: string
       }
       update_inventory_qr_destinations: {
         Args: {

@@ -7,7 +7,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  ExternalLink,
   ImageIcon,
+  MessageCircle,
   Minus,
   Package,
   Plus,
@@ -20,6 +22,7 @@ import { TurnstileWidget } from "@/components/claims/TurnstileWidget";
 import { submitPublicClaim } from "@/lib/api/claims";
 import { blendHexColors, getContrastColor } from "@/lib/claim-form-theme";
 import {
+  buildOfficialLineChatUrl,
   formatTaipeiDateTime,
   sanitizeTaiwanMobilePhoneInput,
   TAIWAN_MOBILE_PHONE_ERROR,
@@ -206,6 +209,13 @@ export function PublicClaimFormView({
   }
 
   if (step === "success" && result) {
+    const officialLineChatUrl = form.officialLineId
+      ? buildOfficialLineChatUrl(
+          form.officialLineId,
+          `您好，我已完成「${form.title}」喊單，確認編號：${result.confirmationCode}，請協助核對，謝謝。`,
+        )
+      : undefined;
+
     return (
       <main
         className="min-h-screen bg-[var(--claim-background)] px-3 py-4 text-[var(--claim-page-text)] md:px-4 md:py-12"
@@ -235,6 +245,39 @@ export function PublicClaimFormView({
                 <small className="mt-1 block text-[11px] opacity-70 md:mt-2 md:text-[12px]">
                   建議截圖保留，方便之後與管理者核對
                 </small>
+              </div>
+              <div className="mt-4 rounded-[8px] border border-[var(--claim-border)] p-3.5 text-center md:mt-5 md:p-5">
+                <span className="mx-auto grid size-10 place-items-center rounded-full bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-11">
+                  <MessageCircle size={21} aria-hidden="true" />
+                </span>
+                <h2 className="mb-0 mt-2.5 text-[15px] md:text-[17px]">
+                  最後一步：聯繫官方 LINE
+                </h2>
+                <p className="mx-auto mb-0 mt-1 max-w-[520px] text-[12px] leading-5 opacity-70 md:text-[13px] md:leading-6">
+                  請主動聯繫官方 LINE
+                  並提供上方確認編號，方便管理者核對你的喊單。
+                </p>
+                {officialLineChatUrl ? (
+                  <>
+                    <a
+                      className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--claim-primary)] px-4 py-2.5 text-[13px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:mx-auto md:max-w-[360px] md:text-[14px]"
+                      href={officialLineChatUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <MessageCircle size={18} aria-hidden="true" />
+                      聯繫官方 LINE
+                      <ExternalLink size={15} aria-hidden="true" />
+                    </a>
+                    <small className="mt-2 block text-[11px] opacity-60 md:text-[12px]">
+                      官方 LINE ID：{form.officialLineId}
+                    </small>
+                  </>
+                ) : (
+                  <p className="mb-0 mt-3 rounded-[8px] bg-[var(--claim-soft)] px-3 py-2 text-[12px] text-[var(--claim-soft-text)]">
+                    請依群組公告聯繫官方 LINE，並告知確認編號。
+                  </p>
+                )}
               </div>
               <div className="mt-5 md:mt-7">
                 <h2 className="m-0 text-[15px] md:text-[17px]">本次喊單</h2>

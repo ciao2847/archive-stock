@@ -8,6 +8,7 @@ export const API_ROUTES = {
   getClaimForms: "/api/claim-forms",
   getAccount: "/api/account",
   getInventoryDatabases: "/api/inventory-databases",
+  updateInventoryOfficialLine: "/api/inventory-databases/official-line",
   getPrintLabels: "/api/print-labels",
   getMarkPrintLabel: "/api/print-labels/mark",
   getProducts: "/api/products",

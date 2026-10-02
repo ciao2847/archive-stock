@@ -41,6 +41,7 @@ export type ProductDraft = {
   name: string;
   price: string;
   maxQuantity: string;
+  isEnabled: boolean;
 };
 
 export function defaultProductDraft(product: Product): ProductDraft {
@@ -48,6 +49,7 @@ export function defaultProductDraft(product: Product): ProductDraft {
     name: product.name,
     price: String(product.price),
     maxQuantity: "20",
+    isEnabled: true,
   };
 }
 
@@ -230,12 +232,40 @@ export function ClaimProductSettings({
         prev[productId] ??
         (product
           ? defaultProductDraft(product)
-          : { name: "", price: "0", maxQuantity: "20" });
+          : {
+              name: "",
+              price: "0",
+              maxQuantity: "20",
+              isEnabled: true,
+            });
       return {
         ...prev,
         [productId]: {
           ...currentDraft,
           [field]: value,
+        },
+      };
+    });
+  }
+
+  function toggleProductAvailability(productId: string) {
+    setProductDrafts((prev) => {
+      const product = productMap.get(productId);
+      const currentDraft =
+        prev[productId] ??
+        (product
+          ? defaultProductDraft(product)
+          : {
+              name: "",
+              price: "0",
+              maxQuantity: "20",
+              isEnabled: true,
+            });
+      return {
+        ...prev,
+        [productId]: {
+          ...currentDraft,
+          isEnabled: !currentDraft.isEnabled,
         },
       };
     });
@@ -670,12 +700,17 @@ export function ClaimProductSettings({
               const isModified =
                 draft.name !== product.name ||
                 draft.price !== String(product.price) ||
-                draft.maxQuantity !== "20";
+                draft.maxQuantity !== "20" ||
+                !draft.isEnabled;
 
               return (
                 <div
                   key={id}
-                  className="relative rounded-[8px] border border-primary/40 bg-white p-3 shadow-sm transition hover:border-primary md:p-4"
+                  className={`relative rounded-[8px] border p-3 shadow-sm transition md:p-4 ${
+                    draft.isEnabled
+                      ? "border-primary/40 bg-white hover:border-primary"
+                      : "border-line bg-light/60"
+                  }`}
                 >
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 lg:flex lg:items-center lg:justify-between lg:gap-4">
                     {/* Product Master Info */}
@@ -703,6 +738,15 @@ export function ClaimProductSettings({
                         >
                           {product.name}
                         </h4>
+                        <span
+                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            draft.isEnabled
+                              ? "bg-success-soft text-success"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {draft.isEnabled ? "開放喊單" : "暫停喊單"}
+                        </span>
                         <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted sm:mt-1 sm:gap-2 sm:text-[12px]">
                           <span className="shrink-0">
                             原價 {currency.format(product.price)}
@@ -732,6 +776,26 @@ export function ClaimProductSettings({
 
                     {/* Actions stay beside the product summary on narrow screens. */}
                     <div className="flex shrink-0 items-center gap-1.5 lg:order-3 lg:gap-2">
+                      <button
+                        type="button"
+                        className={`outline size-9 p-0 ${
+                          draft.isEnabled ? "text-success" : "text-slate-500"
+                        }`}
+                        title={
+                          draft.isEnabled
+                            ? "暫停此商品喊單"
+                            : "重新開放此商品喊單"
+                        }
+                        aria-label={`${draft.isEnabled ? "暫停" : "開放"}${product.name}喊單`}
+                        aria-pressed={!draft.isEnabled}
+                        onClick={() => toggleProductAvailability(id)}
+                      >
+                        {draft.isEnabled ? (
+                          <Eye size={16} />
+                        ) : (
+                          <EyeOff size={16} />
+                        )}
+                      </button>
                       {isModified && (
                         <button
                           type="button"

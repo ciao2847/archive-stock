@@ -23,6 +23,7 @@ type PublicClaimFormRow = {
   theme_background_color: string;
   theme_surface_color: string;
   theme_header_text_color: string;
+  official_line_id: string | null;
   products: unknown;
 };
 
@@ -103,6 +104,7 @@ export async function fetchPublicClaimForm(
 
   return {
     storeName: row.store_name,
+    officialLineId: asOptionalString(row.official_line_id),
     title: row.title,
     description: row.description || undefined,
     isOpen: row.is_open,

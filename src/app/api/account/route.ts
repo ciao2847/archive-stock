@@ -23,7 +23,7 @@ export async function GET() {
     const { data: inventory, error: inventoryError } = await auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id",
       )
       .eq("id", auth.inventoryOwnerId)
       .maybeSingle();
@@ -51,6 +51,7 @@ export async function GET() {
             inventory?.qr_destination_url ??
             inventory?.qr_other_destination_url ??
             "",
+          officialLineId: inventory?.official_line_id ?? "",
         },
       ],
       availableUsers: [],
@@ -79,7 +80,7 @@ export async function GET() {
     auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id",
       )
       .order("name"),
     auth.supabase
@@ -178,6 +179,7 @@ export async function GET() {
         inventory.qr_destination_url ??
         inventory.qr_other_destination_url ??
         "",
+      officialLineId: inventory.official_line_id ?? "",
       ownerIds: (memberships ?? [])
         .filter(
           (membership) =>

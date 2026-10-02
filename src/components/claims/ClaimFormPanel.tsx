@@ -168,6 +168,7 @@ export function ClaimFormPanel({
                   name: product.name,
                   price: String(product.price),
                   maxQuantity: String(product.maxQuantity),
+                  isEnabled: product.isEnabled,
                 },
               ]),
             ),
@@ -222,6 +223,7 @@ export function ClaimFormPanel({
               draft.maxQuantity.trim() === ""
                 ? Number.NaN
                 : Number(draft.maxQuantity),
+            isEnabled: draft.isEnabled,
           },
         ];
       }),

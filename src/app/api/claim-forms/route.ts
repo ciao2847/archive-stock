@@ -41,15 +41,30 @@ const claimProductSchema = z.object({
     .max(9_999_999_999.99)
     .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7),
   maxQuantity: z.number().int().min(1).max(99),
+  isEnabled: z.boolean(),
 });
 
 const saveSchema = z.object({
-  formId: z.number().int().positive().nullish().transform((v) => v || undefined),
+  formId: z
+    .number()
+    .int()
+    .positive()
+    .nullish()
+    .transform((v) => v || undefined),
   ownerId: z.string().uuid(),
   title: z.string().trim().min(1, "請填寫 IP 名稱／喊單標題").max(120),
-  description: z.string().trim().max(2000).nullish().transform((v) => v ?? ""),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .nullish()
+    .transform((v) => v ?? ""),
   isOpen: z.boolean(),
-  closesAt: z.string().datetime({ offset: true }).nullish().transform((v) => v || undefined),
+  closesAt: z
+    .string()
+    .datetime({ offset: true })
+    .nullish()
+    .transform((v) => v || undefined),
   bannerImagePath: z
     .union([
       z.literal(""),
@@ -232,7 +247,7 @@ export async function GET(request: Request) {
         auth.supabase
           .from("claim_form_products")
           .select(
-            "product_id,display_name,unit_price,max_quantity_per_customer",
+            "product_id,display_name,unit_price,max_quantity_per_customer,is_enabled",
           )
           .eq("form_id", form.id)
           .order("sort_order"),
@@ -321,6 +336,7 @@ export async function GET(request: Request) {
           name: listing.display_name,
           price: numberOf(listing.unit_price),
           maxQuantity: listing.max_quantity_per_customer,
+          isEnabled: listing.is_enabled,
         })),
       },
       appearance: unifiedAppearance,
@@ -357,12 +373,14 @@ export async function PUT(request: Request) {
     }
 
     const { data, error } = await auth.supabase.rpc("configure_claim_form", {
-      p_form_id: input.formId || null,
+      // Postgres accepts NULL here for a new form; generated RPC types cannot
+      // represent nullable function arguments.
+      p_form_id: input.formId ?? (null as never),
       p_owner_id: input.ownerId,
       p_title: input.title,
       p_description: input.description,
       p_is_open: input.isOpen,
-      p_closes_at: input.closesAt || null,
+      p_closes_at: input.closesAt ?? (null as never),
       p_banner_image_path: input.bannerImagePath,
       p_banner_position_x: input.bannerPosition.x,
       p_banner_position_y: input.bannerPosition.y,
@@ -375,6 +393,7 @@ export async function PUT(request: Request) {
         name: product.name,
         price: product.price,
         max_quantity: product.maxQuantity,
+        is_enabled: product.isEnabled,
       })),
     });
     if (error) {

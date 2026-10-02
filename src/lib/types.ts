@@ -79,6 +79,7 @@ export type AccountData = {
     ownerIds: string[];
     qrShopeeDestinationUrl: string;
     qrOtherDestinationUrl: string;
+    officialLineId: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
 };

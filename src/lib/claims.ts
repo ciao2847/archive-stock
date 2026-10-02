@@ -7,9 +7,23 @@ export const TAIWAN_MOBILE_PHONE_PATTERN = /^09\d{8}$/;
 export const TAIWAN_MOBILE_PHONE_HTML_PATTERN = "09[0-9]{8}";
 export const TAIWAN_MOBILE_PHONE_ERROR =
   "請輸入 09 開頭的 10 位數手機號碼（僅限數字）。";
+export const OFFICIAL_LINE_ID_PATTERN = /^@[A-Za-z0-9._-]{1,99}$/;
 
 export function sanitizeTaiwanMobilePhoneInput(value: string) {
   return value.replace(/\D/g, "").slice(0, 10);
+}
+
+export function normalizeOfficialLineId(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const normalized = trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+  return OFFICIAL_LINE_ID_PATTERN.test(normalized) ? normalized : "";
+}
+
+export function buildOfficialLineChatUrl(lineId: string, message: string) {
+  const normalized = normalizeOfficialLineId(lineId);
+  if (!normalized) return undefined;
+  return `https://line.me/R/oaMessage/${encodeURIComponent(normalized)}/?${encodeURIComponent(message)}`;
 }
 
 export function formatTaipeiDateTime(dateInput?: string | Date | null): string {
@@ -49,6 +63,7 @@ export type PublicClaimProduct = {
 
 export type PublicClaimForm = {
   storeName: string;
+  officialLineId?: string;
   title: string;
   description?: string;
   isOpen: boolean;
@@ -120,6 +135,7 @@ export type ClaimFormProductSettings = {
   name: string;
   price: number;
   maxQuantity: number;
+  isEnabled: boolean;
 };
 
 export type ClaimFormAppearance = {

@@ -49,7 +49,9 @@ async function updateInventoryDatabase(
   const { data, error } = await auth.supabase.rpc(
     "update_inventory_database_access",
     {
-      p_inventory_id: inventoryId,
+      // Postgres accepts NULL here to create a database; generated RPC types
+      // cannot represent nullable function arguments.
+      p_inventory_id: inventoryId ?? (null as never),
       p_name: parsed.data.name,
       p_owner_ids: [...new Set(parsed.data.ownerIds)],
       ...(parsed.data.qrDestinationUrl === undefined
