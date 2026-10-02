@@ -754,8 +754,8 @@ export function ClaimFormPanel({
         </div>
 
         {/* Top Tab Navigation */}
-        <div className="flex flex-col items-stretch gap-3 border-b border-line pb-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 md:flex md:w-auto md:items-center">
+        <div className="flex flex-col items-stretch gap-3 border-b border-line pb-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 xl:flex xl:w-auto xl:items-center">
             <button
               type="button"
               className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
@@ -768,8 +768,8 @@ export function ClaimFormPanel({
             >
               <ClipboardList className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">表單明細</span>
-                <span className="hidden md:inline">喊單明細與採購</span>
+                <span className="xl:hidden">表單明細</span>
+                <span className="hidden xl:inline">喊單明細與採購</span>
               </span>
               {currentForm && data?.summary.customerCount ? (
                 <span
@@ -795,8 +795,8 @@ export function ClaimFormPanel({
             >
               <Users className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">顧客對帳</span>
-                <span className="hidden md:inline">顧客對帳結算</span>
+                <span className="xl:hidden">顧客對帳</span>
+                <span className="hidden xl:inline">顧客對帳結算</span>
               </span>
               {unsettledCustomerCount > 0 ? (
                 <span
@@ -824,8 +824,8 @@ export function ClaimFormPanel({
             >
               <Settings2 className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">商品設定</span>
-                <span className="hidden md:inline">表單與商品設定</span>
+                <span className="xl:hidden">商品設定</span>
+                <span className="hidden xl:inline">表單與商品設定</span>
               </span>
               {selectedIds.size > 0 && (
                 <span
@@ -854,7 +854,7 @@ export function ClaimFormPanel({
           </div>
 
           {currentForm?.publicToken && (
-            <span className="w-full text-[12px] text-muted md:w-auto md:text-right">
+            <span className="w-full text-[12px] text-muted xl:w-auto xl:shrink-0 xl:text-right">
               表單狀態：
               <b
                 className={isOpen ? "text-success font-semibold" : "text-muted"}
