@@ -210,6 +210,7 @@ export async function POST(request: Request) {
       const isInstructional = /請輸入|範例|例如|\(例[：:]|無卡匯款/i.test(userText);
       const isCheckoutIntent = /結帳|查詢|查單|對帳|買單|明細|結算|訂單/i.test(userText);
       const isPaymentReportIntent = /末[五5]碼|後[五5]碼|已匯款|匯款完成|已轉帳/i.test(userText);
+      const isBankInfoIntent = /匯款|轉帳|帳號|銀行|代碼|戶名/i.test(userText);
       const isCustomerServiceIntent = /人工|客服|真人/i.test(userText);
       const isFormSubmitIntent = /確認編號|已完成.*喊單/i.test(userText);
 
@@ -228,20 +229,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // 2. Instructional prompt, checkout intent without phone, or dummy phone
-      if (isInstructional || (isCheckoutIntent && (!matchedPhone || isDummyPhone)) || (matchedPhone && isDummyPhone)) {
-        const checkoutPrompt = [
-          "🔍 結帳查詢",
-          "請輸入填單登記的「10 碼手機號碼」（例如：09xxxxxxxx）。",
-          "",
-          "系統將自動為您整理待結帳明細與匯款帳號！",
-          "（無卡匯款請洽主理人索取資訊）",
-        ].join("\n");
-        await sendLineReply(event.replyToken, checkoutPrompt, channelAccessToken);
-        continue;
-      }
-
-      // 3. Payment report intent
+      // 2. Payment report intent (takes priority over general bank inquiry)
       if (isPaymentReportIntent) {
         const reportReply = [
           "已收到您的匯款回報！🙌",
@@ -251,11 +239,48 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // 4. Form submit confirmation text without matched phone
+      // 3. Bank / Remittance info inquiry
+      if (isBankInfoIntent && !matchedPhone) {
+        const bankReply = [
+          "🏦 海報小天地 匯款帳號資訊：",
+          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
+          "• 帳號：111022318292",
+          "",
+          "如需查詢待結帳明細，請直接在此輸入您的「10 碼手機號碼」！",
+          "匯款完成後請在此回傳「帳號末五碼」，小幫手會為您核對，謝謝您！",
+          "（無卡匯款請洽主理人索取資訊）",
+        ].join("\n");
+        await sendLineReply(event.replyToken, bankReply, channelAccessToken);
+        continue;
+      }
+
+      // 4. Instructional prompt, checkout intent without phone, or dummy phone
+      if (isInstructional || (isCheckoutIntent && (!matchedPhone || isDummyPhone)) || (matchedPhone && isDummyPhone)) {
+        const checkoutPrompt = [
+          "🔍 結帳與明細查詢",
+          "請直接在此輸入您填單登記的「10 碼手機號碼」（例如：09xxxxxxxx），系統將為您整理待付明細！",
+          "",
+          "🏦 匯款帳號資訊：",
+          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
+          "• 帳號：111022318292",
+          "（無卡匯款請洽主理人索取資訊）",
+          "",
+          "匯款完成後請在此回傳「帳號末五碼」，小幫手會為您核對並標記結清，謝謝您！",
+        ].join("\n");
+        await sendLineReply(event.replyToken, checkoutPrompt, channelAccessToken);
+        continue;
+      }
+
+      // 5. Form submit confirmation text without matched phone
       if (isFormSubmitIntent && !matchedPhone) {
         const formSubmitPrompt = [
           "已收到您的喊單登記！🙌",
-          "如需查詢待結帳明細與匯款資訊，請輸入填單的「10 碼手機號碼」（例：0912345678）。",
+          "如需查詢待結帳明細，請輸入填單的「10 碼手機號碼」（例：0912345678）。",
+          "",
+          "🏦 匯款帳號資訊：",
+          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
+          "• 帳號：111022318292",
+          "（無卡匯款請洽主理人索取資訊）",
           "",
           "您也可以隨時點選下方選單查看相關功能！",
         ].join("\n");
@@ -294,6 +319,16 @@ export async function POST(request: Request) {
             channelAccessToken,
           );
         }
+      } else {
+        const helpMessage = [
+          "我還不太確定你想查詢什麼 🥹",
+          "可以點選下方選單查看相關資訊！",
+          "",
+          "• 查詢明細：請輸入填單的「10 碼手機號碼」",
+          "• 匯款帳號：(824) 連線商業銀行 111022318292",
+          "• 真人協助：請輸入「人工客服」💪",
+        ].join("\n");
+        await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
       }
     }
   }
