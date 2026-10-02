@@ -137,12 +137,18 @@ export function PublicClaimFormView({
   const selectedProducts = useMemo(
     () =>
       form.products
-        .filter((product) => (quantities[product.id] ?? 0) > 0)
+        .filter(
+          (product) => product.isEnabled && (quantities[product.id] ?? 0) > 0,
+        )
         .map((product) => ({
           product,
           quantity: quantities[product.id] ?? 0,
         })),
     [form.products, quantities],
+  );
+  const availableProductCount = useMemo(
+    () => form.products.filter((product) => product.isEnabled).length,
+    [form.products],
   );
   const itemCount = selectedProducts.reduce(
     (total, item) => total + item.quantity,
@@ -639,19 +645,23 @@ export function PublicClaimFormView({
                       size={16}
                       aria-hidden="true"
                     />
-                    共 {form.products.length} 項商品可喊單
+                    {`共 ${form.products.length} 項商品 · ${availableProductCount} 項開放喊單`}
                   </div>
                   <div className="grid gap-3 min-[560px]:grid-cols-2 md:gap-3.5">
                     {form.products.map((product) => {
-                      const quantity = quantities[product.id] ?? 0;
+                      const quantity = product.isEnabled
+                        ? (quantities[product.id] ?? 0)
+                        : 0;
                       return (
                         <article
                           key={product.id}
                           className="flex min-h-[82px] min-w-0 items-center gap-3 rounded-[12px] border p-3 transition-colors md:min-h-[90px] md:gap-3.5 md:p-3.5"
                           style={{
-                            backgroundColor: form.theme.surfaceColor,
+                            backgroundColor: product.isEnabled
+                              ? form.theme.surfaceColor
+                              : softColor,
                             borderColor:
-                              quantity > 0
+                              product.isEnabled && quantity > 0
                                 ? form.theme.primaryColor
                                 : borderColor,
                             color: surfaceText,
@@ -660,7 +670,9 @@ export function PublicClaimFormView({
                           {product.imageUrl ? (
                             <button
                               type="button"
-                              className="group relative grid size-[52px] shrink-0 cursor-zoom-in place-items-center overflow-hidden rounded-[10px] border-0 bg-[var(--claim-soft)] p-0 text-[var(--claim-soft-text)] transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--claim-primary)] md:size-[58px]"
+                              className={`group relative grid size-[52px] shrink-0 cursor-zoom-in place-items-center overflow-hidden rounded-[10px] border-0 bg-[var(--claim-soft)] p-0 text-[var(--claim-soft-text)] transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--claim-primary)] md:size-[58px] ${
+                                product.isEnabled ? "" : "grayscale opacity-50"
+                              }`}
                               onClick={() =>
                                 setLightboxImage({
                                   src: product.imageUrl!,
@@ -680,7 +692,11 @@ export function PublicClaimFormView({
                               />
                             </button>
                           ) : (
-                            <div className="grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-[58px]">
+                            <div
+                              className={`grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-[58px] ${
+                                product.isEnabled ? "" : "opacity-50"
+                              }`}
+                            >
                               <ImageIcon
                                 className="opacity-45"
                                 size={22}
@@ -689,77 +705,88 @@ export function PublicClaimFormView({
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
-                              <span className="shrink-0 rounded-[5px] bg-[var(--claim-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--claim-primary)] md:text-[11px]">
-                                {product.category}
-                                {product.size ? ` · ${product.size}` : ""}
-                              </span>
-                              <h3
-                                className="m-0 min-w-0 truncate text-[13px] font-bold leading-5 md:text-[14px]"
-                                style={{ color: surfaceText }}
-                                title={product.name}
-                              >
-                                {product.name}
-                              </h3>
+                            <div
+                              className={product.isEnabled ? "" : "opacity-55"}
+                            >
+                              <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+                                <span className="shrink-0 rounded-[5px] bg-[var(--claim-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--claim-primary)] md:text-[11px]">
+                                  {product.category}
+                                  {product.size ? ` · ${product.size}` : ""}
+                                </span>
+                                <h3
+                                  className="m-0 min-w-0 truncate text-[13px] font-bold leading-5 md:text-[14px]"
+                                  style={{ color: surfaceText }}
+                                  title={product.name}
+                                >
+                                  {product.name}
+                                </h3>
+                              </div>
+                              <strong className="mt-1 block text-[15px] font-bold text-[var(--claim-primary)] md:text-[16px]">
+                                {currency.format(product.price)}
+                              </strong>
                             </div>
-                            <strong className="mt-1 block text-[15px] font-bold text-[var(--claim-primary)] md:text-[16px]">
-                              {currency.format(product.price)}
-                            </strong>
                           </div>
-                          <div className="flex w-[96px] md:w-[104px] shrink-0 items-center justify-between rounded-full border border-[var(--claim-border)] bg-[var(--claim-surface)] p-1">
-                            <button
-                              type="button"
-                              className="grid size-6 md:size-7 place-items-center rounded-full border-0 bg-transparent text-inherit hover:bg-[var(--claim-soft)] disabled:opacity-25"
-                              onClick={() =>
-                                setQuantity(
-                                  product.id,
-                                  quantity - 1,
-                                  product.maxQuantity,
-                                )
-                              }
-                              disabled={!form.isOpen || quantity === 0}
-                              aria-label={`減少${product.name}數量`}
-                            >
-                              <Minus size={13} aria-hidden="true" />
-                            </button>
-                            <input
-                              className="h-6 w-6 md:w-7 appearance-none border-0 bg-transparent p-0 text-center text-[13px] md:text-[14px] font-bold outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                              type="number"
-                              min="0"
-                              max={product.maxQuantity}
-                              value={quantity}
-                              onChange={(event) =>
-                                setQuantity(
-                                  product.id,
-                                  Number(event.target.value),
-                                  product.maxQuantity,
-                                )
-                              }
-                              disabled={!form.isOpen}
-                              aria-label={`${product.name}數量`}
-                            />
-                            <button
-                              type="button"
-                              className="grid size-6 md:size-7 place-items-center rounded-full border-0 bg-[var(--claim-primary)] text-[var(--claim-primary-text)] hover:bg-[var(--claim-primary-hover)] disabled:opacity-30"
-                              onClick={() =>
-                                setQuantity(
-                                  product.id,
-                                  quantity + 1,
-                                  product.maxQuantity,
-                                )
-                              }
-                              disabled={
-                                !form.isOpen || quantity >= product.maxQuantity
-                              }
-                              aria-label={`增加${product.name}數量`}
-                            >
-                              <Plus
-                                size={13}
-                                strokeWidth={2.5}
-                                aria-hidden="true"
+                          {product.isEnabled ? (
+                            <div className="flex w-[96px] shrink-0 items-center justify-between rounded-full border border-[var(--claim-border)] bg-[var(--claim-surface)] p-1 md:w-[104px]">
+                              <button
+                                type="button"
+                                className="grid size-6 place-items-center rounded-full border-0 bg-transparent text-inherit hover:bg-[var(--claim-soft)] disabled:opacity-25 md:size-7"
+                                onClick={() =>
+                                  setQuantity(
+                                    product.id,
+                                    quantity - 1,
+                                    product.maxQuantity,
+                                  )
+                                }
+                                disabled={!form.isOpen || quantity === 0}
+                                aria-label={`減少${product.name}數量`}
+                              >
+                                <Minus size={13} aria-hidden="true" />
+                              </button>
+                              <input
+                                className="h-6 w-6 appearance-none border-0 bg-transparent p-0 text-center text-[13px] font-bold outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none md:w-7 md:text-[14px]"
+                                type="number"
+                                min="0"
+                                max={product.maxQuantity}
+                                value={quantity}
+                                onChange={(event) =>
+                                  setQuantity(
+                                    product.id,
+                                    Number(event.target.value),
+                                    product.maxQuantity,
+                                  )
+                                }
+                                disabled={!form.isOpen}
+                                aria-label={`${product.name}數量`}
                               />
-                            </button>
-                          </div>
+                              <button
+                                type="button"
+                                className="grid size-6 place-items-center rounded-full border-0 bg-[var(--claim-primary)] text-[var(--claim-primary-text)] hover:bg-[var(--claim-primary-hover)] disabled:opacity-30 md:size-7"
+                                onClick={() =>
+                                  setQuantity(
+                                    product.id,
+                                    quantity + 1,
+                                    product.maxQuantity,
+                                  )
+                                }
+                                disabled={
+                                  !form.isOpen ||
+                                  quantity >= product.maxQuantity
+                                }
+                                aria-label={`增加${product.name}數量`}
+                              >
+                                <Plus
+                                  size={13}
+                                  strokeWidth={2.5}
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="shrink-0 whitespace-nowrap rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-600">
+                              已截止喊單
+                            </span>
+                          )}
                         </article>
                       );
                     })}
@@ -832,7 +859,7 @@ export function PublicClaimFormView({
         )}
       </div>
 
-      {step === "products" && form.isOpen && form.products.length > 0 && (
+      {step === "products" && form.isOpen && availableProductCount > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--claim-border)] bg-[var(--claim-surface)]/95 px-4 py-3 text-[var(--claim-surface-text)] shadow-[0_-10px_35px_rgba(5,16,32,0.14)] backdrop-blur-md md:px-8 md:py-4 xl:hidden">
           <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
             <div className="min-w-0">

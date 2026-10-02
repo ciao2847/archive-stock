@@ -44,6 +44,7 @@ export function formatTaipeiDateTime(dateInput?: string | Date | null): string {
 
 export type PublicClaimProduct = {
   id: string;
+  isEnabled: boolean;
   sku: string;
   name: string;
   work: string;

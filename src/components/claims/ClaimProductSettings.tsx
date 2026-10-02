@@ -7,8 +7,6 @@ import {
   ChevronDown,
   Clipboard,
   ExternalLink,
-  Eye,
-  EyeOff,
   Filter,
   ImageIcon,
   Link2,
@@ -574,14 +572,7 @@ export function ClaimProductSettings({
             <div className="flex items-center">
               <label className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[8px] bg-light px-4 py-3.5">
                 <div>
-                  <b className="flex items-center gap-1.5 text-[13px] text-dark">
-                    {isOpen ? (
-                      <Eye size={16} className="text-success" />
-                    ) : (
-                      <EyeOff size={16} className="text-muted" />
-                    )}
-                    接受消費者喊單
-                  </b>
+                  <b className="block text-[13px] text-dark">接受消費者喊單</b>
                   <small className="mt-1 block text-[12px] text-muted">
                     {isOpen
                       ? "公開頁目前正常接收喊單。"
@@ -589,11 +580,25 @@ export function ClaimProductSettings({
                   </small>
                 </div>
                 <input
-                  className="size-5 accent-[#5a87b1]"
+                  className="peer sr-only"
                   type="checkbox"
+                  role="switch"
                   checked={isOpen}
+                  aria-label="接受消費者喊單"
                   onChange={(e) => setIsOpen(e.target.checked)}
                 />
+                <span
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                    isOpen ? "bg-success" : "bg-slate-300"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <span
+                    className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${
+                      isOpen ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </span>
               </label>
             </div>
 
@@ -738,15 +743,39 @@ export function ClaimProductSettings({
                         >
                           {product.name}
                         </h4>
-                        <span
-                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            draft.isEnabled
-                              ? "bg-success-soft text-success"
-                              : "bg-slate-200 text-slate-600"
-                          }`}
-                        >
-                          {draft.isEnabled ? "開放喊單" : "暫停喊單"}
-                        </span>
+                        <label className="mt-1 inline-flex max-w-full cursor-pointer items-center gap-2 rounded-full bg-light px-2 py-1">
+                          <span
+                            className={`truncate text-[10px] font-bold ${
+                              draft.isEnabled
+                                ? "text-success"
+                                : "text-slate-600"
+                            }`}
+                          >
+                            {draft.isEnabled ? "開放喊單" : "暫停喊單"}
+                          </span>
+                          <input
+                            className="peer sr-only"
+                            type="checkbox"
+                            role="switch"
+                            checked={draft.isEnabled}
+                            aria-label={`${product.name}開放喊單`}
+                            onChange={() => toggleProductAvailability(id)}
+                          />
+                          <span
+                            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+                              draft.isEnabled ? "bg-success" : "bg-slate-300"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            <span
+                              className={`absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform ${
+                                draft.isEnabled
+                                  ? "translate-x-4"
+                                  : "translate-x-0"
+                              }`}
+                            />
+                          </span>
+                        </label>
                         <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted sm:mt-1 sm:gap-2 sm:text-[12px]">
                           <span className="shrink-0">
                             原價 {currency.format(product.price)}
@@ -776,26 +805,6 @@ export function ClaimProductSettings({
 
                     {/* Actions stay beside the product summary on narrow screens. */}
                     <div className="flex shrink-0 items-center gap-1.5 lg:order-3 lg:gap-2">
-                      <button
-                        type="button"
-                        className={`outline size-9 p-0 ${
-                          draft.isEnabled ? "text-success" : "text-slate-500"
-                        }`}
-                        title={
-                          draft.isEnabled
-                            ? "暫停此商品喊單"
-                            : "重新開放此商品喊單"
-                        }
-                        aria-label={`${draft.isEnabled ? "暫停" : "開放"}${product.name}喊單`}
-                        aria-pressed={!draft.isEnabled}
-                        onClick={() => toggleProductAvailability(id)}
-                      >
-                        {draft.isEnabled ? (
-                          <Eye size={16} />
-                        ) : (
-                          <EyeOff size={16} />
-                        )}
-                      </button>
                       {isModified && (
                         <button
                           type="button"

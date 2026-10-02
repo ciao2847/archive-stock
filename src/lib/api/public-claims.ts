@@ -65,6 +65,7 @@ function mapProducts(value: unknown): PublicClaimProduct[] {
     return [
       {
         id: row.id,
+        isEnabled: row.is_enabled !== false,
         sku: row.sku,
         name: row.name,
         work: asOptionalString(row.work) ?? "未分類作品",
