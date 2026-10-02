@@ -94,7 +94,6 @@ export function PublicClaimFormView({
   const surfaceText = getContrastColor(form.theme.surfaceColor);
   const primaryHover = blendHexColors(form.theme.primaryColor, "#000000", 0.16);
   const amountColor = surfaceText === "#FFFFFF" ? "#F0C775" : "#B7791F";
-  const amountOnPrimary = primaryText === "#FFFFFF" ? "#F0C775" : "#8A5A0A";
   const softColor = blendHexColors(
     form.theme.surfaceColor,
     form.theme.primaryColor,
@@ -116,7 +115,6 @@ export function PublicClaimFormView({
     "--claim-primary-hover": primaryHover,
     "--claim-primary-text": primaryText,
     "--claim-amount": amountColor,
-    "--claim-amount-on-primary": amountOnPrimary,
     "--claim-background": form.theme.backgroundColor,
     "--claim-page-text": pageText,
     "--claim-surface": form.theme.surfaceColor,
@@ -325,7 +323,7 @@ export function PublicClaimFormView({
               <span className="text-[12px] font-medium opacity-85">
                 共 {itemCount} 件商品
               </span>
-              <strong className="text-[18px] text-[var(--claim-amount-on-primary)] md:text-[20px]">
+              <strong className="text-[18px] text-[#F0C775] md:text-[20px]">
                 {currency.format(subtotal)}
               </strong>
             </div>
