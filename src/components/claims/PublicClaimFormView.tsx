@@ -218,7 +218,7 @@ export function PublicClaimFormView({
     const officialLineChatUrl = form.officialLineId
       ? buildOfficialLineChatUrl(
           form.officialLineId,
-          `您好，我已完成「${form.title}」喊單，確認編號：${result.confirmationCode}，請協助核對，謝謝。`,
+          `您好，我已完成「${form.title}」喊單，確認編號：${result.confirmationCode}，電話：${phone}，請協助核對，謝謝。`,
         )
       : undefined;
 
@@ -271,14 +271,14 @@ export function PublicClaimFormView({
                       rel="noreferrer"
                     >
                       <MessageCircle size={18} aria-hidden="true" />
-                      前往官方 LINE 結帳
+                      前往官方 LINE 查看明細與結帳
                       <ExternalLink size={15} aria-hidden="true" />
                     </a>
                     <div className="mt-2 text-[12px] opacity-75">
                       官方 LINE ID：<b>{form.officialLineId}</b>
                     </div>
                     <small className="mt-1 block text-[11px] opacity-60">
-                      （加入後直接傳送您的手機號碼，即可自動查詢待結帳明細）
+                      （加入後送出預填訊息，或於對話框輸入手機號碼即可查詢明細）
                     </small>
                   </>
                 ) : (

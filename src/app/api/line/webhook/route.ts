@@ -177,31 +177,56 @@ export async function POST(request: Request) {
       const isInstructional = /請輸入|範例|例如|\(例[：:]|無卡匯款/i.test(userText);
       const isCheckoutIntent = /結帳|查詢|查單|對帳|買單|明細|結算|訂單/i.test(userText);
       const isPaymentReportIntent = /末[五5]碼|後[五5]碼|已匯款|匯款完成|已轉帳/i.test(userText);
+      const isCustomerServiceIntent = /人工|客服|真人/i.test(userText);
+      const isFormSubmitIntent = /確認編號|已完成.*喊單/i.test(userText);
 
       // Check if user input contains a Taiwan mobile number (09xxxxxxxx)
       const phoneMatch = userText.match(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}|09\d{8}/);
       const matchedPhone = phoneMatch ? phoneMatch[0].replace(/\D/g, "") : null;
       const isDummyPhone = matchedPhone === "0912345678" || matchedPhone === "0900000000";
 
-      // If it is an instructional prompt, checkout intent without real phone, or dummy phone:
+      // 1. Customer service intent
+      if (isCustomerServiceIntent) {
+        const serviceReply = [
+          "已為您通知小幫手！🙌",
+          "小幫手正在趕來回覆的路上，請稍候片刻，我們會盡快為您服務 💪",
+        ].join("\n");
+        await sendLineReply(event.replyToken, serviceReply, channelAccessToken);
+        continue;
+      }
+
+      // 2. Instructional prompt, checkout intent without phone, or dummy phone
       if (isInstructional || (isCheckoutIntent && (!matchedPhone || isDummyPhone)) || (matchedPhone && isDummyPhone)) {
         const checkoutPrompt = [
           "🔍 結帳查詢",
-          "請直接在此輸入您填單登記的「10 碼手機號碼」（例如：09xxxxxxxx）。",
+          "請輸入填單登記的「10 碼手機號碼」（例如：09xxxxxxxx）。",
           "",
-          "系統將立即為您整理跨表單的待結商品明細與匯款帳號！",
+          "系統將自動為您整理待結帳明細與匯款帳號！",
           "（無卡匯款請洽主理人索取資訊）",
         ].join("\n");
         await sendLineReply(event.replyToken, checkoutPrompt, channelAccessToken);
         continue;
       }
 
+      // 3. Payment report intent
       if (isPaymentReportIntent) {
         const reportReply = [
           "已收到您的匯款回報！🙌",
           "小幫手會盡快為您核對並在系統標記結清，感謝您的配合與支持！",
         ].join("\n");
         await sendLineReply(event.replyToken, reportReply, channelAccessToken);
+        continue;
+      }
+
+      // 4. Form submit confirmation text without matched phone
+      if (isFormSubmitIntent && !matchedPhone) {
+        const formSubmitPrompt = [
+          "已收到您的喊單登記！🙌",
+          "如需查詢待結帳明細與匯款資訊，請輸入填單的「10 碼手機號碼」（例：0912345678）。",
+          "",
+          "您也可以隨時點選下方選單查看相關功能！",
+        ].join("\n");
+        await sendLineReply(event.replyToken, formSubmitPrompt, channelAccessToken);
         continue;
       }
 
@@ -237,11 +262,12 @@ export async function POST(request: Request) {
           );
         }
       } else {
-        // Helpful response when other message is received
+        // Helpful response when other unrecognized message is received
         const helpMessage = [
-          "您好！如需查詢尚未結帳的喊單明細，請直接傳送您的「10碼手機號碼」（例如：0912345678），系統將自動為您整理待付款清單！",
+          "我還不太確定你想查詢什麼 🥹",
+          "可以點選下方選單查看相關資訊！",
           "",
-          "（如有其他商品或出貨問題，請稍候，小幫手將盡快為您服務。）",
+          "若需要專人協助，請輸入「人工客服」，小幫手會盡快趕來為您服務 💪",
         ].join("\n");
 
         await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
