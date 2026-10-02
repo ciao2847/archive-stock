@@ -211,14 +211,33 @@ export async function POST(request: Request) {
           );
         }
       } else {
-        // Helpful response when no phone number is detected
-        const helpMessage = [
-          "您好！如需查詢尚未結帳的喊單明細，請直接傳送您的「10碼手機號碼」（例如：0912345678），系統將自動為您整理待付款清單！",
-          "",
-          "（如有其他商品或出貨問題，請稍候，小幫手將盡快為您服務。）",
-        ].join("\n");
+        const isCheckoutIntent = /結帳|查詢|查單|對帳|買單|明細|結算|訂單/i.test(userText);
+        const isPaymentReportIntent = /末[五5]碼|後[五5]碼|已匯款|匯款完成|已轉帳/i.test(userText);
 
-        await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
+        if (isPaymentReportIntent) {
+          const reportReply = [
+            "已收到您的匯款回報！🙌",
+            "小幫手會盡快為您核對並在系統標記結清，感謝您的配合與支持！",
+          ].join("\n");
+          await sendLineReply(event.replyToken, reportReply, channelAccessToken);
+        } else if (isCheckoutIntent) {
+          const checkoutPrompt = [
+            "【喊單結帳查詢 🛒】",
+            "請直接在此輸入您填單登記的「10 碼手機號碼」（例如：0912345678）。",
+            "",
+            "系統將立即為您整理跨表單的待結商品明細與匯款帳號！",
+          ].join("\n");
+          await sendLineReply(event.replyToken, checkoutPrompt, channelAccessToken);
+        } else {
+          // Helpful response when other message is received
+          const helpMessage = [
+            "您好！如需查詢尚未結帳的喊單明細，請直接傳送您的「10碼手機號碼」（例如：0912345678），系統將自動為您整理待付款清單！",
+            "",
+            "（如有其他商品或出貨問題，請稍候，小幫手將盡快為您服務。）",
+          ].join("\n");
+
+          await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
+        }
       }
     }
   }
