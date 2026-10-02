@@ -193,6 +193,7 @@ export type Database = {
           id: number
           nickname: string
           notes: string | null
+          payment_status: string
           phone: string
           phone_normalized: string
           request_id: string
@@ -204,6 +205,7 @@ export type Database = {
           id?: never
           nickname: string
           notes?: string | null
+          payment_status?: string
           phone: string
           phone_normalized: string
           request_id: string
@@ -215,6 +217,7 @@ export type Database = {
           id?: never
           nickname?: string
           notes?: string | null
+          payment_status?: string
           phone?: string
           phone_normalized?: string
           request_id?: string
@@ -318,6 +321,7 @@ export type Database = {
           claim_banner_image_path: string | null
           claim_banner_position_x: number
           claim_banner_position_y: number
+          claim_completion_message: string | null
           claim_theme_background_color: string
           claim_theme_header_text_color: string
           claim_theme_primary_color: string
@@ -336,6 +340,7 @@ export type Database = {
           claim_banner_image_path?: string | null
           claim_banner_position_x?: number
           claim_banner_position_y?: number
+          claim_completion_message?: string | null
           claim_theme_background_color?: string
           claim_theme_header_text_color?: string
           claim_theme_primary_color?: string
@@ -354,6 +359,7 @@ export type Database = {
           claim_banner_image_path?: string | null
           claim_banner_position_x?: number
           claim_banner_position_y?: number
+          claim_completion_message?: string | null
           claim_theme_background_color?: string
           claim_theme_header_text_color?: string
           claim_theme_primary_color?: string
@@ -1470,6 +1476,7 @@ export type Database = {
           banner_position_x: number
           banner_position_y: number
           closes_at: string
+          completion_message: string
           description: string
           is_open: boolean
           official_line_id: string
@@ -1505,6 +1512,12 @@ export type Database = {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
       }
+      query_customer_claims_summary: {
+        Args: {
+          p_phone: string
+        }
+        Returns: Json
+      }
       submit_public_claim: {
         Args: {
           p_items: Json
@@ -1518,6 +1531,14 @@ export type Database = {
           confirmation_code: string
           submitted_at: string
         }[]
+      }
+      update_inventory_claim_checkout_settings: {
+        Args: {
+          p_completion_message: string
+          p_inventory_id: string
+          p_official_line_id: string
+        }
+        Returns: string
       }
       update_inventory_database_access: {
         Args: {

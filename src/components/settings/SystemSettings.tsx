@@ -36,6 +36,7 @@ export function SystemSettings({
     qrShopeeDestinationUrl: string;
     qrOtherDestinationUrl: string;
     officialLineId: string;
+    claimCompletionMessage: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
   selectedInventoryId: string;
@@ -192,10 +193,10 @@ export function SystemSettings({
             </div>
             <SettingsCardContent
               eyebrow="喊單完成聯繫"
-              title={`${activeInventory.name} 的官方 LINE`}
-              description="顧客送出喊單後，完成頁會請他聯繫這個官方 LINE，並自動帶入確認編號。此設定套用到同一庫藏的所有 IP 喊單頁。"
+              title={`${activeInventory.name} 的喊單完成設定`}
+              description="設定顧客送出喊單後看到的結帳提醒與官方 LINE；此設定套用到同一庫藏的所有 IP 喊單頁。"
             >
-              <InventoryOfficialLineEditor
+              <InventoryClaimCheckoutEditor
                 key={activeInventory.id}
                 inventory={activeInventory}
                 onSaved={onInventoryDatabaseUpdated}
@@ -465,17 +466,21 @@ function InventoryQrDestinationEditor({
   );
 }
 
-function InventoryOfficialLineEditor({
+function InventoryClaimCheckoutEditor({
   inventory,
   onSaved,
 }: {
   inventory: {
     id: string;
     officialLineId: string;
+    claimCompletionMessage: string;
   };
   onSaved: () => Promise<unknown>;
 }) {
   const [lineId, setLineId] = useState(inventory.officialLineId);
+  const [completionMessage, setCompletionMessage] = useState(
+    inventory.claimCompletionMessage,
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -485,6 +490,11 @@ function InventoryOfficialLineEditor({
       input && !input.startsWith("@") ? `@${input}` : input;
     if (normalizedLineId && !OFFICIAL_LINE_ID_PATTERN.test(normalizedLineId)) {
       setMessage("請輸入正確的官方 LINE ID，例如 @youraccount");
+      return;
+    }
+    const normalizedCompletionMessage = completionMessage.trim();
+    if (normalizedCompletionMessage.length > 1000) {
+      setMessage("喊單完成提醒不可超過 1000 個字");
       return;
     }
 
@@ -497,6 +507,7 @@ function InventoryOfficialLineEditor({
         body: JSON.stringify({
           id: inventory.id,
           officialLineId: normalizedLineId,
+          claimCompletionMessage: normalizedCompletionMessage,
         }),
       });
       const result = (await response.json()) as {
@@ -507,10 +518,9 @@ function InventoryOfficialLineEditor({
         throw new Error(result.error || "儲存失敗");
       }
       setLineId(normalizedLineId);
+      setCompletionMessage(normalizedCompletionMessage);
       await onSaved();
-      setMessage(
-        normalizedLineId ? "官方 LINE 已更新" : "已清除官方 LINE 設定",
-      );
+      setMessage("喊單完成設定已更新");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "儲存失敗");
     } finally {
@@ -538,6 +548,24 @@ function InventoryOfficialLineEditor({
           可輸入有或沒有 @ 的官方帳號 ID；留空時完成頁不顯示 LINE 聯繫按鈕。
         </span>
       </label>
+      <label className="block text-[12px] font-semibold">
+        喊單完成提醒
+        <textarea
+          className="mt-2 block min-h-28 w-full resize-y rounded-lg border border-line bg-white p-3 text-[14px] leading-6 outline-none max-lg:text-[16px]"
+          value={completionMessage}
+          maxLength={1000}
+          placeholder={
+            lineId.trim()
+              ? `喊單成功！請至官方 LINE ${lineId.trim().startsWith("@") ? lineId.trim() : `@${lineId.trim()}`} 結帳，完成付款才算訂購完成。`
+              : "喊單成功！請聯繫管理者完成結帳，完成付款才算訂購完成。"
+          }
+          onChange={(event) => setCompletionMessage(event.target.value)}
+        />
+        <span className="mt-2 block font-normal leading-5 text-muted">
+          留空會使用上方官方 LINE ID
+          產生預設提醒；可自行填寫匯款說明、注意事項或自訂提醒。
+        </span>
+      </label>
       <div className="flex flex-wrap items-center gap-3">
         <button
           className="primary"
@@ -545,7 +573,7 @@ function InventoryOfficialLineEditor({
           disabled={saving}
           onClick={save}
         >
-          {saving ? "儲存中…" : "儲存官方 LINE"}
+          {saving ? "儲存中…" : "儲存喊單完成設定"}
         </button>
         {message && <span className="text-[12px] text-muted">{message}</span>}
       </div>

@@ -15,10 +15,14 @@ import {
 import type {
   ClaimFormAppearance,
   ClaimFormManagement,
+  ClaimPaymentStatus,
   ClaimProductTotal,
   ClaimSubmission,
 } from "@/lib/claims";
-import { TAIWAN_MOBILE_PHONE_PATTERN } from "@/lib/claims";
+import {
+  CLAIM_PAYMENT_STATUSES,
+  TAIWAN_MOBILE_PHONE_PATTERN,
+} from "@/lib/claims";
 
 const PAGE_SIZE = 50;
 const CLAIM_FORM_BANNER_PATH_PATTERN =
@@ -29,6 +33,7 @@ const querySchema = z.object({
   formId: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   customerPhone: z.string().regex(TAIWAN_MOBILE_PHONE_PATTERN).optional(),
+  scope: z.enum(["form", "all"]).optional(),
 });
 
 const claimProductSchema = z.object({
@@ -99,6 +104,21 @@ const deleteSchema = z.object({
   submissionId: z.number().int().positive().optional(),
 });
 
+const paymentStatusSchema = z
+  .object({
+    ownerId: z.string().uuid(),
+    formId: z.number().int().positive().optional(),
+    submissionId: z.number().int().positive().optional(),
+    submissionIds: z.array(z.number().int().positive()).min(1).optional(),
+    paymentStatus: z.enum(CLAIM_PAYMENT_STATUSES),
+  })
+  .refine(
+    (data) =>
+      data.submissionId !== undefined ||
+      (data.submissionIds !== undefined && data.submissionIds.length > 0),
+    { message: "請指定要更新的喊單編號" },
+  );
+
 function canAccessOwner(
   role: "admin" | "staff",
   inventoryOwnerId: string,
@@ -116,6 +136,13 @@ function recordOf(value: unknown): Record<string, unknown> {
 function numberOf(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function claimPaymentStatusOf(value: unknown): ClaimPaymentStatus {
+  return typeof value === "string" &&
+    (CLAIM_PAYMENT_STATUSES as readonly string[]).includes(value)
+    ? (value as ClaimPaymentStatus)
+    : "pending";
 }
 
 function mapProductTotals(value: unknown): ClaimProductTotal[] {
@@ -147,10 +174,11 @@ export async function GET(request: Request) {
       formId: url.searchParams.get("formId") || undefined,
       page: url.searchParams.get("page") || 1,
       customerPhone: url.searchParams.get("customerPhone") || undefined,
+      scope: url.searchParams.get("scope") || undefined,
     });
     if (!parsed.success) return apiFailure("喊單查詢參數格式錯誤", 400);
 
-    const { ownerId, formId, page, customerPhone } = parsed.data;
+    const { ownerId, formId, page, customerPhone, scope } = parsed.data;
     if (!canAccessOwner(auth.role, auth.inventoryOwnerId, ownerId)) {
       return apiFailure("無法查看這個庫藏的喊單", 403);
     }
@@ -168,7 +196,7 @@ export async function GET(request: Request) {
         auth.supabase
           .from("inventory_databases")
           .select(
-            "name,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color",
+            "name,official_line_id,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color",
           )
           .eq("id", ownerId)
           .maybeSingle(),
@@ -226,9 +254,56 @@ export async function GET(request: Request) {
       closesAt: candidate.closes_at || undefined,
     }));
 
+    if (scope === "all") {
+      const formIds = mappedForms.map((candidate) => candidate.id);
+      if (!formIds.length) {
+        return apiSuccess({ submissions: [] });
+      }
+
+      const { data: submissions, error: submissionsError } = await auth.supabase
+        .from("claim_submissions")
+        .select(
+          "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price)",
+        )
+        .in("form_id", formIds)
+        .order("created_at", { ascending: false });
+
+      if (submissionsError) {
+        return apiFailure(submissionsError.message, 400, submissionsError.code);
+      }
+
+      const formTitleById = new Map(
+        mappedForms.map((candidate) => [candidate.id, candidate.title]),
+      );
+      const mappedSubmissions: ClaimSubmission[] = (submissions ?? []).map(
+        (submission) => ({
+          id: submission.id,
+          formId: submission.form_id,
+          formTitle: formTitleById.get(submission.form_id) || "未命名喊單頁",
+          confirmationCode: submission.confirmation_code,
+          nickname: submission.nickname,
+          phone: submission.phone,
+          notes: submission.notes || undefined,
+          paymentStatus: claimPaymentStatusOf(submission.payment_status),
+          createdAt: submission.created_at,
+          items: (submission.claim_submission_items ?? []).map((item) => ({
+            id: item.id,
+            productId: item.product_id || undefined,
+            sku: item.product_sku,
+            name: item.product_name,
+            quantity: item.quantity,
+            unitPrice: numberOf(item.unit_price),
+          })),
+        }),
+      );
+
+      return apiSuccess({ submissions: mappedSubmissions });
+    }
+
     const emptyResult: ClaimFormManagement = {
       forms: mappedForms,
       form: null,
+      officialLineId: inventoryData?.official_line_id || undefined,
       appearance: unifiedAppearance,
       summary: {
         submissionCount: 0,
@@ -268,7 +343,7 @@ export async function GET(request: Request) {
     let submissionsQuery = auth.supabase
       .from("claim_submissions")
       .select(
-        "id,form_id,confirmation_code,nickname,phone,notes,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price)",
+        "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -304,6 +379,7 @@ export async function GET(request: Request) {
         nickname: submission.nickname,
         phone: submission.phone,
         notes: submission.notes || undefined,
+        paymentStatus: claimPaymentStatusOf(submission.payment_status),
         createdAt: submission.created_at,
         items: (submission.claim_submission_items ?? []).map((item) => ({
           id: item.id,
@@ -339,6 +415,7 @@ export async function GET(request: Request) {
           isEnabled: listing.is_enabled,
         })),
       },
+      officialLineId: inventoryData?.official_line_id || undefined,
       appearance: unifiedAppearance,
       summary: {
         submissionCount: numberOf(summary.submission_count),
@@ -423,6 +500,56 @@ export async function PUT(request: Request) {
     return apiSuccess({
       formId: row.form_id,
       publicToken: row.public_token,
+    });
+  });
+}
+
+export async function PATCH(request: Request) {
+  return withApiErrorHandling("PATCH /api/claim-forms", async () => {
+    const auth = await requireApiUser();
+    if (!auth.ok) return auth.response;
+
+    const parsed = paymentStatusSchema.safeParse(
+      await request.json().catch(() => null),
+    );
+    if (!parsed.success) return apiFailure("付款狀態格式錯誤", 400);
+
+    const input = parsed.data;
+    if (!canAccessOwner(auth.role, auth.inventoryOwnerId, input.ownerId)) {
+      return apiFailure("無法修改其他庫藏的付款狀態", 403);
+    }
+
+    const ids =
+      input.submissionIds ??
+      (input.submissionId ? [input.submissionId] : []);
+
+    let updateQuery = auth.supabase
+      .from("claim_submissions")
+      .update({ payment_status: input.paymentStatus })
+      .in("id", ids);
+
+    if (input.formId) {
+      updateQuery = updateQuery.eq("form_id", input.formId);
+    }
+
+    const { data, error } = await updateQuery.select("id,payment_status");
+
+    if (error) {
+      return apiFailure(
+        error.code === "42501"
+          ? "你沒有修改這筆喊單付款狀態的權限。"
+          : error.message,
+        error.code === "42501" ? 403 : 400,
+        error.code,
+      );
+    }
+    if (!data || !data.length) {
+      return apiFailure("找不到這筆喊單，請重新整理後再試。", 404);
+    }
+
+    return apiSuccess({
+      submissionIds: data.map((d) => d.id),
+      paymentStatus: claimPaymentStatusOf(data[0].payment_status),
     });
   });
 }

@@ -4,6 +4,8 @@ import { CLAIM_FORM_ASSET_BUCKET } from "@/lib/claim-form-assets";
 import { createClient } from "@/utils/supabase/client";
 import type {
   ClaimFormManagement,
+  ClaimPaymentStatus,
+  ClaimSubmission,
   PublicClaimSubmissionResult,
   SaveClaimFormInput,
 } from "@/lib/claims";
@@ -67,6 +69,35 @@ export async function deleteClaimSubmission(input: {
   });
   return readApiResponse<{ deleted: true; submissionId: number }>(response);
 }
+
+export async function updateClaimSubmissionPaymentStatus(input: {
+  ownerId: string;
+  formId?: number;
+  submissionId?: number;
+  submissionIds?: number[];
+  paymentStatus: ClaimPaymentStatus;
+}) {
+  const response = await fetch(API_ROUTES.getClaimForms, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readApiResponse<{
+    submissionIds: number[];
+    paymentStatus: ClaimPaymentStatus;
+  }>(response);
+}
+
+export async function fetchInventoryAllClaimSubmissions(ownerId: string) {
+  const query = new URLSearchParams({ ownerId, scope: "all" });
+  const response = await fetch(`${API_ROUTES.getClaimForms}?${query}`, {
+    cache: "no-store",
+  });
+  return readApiResponse<{ submissions: ClaimSubmission[] }>(response);
+}
+
+export const fetchAllClaimSubmissions = fetchInventoryAllClaimSubmissions;
+
 
 export async function deleteClaimForm(input: {
   ownerId: string;

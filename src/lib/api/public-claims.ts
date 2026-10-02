@@ -24,6 +24,7 @@ type PublicClaimFormRow = {
   theme_surface_color: string;
   theme_header_text_color: string;
   official_line_id: string | null;
+  completion_message: string | null;
   products: unknown;
 };
 
@@ -103,9 +104,17 @@ export async function fetchPublicClaimForm(
   const row = (data as PublicClaimFormRow[] | null)?.[0];
   if (!row) return null;
 
+  const officialLineId = asOptionalString(row.official_line_id);
+  const completionMessage =
+    asOptionalString(row.completion_message) ??
+    (officialLineId
+      ? `喊單成功！請至官方 LINE ${officialLineId} 結帳，完成付款才算訂購完成。`
+      : "喊單成功！請聯繫管理者完成結帳，完成付款才算訂購完成。");
+
   return {
     storeName: row.store_name,
-    officialLineId: asOptionalString(row.official_line_id),
+    officialLineId,
+    completionMessage,
     title: row.title,
     description: row.description || undefined,
     isOpen: row.is_open,

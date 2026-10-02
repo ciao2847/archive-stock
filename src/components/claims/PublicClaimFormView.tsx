@@ -256,32 +256,34 @@ export function PublicClaimFormView({
                 <span className="mx-auto grid size-10 place-items-center rounded-full bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-11">
                   <MessageCircle size={21} aria-hidden="true" />
                 </span>
-                <h2 className="mb-0 mt-2.5 text-[15px] md:text-[17px]">
-                  最後一步：聯繫官方 LINE
+                <h2 className="mb-0 mt-2.5 text-[15px] font-bold md:text-[18px]">
+                  喊單成功！
                 </h2>
-                <p className="mx-auto mb-0 mt-1 max-w-[520px] text-[12px] leading-5 opacity-70 md:text-[13px] md:leading-6">
-                  請主動聯繫官方 LINE
-                  並提供上方確認編號，方便管理者核對你的喊單。
+                <p className="mx-auto mb-0 mt-1.5 max-w-[520px] whitespace-pre-wrap text-[13px] leading-6 opacity-85 md:text-[14px]">
+                  {form.completionMessage}
                 </p>
                 {officialLineChatUrl ? (
                   <>
                     <a
-                      className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--claim-primary)] px-4 py-2.5 text-[13px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:mx-auto md:max-w-[360px] md:text-[14px]"
+                      className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--claim-primary)] px-4 py-2.5 text-[14px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:mx-auto md:max-w-[360px]"
                       href={officialLineChatUrl}
                       target="_blank"
                       rel="noreferrer"
                     >
                       <MessageCircle size={18} aria-hidden="true" />
-                      聯繫官方 LINE
+                      前往官方 LINE 結帳
                       <ExternalLink size={15} aria-hidden="true" />
                     </a>
-                    <small className="mt-2 block text-[11px] opacity-60 md:text-[12px]">
-                      官方 LINE ID：{form.officialLineId}
+                    <div className="mt-2 text-[12px] opacity-75">
+                      官方 LINE ID：<b>{form.officialLineId}</b>
+                    </div>
+                    <small className="mt-1 block text-[11px] opacity-60">
+                      （加入後直接傳送您的手機號碼，即可自動查詢待結帳明細）
                     </small>
                   </>
                 ) : (
                   <p className="mb-0 mt-3 rounded-[8px] bg-[var(--claim-soft)] px-3 py-2 text-[12px] text-[var(--claim-soft-text)]">
-                    請依群組公告聯繫官方 LINE，並告知確認編號。
+                    請依群組公告聯繫官方 LINE，並提供確認編號結帳。
                   </p>
                 )}
               </div>
@@ -316,9 +318,6 @@ export function PublicClaimFormView({
                   {currency.format(subtotal)}
                 </strong>
               </div>
-              <p className="mb-0 mt-4 rounded-[8px] bg-[var(--claim-soft)] px-3 py-2.5 text-[12px] leading-5 text-[var(--claim-soft-text)] md:mt-6 md:rounded-[8px] md:px-4 md:py-3 md:text-[13px] md:leading-6">
-                這是預購需求登記，管理者會依喊單總數採購；目前尚未付款或保留現貨，最終到貨與付款方式請依群組通知為準。
-              </p>
             </div>
           </section>
         </div>

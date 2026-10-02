@@ -65,6 +65,7 @@ export type PublicClaimProduct = {
 export type PublicClaimForm = {
   storeName: string;
   officialLineId?: string;
+  completionMessage: string;
   title: string;
   description?: string;
   isOpen: boolean;
@@ -97,6 +98,16 @@ export type ClaimSubmissionItem = {
   unitPrice: number;
 };
 
+export const CLAIM_PAYMENT_STATUSES = ["pending", "half_paid", "paid"] as const;
+
+export type ClaimPaymentStatus = (typeof CLAIM_PAYMENT_STATUSES)[number];
+
+export const CLAIM_PAYMENT_STATUS_LABELS: Record<ClaimPaymentStatus, string> = {
+  pending: "未匯款",
+  half_paid: "已付一半",
+  paid: "已付全額",
+};
+
 export type ClaimSubmission = {
   id: number;
   formId: number;
@@ -105,6 +116,7 @@ export type ClaimSubmission = {
   nickname: string;
   phone: string;
   notes?: string;
+  paymentStatus: ClaimPaymentStatus;
   createdAt: string;
   items: ClaimSubmissionItem[];
 };
@@ -149,6 +161,7 @@ export type ClaimFormAppearance = {
 export type ClaimFormManagement = {
   forms: ClaimFormListItem[];
   form: ClaimFormSettings | null;
+  officialLineId?: string;
   appearance?: ClaimFormAppearance;
   summary: {
     submissionCount: number;
@@ -178,3 +191,145 @@ export type SaveClaimFormInput = {
   theme: ClaimFormTheme;
   products: ClaimFormProductSettings[];
 };
+
+export type CustomerClaimGroup = {
+  customerKey: string;
+  phone: string;
+  nickname: string;
+  submissions: ClaimSubmission[];
+  totalQuantity: number;
+  totalAmount: number;
+  unsettledAmount: number;
+  status: ClaimPaymentStatus;
+  latestCreatedAt: string;
+};
+
+export function groupClaimSubmissionsByCustomer(
+  submissions: ClaimSubmission[],
+): CustomerClaimGroup[] {
+  const groups = new Map<string, CustomerClaimGroup>();
+
+  for (const submission of submissions) {
+    const key = submission.phone || submission.nickname || String(submission.id);
+    const existing = groups.get(key);
+
+    const submissionAmount = submission.items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const submissionQuantity = submission.items.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    );
+
+    const submissionUnsettled =
+      submission.paymentStatus === "paid"
+        ? 0
+        : submission.paymentStatus === "half_paid"
+          ? Math.round(submissionAmount / 2)
+          : submissionAmount;
+
+    if (existing) {
+      existing.submissions.push(submission);
+      existing.totalQuantity += submissionQuantity;
+      existing.totalAmount += submissionAmount;
+      existing.unsettledAmount += submissionUnsettled;
+      if (
+        new Date(submission.createdAt) > new Date(existing.latestCreatedAt)
+      ) {
+        existing.latestCreatedAt = submission.createdAt;
+        existing.nickname = submission.nickname;
+      }
+    } else {
+      groups.set(key, {
+        customerKey: key,
+        phone: submission.phone,
+        nickname: submission.nickname,
+        submissions: [submission],
+        totalQuantity: submissionQuantity,
+        totalAmount: submissionAmount,
+        unsettledAmount: submissionUnsettled,
+        status: submission.paymentStatus,
+        latestCreatedAt: submission.createdAt,
+      });
+    }
+  }
+
+  for (const group of groups.values()) {
+    const allPaid = group.submissions.every((s) => s.paymentStatus === "paid");
+    const allPending = group.submissions.every(
+      (s) => s.paymentStatus === "pending",
+    );
+    if (allPaid) {
+      group.status = "paid";
+    } else if (allPending) {
+      group.status = "pending";
+    } else {
+      group.status = "half_paid";
+    }
+  }
+
+  return Array.from(groups.values()).sort(
+    (a, b) =>
+      new Date(b.latestCreatedAt).getTime() -
+      new Date(a.latestCreatedAt).getTime(),
+  );
+}
+
+export function formatCustomerClaimLineSummary({
+  storeName,
+  group,
+  officialLineId,
+}: {
+  storeName: string;
+  group: CustomerClaimGroup;
+  officialLineId?: string;
+}): string {
+  const lines: string[] = [
+    `【${storeName} 預購喊單對帳單】`,
+    `顧客：${group.nickname}`,
+    `電話：${group.phone}`,
+    "",
+    "喊單明細：",
+  ];
+
+  const formMap = new Map<string, ClaimSubmissionItem[]>();
+  for (const sub of group.submissions) {
+    const list = formMap.get(sub.formTitle) || [];
+    list.push(...sub.items);
+    formMap.set(sub.formTitle, list);
+  }
+
+  for (const [formTitle, items] of formMap.entries()) {
+    lines.push(`• ${formTitle}`);
+    for (const item of items) {
+      lines.push(
+        `  - ${item.name} × ${item.quantity} ($${(item.unitPrice * item.quantity).toLocaleString()})`,
+      );
+    }
+  }
+
+  lines.push("----------------------");
+  lines.push(`共 ${group.totalQuantity} 件商品`);
+  lines.push(`總計金額：$${group.totalAmount.toLocaleString()} 元`);
+  if (group.status === "half_paid") {
+    lines.push(
+      `待付餘額：$${group.unsettledAmount.toLocaleString()} 元（已付部分款項）`,
+    );
+  } else if (group.status === "pending") {
+    lines.push(`待付金額：$${group.unsettledAmount.toLocaleString()} 元`);
+  } else {
+    lines.push("款項狀態：已結清");
+  }
+
+  if (officialLineId) {
+    lines.push("");
+    lines.push(
+      `官方 LINE：${officialLineId.startsWith("@") ? officialLineId : `@${officialLineId}`}`,
+    );
+  }
+  lines.push("匯款完成後請回傳帳號末五碼，謝謝您！");
+
+  return lines.join("\n");
+}
+

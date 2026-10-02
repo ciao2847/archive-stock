@@ -23,7 +23,7 @@ export async function GET() {
     const { data: inventory, error: inventoryError } = await auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message",
       )
       .eq("id", auth.inventoryOwnerId)
       .maybeSingle();
@@ -52,6 +52,7 @@ export async function GET() {
             inventory?.qr_other_destination_url ??
             "",
           officialLineId: inventory?.official_line_id ?? "",
+          claimCompletionMessage: inventory?.claim_completion_message ?? "",
         },
       ],
       availableUsers: [],
@@ -80,7 +81,7 @@ export async function GET() {
     auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message",
       )
       .order("name"),
     auth.supabase
@@ -180,6 +181,7 @@ export async function GET() {
         inventory.qr_other_destination_url ??
         "",
       officialLineId: inventory.official_line_id ?? "",
+      claimCompletionMessage: inventory.claim_completion_message ?? "",
       ownerIds: (memberships ?? [])
         .filter(
           (membership) =>

@@ -80,6 +80,7 @@ export type AccountData = {
     qrShopeeDestinationUrl: string;
     qrOtherDestinationUrl: string;
     officialLineId: string;
+    claimCompletionMessage: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
 };

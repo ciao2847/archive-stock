@@ -21,7 +21,13 @@ import {
   Users,
 } from "lucide-react";
 
-import { formatTaipeiDateTime, type ClaimFormManagement } from "@/lib/claims";
+import {
+  CLAIM_PAYMENT_STATUS_LABELS,
+  CLAIM_PAYMENT_STATUSES,
+  formatTaipeiDateTime,
+  type ClaimFormManagement,
+  type ClaimPaymentStatus,
+} from "@/lib/claims";
 import type { Order } from "@/lib/types";
 
 export interface ClaimSubmissionsViewProps {
@@ -36,8 +42,20 @@ export interface ClaimSubmissionsViewProps {
   onClearCustomerSearch: () => Promise<void>;
   onReload: (page?: number) => Promise<void>;
   onDeleteSubmission: (submissionId: number, formId: number) => Promise<void>;
+  onUpdatePaymentStatus: (
+    submissionId: number,
+    formId: number,
+    paymentStatus: ClaimPaymentStatus,
+  ) => Promise<void>;
   onDownloadSummary: () => void;
+  onNavigateToCustomerCheckout?: (phone: string) => void;
 }
+
+const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
+  pending: "border-muted/50 bg-light text-dark",
+  half_paid: "border-accent/40 bg-accent-soft text-accent-strong",
+  paid: "border-success/35 bg-success-soft text-success",
+};
 
 export function ClaimSubmissionsView({
   data,
@@ -51,13 +69,20 @@ export function ClaimSubmissionsView({
   onClearCustomerSearch,
   onReload,
   onDeleteSubmission,
+  onUpdatePaymentStatus,
   onDownloadSummary,
+  onNavigateToCustomerCheckout,
 }: ClaimSubmissionsViewProps) {
   const [copied, setCopied] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<number | null>(
+    null,
+  );
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState("");
 
   const matchingOrders = useMemo(() => {
     if (!customerPhone) return [];
@@ -114,6 +139,36 @@ export function ClaimSubmissionsView({
       );
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handlePaymentStatusChange(
+    submission: ClaimFormManagement["submissions"][number],
+    paymentStatus: ClaimPaymentStatus,
+  ) {
+    if (submission.paymentStatus === paymentStatus) return;
+
+    setUpdatingPaymentId(submission.id);
+    setPaymentError("");
+    setPaymentMessage("");
+    try {
+      await onUpdatePaymentStatus(
+        submission.id,
+        submission.formId,
+        paymentStatus,
+      );
+      await onReload(data.pagination.page);
+      setPaymentMessage(
+        `已將「${submission.nickname}」標記為${CLAIM_PAYMENT_STATUS_LABELS[paymentStatus]}。`,
+      );
+    } catch (updatePaymentError) {
+      setPaymentError(
+        updatePaymentError instanceof Error
+          ? updatePaymentError.message
+          : "付款狀態更新失敗，請稍後再試。",
+      );
+    } finally {
+      setUpdatingPaymentId(null);
     }
   }
 
@@ -390,6 +445,22 @@ export function ClaimSubmissionsView({
               {deleteMessage}
             </p>
           )}
+          {paymentError && (
+            <p
+              className="mb-0 mt-4 rounded-[8px] bg-danger-soft px-3 py-2 text-[12px] text-danger"
+              role="alert"
+            >
+              {paymentError}
+            </p>
+          )}
+          {paymentMessage && (
+            <p
+              className="mb-0 mt-4 rounded-[8px] bg-success-soft px-3 py-2 text-[12px] text-success"
+              role="status"
+            >
+              {paymentMessage}
+            </p>
+          )}
 
           {data.submissions.length ? (
             <div className="mt-4 space-y-3">
@@ -413,13 +484,28 @@ export function ClaimSubmissionsView({
                       )}
                     </div>
 
-                    <a
-                      className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary no-underline hover:underline"
-                      href={`tel:${submission.phone}`}
-                    >
-                      <Phone size={13} aria-hidden="true" />
-                      {submission.phone}
-                    </a>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <a
+                        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary no-underline hover:underline"
+                        href={`tel:${submission.phone}`}
+                      >
+                        <Phone size={13} aria-hidden="true" />
+                        {submission.phone}
+                      </a>
+                      {onNavigateToCustomerCheckout && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-[6px] border border-line bg-light/70 px-2 py-0.5 text-[11px] font-medium text-dark hover:bg-light"
+                          onClick={() =>
+                            onNavigateToCustomerCheckout(submission.phone)
+                          }
+                          title="查看該顧客在所有 IP 喊單頁的品項與對帳"
+                        >
+                          <Users size={12} />
+                          跨表單對帳
+                        </button>
+                      )}
+                    </div>
 
                     <div className="mt-1 flex items-center gap-1.5 text-muted">
                       <Clock3
@@ -432,6 +518,49 @@ export function ClaimSubmissionsView({
                       </time>
                     </div>
                   </div>
+
+                  <fieldset
+                    className="mt-3 min-w-0 rounded-[8px] border border-line/70 bg-light/45 p-2.5"
+                    disabled={loading || updatingPaymentId !== null}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <legend className="px-0 text-[11px] font-semibold text-default">
+                        消費者匯款狀態
+                      </legend>
+                      {updatingPaymentId === submission.id && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-muted">
+                          <LoaderCircle size={12} className="animate-spin" />
+                          更新中
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid min-w-0 grid-cols-3 gap-1.5">
+                      {CLAIM_PAYMENT_STATUSES.map((paymentStatus) => {
+                        const isActive =
+                          submission.paymentStatus === paymentStatus;
+                        return (
+                          <button
+                            key={paymentStatus}
+                            type="button"
+                            className={`min-h-9 min-w-0 rounded-[8px] border px-1.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors sm:px-2 ${
+                              isActive
+                                ? PAYMENT_STATUS_ACTIVE_STYLES[paymentStatus]
+                                : "border-line bg-white text-muted hover:border-primary/40 hover:text-primary"
+                            }`}
+                            aria-pressed={isActive}
+                            onClick={() =>
+                              void handlePaymentStatusChange(
+                                submission,
+                                paymentStatus,
+                              )
+                            }
+                          >
+                            {CLAIM_PAYMENT_STATUS_LABELS[paymentStatus]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
                   <div className="mt-3 flex min-w-0 flex-wrap items-end justify-between gap-3">
                     <div className="flex min-w-0 flex-1 flex-wrap gap-2">
@@ -447,7 +576,11 @@ export function ClaimSubmissionsView({
                     <button
                       type="button"
                       className="outline min-h-8 shrink-0 px-2.5 py-1 text-[12px] text-danger hover:border-danger hover:bg-danger-soft"
-                      disabled={loading || deletingId !== null}
+                      disabled={
+                        loading ||
+                        deletingId !== null ||
+                        updatingPaymentId !== null
+                      }
                       onClick={() => void handleDeleteSubmission(submission)}
                       aria-label={`移除 ${submission.nickname} 的喊單明細`}
                     >

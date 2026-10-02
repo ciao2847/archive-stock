@@ -60,7 +60,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/qr/") ||
     request.nextUrl.pathname.startsWith("/form/") ||
     request.nextUrl.pathname.startsWith("/claim/") ||
-    request.nextUrl.pathname.startsWith("/api/public/claim-forms/");
+    request.nextUrl.pathname.startsWith("/api/public/claim-forms/") ||
+    request.nextUrl.pathname.startsWith("/api/line/");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
 
   if (!data?.claims && isApiRoute && !isPublicRoute) {

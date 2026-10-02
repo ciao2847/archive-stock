@@ -22,15 +22,18 @@ import {
   Send,
   Settings2,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 
 import {
   deleteClaimForm,
   deleteClaimSubmission,
+  fetchAllClaimSubmissions,
   fetchClaimFormManagement,
   removeClaimFormBanner,
   saveClaimForm,
+  updateClaimSubmissionPaymentStatus,
   uploadClaimFormBanner,
 } from "@/lib/api/claims";
 import { createClaimFormBannerImage } from "@/lib/claim-form-assets";
@@ -41,13 +44,17 @@ import {
   type ClaimFormTheme,
 } from "@/lib/claim-form-theme";
 import {
+  groupClaimSubmissionsByCustomer,
   sanitizeTaiwanMobilePhoneInput,
   TAIWAN_MOBILE_PHONE_ERROR,
   TAIWAN_MOBILE_PHONE_HTML_PATTERN,
   TAIWAN_MOBILE_PHONE_PATTERN,
   type ClaimFormManagement,
+  type ClaimPaymentStatus,
+  type ClaimSubmission,
 } from "@/lib/claims";
 import type { Order, Product } from "@/lib/types";
+import { ClaimCustomersView } from "./ClaimCustomersView";
 import { ClaimFormAppearanceSettings } from "./ClaimFormAppearanceSettings";
 import {
   ClaimProductSettings,
@@ -69,7 +76,7 @@ function csvCell(value: string | number) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export type ClaimTab = "submissions" | "settings" | "appearance";
+export type ClaimTab = "submissions" | "checkout" | "settings" | "appearance";
 
 export function ClaimFormPanel({
   ownerId,
@@ -118,6 +125,58 @@ export function ClaimFormPanel({
   const [productDrafts, setProductDrafts] = useState<
     Record<string, ProductDraft>
   >({});
+  const [allSubmissions, setAllSubmissions] = useState<ClaimSubmission[]>([]);
+  const [allSubmissionsLoading, setAllSubmissionsLoading] = useState(false);
+  const [customerFilterPhone, setCustomerFilterPhone] = useState("");
+
+  const loadAllSubmissions = useCallback(
+    async (force = false) => {
+      if (!ownerId) return;
+      if (!force && allSubmissions.length > 0) return;
+      setAllSubmissionsLoading(true);
+      try {
+        const res = await fetchAllClaimSubmissions(ownerId);
+        setAllSubmissions(res.submissions ?? []);
+      } catch {
+        // keep existing
+      } finally {
+        setAllSubmissionsLoading(false);
+      }
+    },
+    [allSubmissions.length, ownerId],
+  );
+
+  useEffect(() => {
+    if (activeTab === "checkout") {
+      void loadAllSubmissions();
+    }
+  }, [activeTab, loadAllSubmissions]);
+
+  useEffect(() => {
+    void loadAllSubmissions();
+  }, [loadAllSubmissions]);
+
+  const unsettledCustomerCount = useMemo(() => {
+    const groups = groupClaimSubmissionsByCustomer(allSubmissions);
+    return groups.filter((g) => g.status !== "paid").length;
+  }, [allSubmissions]);
+
+  async function handleBatchCustomerPaymentStatus(
+    submissionIds: number[],
+    paymentStatus: ClaimPaymentStatus,
+  ) {
+    await updateClaimSubmissionPaymentStatus({
+      ownerId,
+      submissionIds,
+      paymentStatus,
+    });
+    await Promise.all([
+      loadAllSubmissions(true),
+      data?.form
+        ? load(data.pagination.page, true, data.form.id)
+        : Promise.resolve(),
+    ]);
+  }
 
   const load = useCallback(
     async (
@@ -262,6 +321,20 @@ export function ClaimFormPanel({
       formId,
       submissionId,
     });
+  }
+
+  async function updateSubmissionPaymentStatus(
+    submissionId: number,
+    formId: number,
+    paymentStatus: ClaimPaymentStatus,
+  ) {
+    await updateClaimSubmissionPaymentStatus({
+      ownerId,
+      formId,
+      submissionId,
+      paymentStatus,
+    });
+    void loadAllSubmissions(true);
   }
 
   async function searchCustomerByPhone(phone: string) {
@@ -682,7 +755,7 @@ export function ClaimFormPanel({
 
         {/* Top Tab Navigation */}
         <div className="flex flex-col items-stretch gap-3 border-b border-line pb-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid w-full grid-cols-3 gap-2 md:flex md:w-auto md:items-center">
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 md:flex md:w-auto md:items-center">
             <button
               type="button"
               className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
@@ -695,7 +768,7 @@ export function ClaimFormPanel({
             >
               <ClipboardList className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">喊單明細</span>
+                <span className="md:hidden">表單明細</span>
                 <span className="hidden md:inline">喊單明細與採購</span>
               </span>
               {currentForm && data?.summary.customerCount ? (
@@ -704,6 +777,38 @@ export function ClaimFormPanel({
                 >
                   {data.summary.customerCount}
                   <span className="hidden sm:inline"> 人</span>
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
+                activeTab === "checkout"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted hover:bg-light hover:text-dark"
+              }`}
+              onClick={() => {
+                setActiveTab("checkout");
+                void loadAllSubmissions();
+              }}
+            >
+              <Users className="shrink-0" size={17} />
+              <span className="min-w-0 text-center leading-tight">
+                <span className="md:hidden">顧客對帳</span>
+                <span className="hidden md:inline">顧客對帳結算</span>
+              </span>
+              {unsettledCustomerCount > 0 ? (
+                <span
+                  className={`shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold md:px-2 md:text-[11px] ${
+                    activeTab === "checkout"
+                      ? "bg-white/25 text-white"
+                      : "bg-accent-soft text-accent-strong"
+                  }`}
+                  title={`${unsettledCustomerCount} 位顧客尚未結清`}
+                >
+                  {unsettledCustomerCount}
+                  <span className="hidden sm:inline"> 待結</span>
                 </span>
               ) : null}
             </button>
@@ -781,7 +886,25 @@ export function ClaimFormPanel({
               );
             }}
             onDeleteSubmission={removeSubmission}
+            onUpdatePaymentStatus={updateSubmissionPaymentStatus}
             onDownloadSummary={downloadSummary}
+            onNavigateToCustomerCheckout={(phone) => {
+              setCustomerFilterPhone(phone);
+              setActiveTab("checkout");
+              void loadAllSubmissions();
+            }}
+          />
+        )}
+
+        {activeTab === "checkout" && (
+          <ClaimCustomersView
+            submissions={allSubmissions}
+            loading={allSubmissionsLoading}
+            inventoryName={inventoryName}
+            officialLineId={data?.officialLineId}
+            onUpdatePaymentStatus={handleBatchCustomerPaymentStatus}
+            onReload={() => loadAllSubmissions(true)}
+            initialSearchQuery={customerFilterPhone}
           />
         )}
 
