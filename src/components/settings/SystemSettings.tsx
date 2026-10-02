@@ -124,8 +124,8 @@ export function SystemSettings({
         )}
         {isAdmin && (
           <section className="card col-[1/-1] p-6">
-            <div className="flex items-start justify-between gap-4 max-lg:flex-col">
-              <div>
+            <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="min-w-0 flex-1">
                 <span className="eyebrow">庫藏資料庫權限</span>
                 <h2 className="mb-1 mt-2">命名與擁有者</h2>
                 <p className="mb-5 mt-0 text-muted">
@@ -133,7 +133,7 @@ export function SystemSettings({
                 </p>
               </div>
               <button
-                className="outline shrink-0"
+                className="outline shrink-0 whitespace-nowrap"
                 type="button"
                 onClick={() => setCreatingDatabase(true)}
                 disabled={creatingDatabase}
