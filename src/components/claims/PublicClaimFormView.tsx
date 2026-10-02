@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Copy,
   ExternalLink,
   ImageIcon,
   MessageCircle,
@@ -80,6 +81,7 @@ export function PublicClaimFormView({
   const [result, setResult] = useState<PublicClaimSubmissionResult | null>(
     null,
   );
+  const [confirmationCopied, setConfirmationCopied] = useState(false);
   const [requestId] = useState(createRequestId);
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
@@ -214,6 +216,16 @@ export function PublicClaimFormView({
     }
   }
 
+  async function copyConfirmationCode() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.confirmationCode);
+      setConfirmationCopied(true);
+    } catch {
+      window.prompt("複製確認編號", result.confirmationCode);
+    }
+  }
+
   if (step === "success" && result) {
     const officialLineChatUrl = form.officialLineId
       ? buildOfficialLineChatUrl(
@@ -224,96 +236,132 @@ export function PublicClaimFormView({
 
     return (
       <main
-        className="min-h-screen bg-[var(--claim-background)] px-3 py-4 text-[var(--claim-page-text)] md:px-4 md:py-12"
+        className="min-h-screen bg-[var(--claim-background)] px-4 py-5 text-[var(--claim-page-text)] md:py-10"
         style={themeStyle}
       >
-        <div className="mx-auto max-w-[720px]">
-          <section className="overflow-hidden rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)] shadow-[0_18px_55px_rgba(5,16,32,0.14)] md:rounded-[8px] md:shadow-[0_24px_80px_rgba(5,16,32,0.16)]">
-            <div className="bg-[var(--claim-primary)] px-4 py-6 text-center text-[var(--claim-primary-text)] md:px-10 md:py-10">
-              <span className="mx-auto grid size-12 place-items-center rounded-full bg-white/20 text-white md:size-16">
-                <CheckCircle2 className="size-7 md:size-9" aria-hidden="true" />
+        <div className="mx-auto max-w-[560px] space-y-3 md:space-y-4">
+          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] px-4 py-5 text-center text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:px-6 md:py-6">
+            <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--claim-surface-muted)] md:text-[11px]">
+              確認編號
+            </span>
+            <div className="mt-1.5 flex min-w-0 items-center justify-center gap-2">
+              <strong className="min-w-0 break-all font-mono text-[21px] font-bold tracking-[0.04em] md:text-[25px] md:tracking-[0.06em]">
+                {result.confirmationCode}
+              </strong>
+              <button
+                type="button"
+                className="grid size-8 shrink-0 place-items-center rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-soft)] text-[var(--claim-primary)] transition hover:bg-[var(--claim-surface)]"
+                onClick={() => void copyConfirmationCode()}
+                aria-label={
+                  confirmationCopied ? "確認編號已複製" : "複製確認編號"
+                }
+                title={confirmationCopied ? "已複製" : "複製確認編號"}
+              >
+                {confirmationCopied ? (
+                  <Check size={15} aria-hidden="true" />
+                ) : (
+                  <Copy size={15} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            <small className="mt-1.5 block text-[11px] leading-5 text-[var(--claim-surface-muted)] md:text-[12px]">
+              建議截圖保留，方便之後與管理者核對
+            </small>
+          </section>
+
+          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-6">
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--claim-soft)] text-[var(--claim-primary)]">
+                <CheckCircle2 size={17} aria-hidden="true" />
               </span>
-              <h1 className="mb-0 mt-3 text-[22px] text-inherit md:mt-5 md:text-[26px]">
-                喊單完成
+              <h1 className="m-0 text-[15px] font-bold md:text-[17px]">
+                喊單成功！接下來還有一步
               </h1>
-              <p className="mb-0 mt-1.5 text-[13px] opacity-75 md:mt-2 md:text-[14px]">
-                {form.storeName} 已收到你的預購需求
+            </div>
+
+            <div className="mt-3 rounded-[10px] bg-[var(--claim-soft)] px-3.5 py-3 text-[var(--claim-soft-text)] md:px-4">
+              <span className="block text-[10px] font-semibold tracking-[0.08em] opacity-65">
+                結帳提醒
+              </span>
+              <p className="mb-0 mt-1 whitespace-pre-wrap text-[12px] font-medium leading-5 md:text-[13px] md:leading-6">
+                {form.completionMessage}
               </p>
             </div>
-            <div className="px-4 py-5 md:px-9 md:py-9">
-              <div className="rounded-[8px] bg-[var(--claim-soft)] px-3 py-3 text-center text-[var(--claim-soft-text)] md:rounded-[8px] md:px-5 md:py-5">
-                <span className="text-[11px] font-semibold tracking-[0.12em] opacity-70 md:text-[12px] md:tracking-[0.14em]">
-                  確認編號
+
+            <ol className="m-0 mt-4 grid list-none gap-3 p-0">
+              <li className="flex items-center gap-2.5 text-[12px] font-medium md:text-[13px]">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--claim-primary)] text-[10px] font-bold text-[var(--claim-primary-text)]">
+                  1
                 </span>
-                <strong className="mt-1.5 block font-mono text-[19px] tracking-[0.04em] md:mt-2 md:text-[25px] md:tracking-[0.06em]">
-                  {result.confirmationCode}
-                </strong>
-                <small className="mt-1 block text-[11px] opacity-70 md:mt-2 md:text-[12px]">
-                  建議截圖保留，方便之後與管理者核對
+                <span>
+                  {form.officialLineId
+                    ? `加入官方 LINE 好友（${form.officialLineId}）`
+                    : "依照管理者提供的方式聯繫結帳"}
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5 text-[12px] font-medium md:text-[13px]">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--claim-primary)] text-[10px] font-bold text-[var(--claim-primary-text)]">
+                  2
+                </span>
+                <span>完成匯款，訂單才算正式成立</span>
+              </li>
+            </ol>
+
+            {officialLineChatUrl && (
+              <>
+                <a
+                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--claim-primary)] px-4 py-2.5 text-center text-[13px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:text-[14px]"
+                  href={officialLineChatUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <MessageCircle size={18} aria-hidden="true" />
+                  前往官方 LINE 查看明細與結帳
+                  <ExternalLink size={14} aria-hidden="true" />
+                </a>
+                <small className="mt-2.5 block text-center text-[10px] leading-5 text-[var(--claim-surface-muted)] md:text-[11px]">
+                  加入後送出預填訊息，或於對話框輸入手機號碼即可查詢明細
                 </small>
-              </div>
-              <div className="mt-4 rounded-[8px] border border-[var(--claim-border)] p-3.5 text-center md:mt-5 md:p-5">
-                <span className="mx-auto grid size-10 place-items-center rounded-full bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-11">
-                  <MessageCircle size={21} aria-hidden="true" />
-                </span>
-                <h2 className="mb-0 mt-2.5 text-[15px] font-bold md:text-[18px]">
-                  喊單成功！
-                </h2>
-                <p className="mx-auto mb-0 mt-1.5 max-w-[520px] whitespace-pre-wrap text-[13px] leading-6 opacity-85 md:text-[14px]">
-                  {form.completionMessage}
-                </p>
-                {officialLineChatUrl && (
-                  <>
-                    <a
-                      className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--claim-primary)] px-4 py-2.5 text-[14px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:mx-auto md:max-w-[360px]"
-                      href={officialLineChatUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <MessageCircle size={18} aria-hidden="true" />
-                      前往官方 LINE 查看明細與結帳
-                      <ExternalLink size={15} aria-hidden="true" />
-                    </a>
-                    <div className="mt-2 text-[12px] opacity-75">
-                      官方 LINE ID：<b>{form.officialLineId}</b>
-                    </div>
-                    <small className="mt-1 block text-[11px] opacity-60">
-                      （加入後送出預填訊息，或於對話框輸入手機號碼即可查詢明細）
-                    </small>
-                  </>
-                )}
-              </div>
-              <div className="mt-5 md:mt-7">
-                <h2 className="m-0 text-[15px] md:text-[17px]">本次喊單</h2>
-                <div className="mt-2 divide-y divide-[var(--claim-border)] rounded-[8px] border border-[var(--claim-border)] px-3 md:mt-3 md:rounded-[8px] md:px-4">
-                  {selectedProducts.map(({ product, quantity }) => (
-                    <div
-                      key={product.id}
-                      className="flex items-start justify-between gap-3 py-3 md:gap-4 md:py-4"
-                    >
-                      <div className="min-w-0">
-                        <strong className="block truncate text-[13px] md:text-[14px]">
-                          {product.name}
-                        </strong>
-                        <span className="mt-0.5 block text-[11px] opacity-65 md:mt-1 md:text-[12px]">
-                          {currency.format(product.price)}
-                        </span>
-                      </div>
-                      <b className="shrink-0 text-[13px] md:text-[14px]">
-                        × {quantity}
-                      </b>
-                    </div>
-                  ))}
+              </>
+            )}
+          </section>
+
+          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="m-0 text-[14px] font-bold md:text-[16px]">
+                本次喊單
+              </h2>
+              <span className="text-[11px] text-[var(--claim-surface-muted)] md:text-[12px]">
+                共 {itemCount} 件商品
+              </span>
+            </div>
+            <div className="mt-3 divide-y divide-[var(--claim-border)] border-y border-[var(--claim-border)]">
+              {selectedProducts.map(({ product, quantity }) => (
+                <div
+                  key={product.id}
+                  className="flex items-start justify-between gap-3 py-3 md:gap-4"
+                >
+                  <div className="min-w-0">
+                    <strong className="block truncate text-[12px] md:text-[13px]">
+                      {product.name}
+                    </strong>
+                    <span className="mt-0.5 block text-[11px] text-[var(--claim-surface-muted)]">
+                      {currency.format(product.price)} × {quantity}
+                    </span>
+                  </div>
+                  <b className="shrink-0 text-[12px] md:text-[13px]">
+                    {currency.format(product.price * quantity)}
+                  </b>
                 </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between border-t border-[var(--claim-border)] pt-4 md:mt-5 md:pt-5">
-                <span className="text-[13px] opacity-65 md:text-[14px]">
-                  共 {itemCount} 件商品
-                </span>
-                <strong className="text-[18px] md:text-[20px]">
-                  {currency.format(subtotal)}
-                </strong>
-              </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-[12px] text-[var(--claim-surface-muted)]">
+                喊單金額
+              </span>
+              <strong className="text-[18px] text-[var(--claim-primary)] md:text-[20px]">
+                {currency.format(subtotal)}
+              </strong>
             </div>
           </section>
         </div>
