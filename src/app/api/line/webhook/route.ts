@@ -261,16 +261,6 @@ export async function POST(request: Request) {
             channelAccessToken,
           );
         }
-      } else {
-        // Helpful response when other unrecognized message is received
-        const helpMessage = [
-          "我還不太確定你想查詢什麼 🥹",
-          "可以點選下方選單查看相關資訊！",
-          "",
-          "若需要專人協助，請輸入「人工客服」，小幫手會盡快趕來為您服務 💪",
-        ].join("\n");
-
-        await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
       }
     }
   }
