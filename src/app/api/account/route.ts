@@ -23,7 +23,7 @@ export async function GET() {
     const { data: inventory, error: inventoryError } = await auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
       )
       .eq("id", auth.inventoryOwnerId)
       .maybeSingle();
@@ -53,6 +53,12 @@ export async function GET() {
             "",
           officialLineId: inventory?.official_line_id ?? "",
           claimCompletionMessage: inventory?.claim_completion_message ?? "",
+          claimTransferEnabled: inventory?.claim_transfer_enabled ?? false,
+          claimBankCode: inventory?.claim_bank_code ?? "",
+          claimBankName: inventory?.claim_bank_name ?? "",
+          claimBankBranch: inventory?.claim_bank_branch ?? "",
+          claimBankAccount: inventory?.claim_bank_account ?? "",
+          claimBankAccountName: inventory?.claim_bank_account_name ?? "",
         },
       ],
       availableUsers: [],
@@ -81,7 +87,7 @@ export async function GET() {
     auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message",
+        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
       )
       .order("name"),
     auth.supabase
@@ -182,6 +188,12 @@ export async function GET() {
         "",
       officialLineId: inventory.official_line_id ?? "",
       claimCompletionMessage: inventory.claim_completion_message ?? "",
+      claimTransferEnabled: inventory.claim_transfer_enabled ?? false,
+      claimBankCode: inventory.claim_bank_code ?? "",
+      claimBankName: inventory.claim_bank_name ?? "",
+      claimBankBranch: inventory.claim_bank_branch ?? "",
+      claimBankAccount: inventory.claim_bank_account ?? "",
+      claimBankAccountName: inventory.claim_bank_account_name ?? "",
       ownerIds: (memberships ?? [])
         .filter(
           (membership) =>

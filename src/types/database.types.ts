@@ -185,6 +185,54 @@ export type Database = {
           },
         ]
       }
+      claim_submission_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: number
+          note: string | null
+          payer_account_last_five: string | null
+          submission_id: number
+          transferred_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          note?: string | null
+          payer_account_last_five?: string | null
+          submission_id: number
+          transferred_at: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          note?: string | null
+          payer_account_last_five?: string | null
+          submission_id?: number
+          transferred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_submission_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_submission_payments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "claim_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_submissions: {
         Row: {
           confirmation_code: string
@@ -318,6 +366,11 @@ export type Database = {
       }
       inventory_databases: {
         Row: {
+          claim_bank_account: string | null
+          claim_bank_account_name: string | null
+          claim_bank_branch: string | null
+          claim_bank_code: string | null
+          claim_bank_name: string | null
           claim_banner_image_path: string | null
           claim_banner_position_x: number
           claim_banner_position_y: number
@@ -326,6 +379,7 @@ export type Database = {
           claim_theme_header_text_color: string
           claim_theme_primary_color: string
           claim_theme_surface_color: string
+          claim_transfer_enabled: boolean
           created_at: string
           created_by: string
           id: string
@@ -337,6 +391,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          claim_bank_account?: string | null
+          claim_bank_account_name?: string | null
+          claim_bank_branch?: string | null
+          claim_bank_code?: string | null
+          claim_bank_name?: string | null
           claim_banner_image_path?: string | null
           claim_banner_position_x?: number
           claim_banner_position_y?: number
@@ -345,6 +404,7 @@ export type Database = {
           claim_theme_header_text_color?: string
           claim_theme_primary_color?: string
           claim_theme_surface_color?: string
+          claim_transfer_enabled?: boolean
           created_at?: string
           created_by: string
           id: string
@@ -356,6 +416,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          claim_bank_account?: string | null
+          claim_bank_account_name?: string | null
+          claim_bank_branch?: string | null
+          claim_bank_code?: string | null
+          claim_bank_name?: string | null
           claim_banner_image_path?: string | null
           claim_banner_position_x?: number
           claim_banner_position_y?: number
@@ -364,6 +429,7 @@ export type Database = {
           claim_theme_header_text_color?: string
           claim_theme_primary_color?: string
           claim_theme_surface_color?: string
+          claim_transfer_enabled?: boolean
           created_at?: string
           created_by?: string
           id?: string
@@ -1450,6 +1516,15 @@ export type Database = {
         Args: { p_form_id: number; p_owner_id: string; p_submission_id: number }
         Returns: boolean
       }
+      delete_claim_submission_payment: {
+        Args: { p_owner_id: string; p_payment_id: number }
+        Returns: {
+          outstanding_amount: number
+          payment_status: string
+          submission_id: number
+          total_paid: number
+        }[]
+      }
       delete_inventory_product: {
         Args: { p_product_id: string }
         Returns: string[]
@@ -1465,6 +1540,17 @@ export type Database = {
       get_claim_form_summary:
         | { Args: { p_form_id: number }; Returns: Json }
         | { Args: { p_owner_id: string }; Returns: Json }
+      get_claim_transfer_account_for_submission: {
+        Args: { p_request_id: string; p_token: string }
+        Returns: {
+          bank_account: string
+          bank_account_name: string
+          bank_branch: string
+          bank_code: string
+          bank_name: string
+          enabled: boolean
+        }[]
+      }
       get_packing_package_progress: {
         Args: { p_package_id: string }
         Returns: Json
@@ -1508,15 +1594,29 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      query_customer_claims_summary: {
+        Args: { p_phone: string }
+        Returns: Json
+      }
+      record_claim_submission_payment: {
+        Args: {
+          p_amount: number
+          p_note: string
+          p_owner_id: string
+          p_payer_account_last_five: string
+          p_submission_id: number
+          p_transferred_at: string
+        }
+        Returns: {
+          outstanding_amount: number
+          payment_id: number
+          payment_status: string
+          total_paid: number
+        }[]
+      }
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
-      }
-      query_customer_claims_summary: {
-        Args: {
-          p_phone: string
-        }
-        Returns: Json
       }
       submit_public_claim: {
         Args: {
@@ -1537,6 +1637,20 @@ export type Database = {
           p_completion_message: string
           p_inventory_id: string
           p_official_line_id: string
+        }
+        Returns: string
+      }
+      update_inventory_claim_payment_settings: {
+        Args: {
+          p_bank_account: string
+          p_bank_account_name: string
+          p_bank_branch: string
+          p_bank_code: string
+          p_bank_name: string
+          p_completion_message: string
+          p_inventory_id: string
+          p_official_line_id: string
+          p_transfer_enabled: boolean
         }
         Returns: string
       }

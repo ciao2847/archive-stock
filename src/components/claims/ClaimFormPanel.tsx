@@ -28,9 +28,11 @@ import {
 
 import {
   deleteClaimForm,
+  deleteClaimSubmissionPayment,
   deleteClaimSubmission,
   fetchAllClaimSubmissions,
   fetchClaimFormManagement,
+  recordClaimSubmissionPayment,
   removeClaimFormBanner,
   saveClaimForm,
   updateClaimSubmissionPaymentStatus,
@@ -160,23 +162,6 @@ export function ClaimFormPanel({
     const groups = groupClaimSubmissionsByCustomer(allSubmissions);
     return groups.filter((g) => g.status !== "paid").length;
   }, [allSubmissions]);
-
-  async function handleBatchCustomerPaymentStatus(
-    submissionIds: number[],
-    paymentStatus: ClaimPaymentStatus,
-  ) {
-    await updateClaimSubmissionPaymentStatus({
-      ownerId,
-      submissionIds,
-      paymentStatus,
-    });
-    await Promise.all([
-      loadAllSubmissions(true),
-      data?.form
-        ? load(data.pagination.page, true, data.form.id)
-        : Promise.resolve(),
-    ]);
-  }
 
   const load = useCallback(
     async (
@@ -345,6 +330,20 @@ export function ClaimFormPanel({
       paymentStatus,
     });
     void loadAllSubmissions(true);
+  }
+
+  async function recordCustomerPayment(input: {
+    submissionId: number;
+    amount: number;
+    transferredAt: string;
+    payerAccountLastFive: string;
+    note: string;
+  }) {
+    await recordClaimSubmissionPayment({ ownerId, ...input });
+  }
+
+  async function removeCustomerPayment(paymentId: number) {
+    await deleteClaimSubmissionPayment({ ownerId, paymentId });
   }
 
   async function searchCustomerByPhone(phone: string) {
@@ -912,7 +911,9 @@ export function ClaimFormPanel({
             loading={allSubmissionsLoading}
             inventoryName={inventoryName}
             officialLineId={data?.officialLineId}
-            onUpdatePaymentStatus={handleBatchCustomerPaymentStatus}
+            transferAccount={data?.transferAccount}
+            onRecordPayment={recordCustomerPayment}
+            onDeletePayment={removeCustomerPayment}
             onDeleteSubmission={removeCustomerSubmission}
             onReload={() => loadAllSubmissions(true)}
             initialSearchQuery={customerFilterPhone}

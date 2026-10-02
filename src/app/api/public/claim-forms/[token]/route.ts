@@ -98,7 +98,8 @@ export async function POST(
       );
     }
 
-    const { data, error } = await (await createClient()).rpc(
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc(
       "submit_public_claim",
       {
         p_token: token.data,
@@ -152,10 +153,40 @@ export async function POST(
 
     const row = data?.[0];
     if (!row) return apiFailure("喊單未完成，請稍後再試", 409);
+
+    const transferResult = await supabase.rpc(
+      "get_claim_transfer_account_for_submission",
+      {
+        p_token: token.data,
+        p_request_id: input.requestId,
+      },
+    );
+    if (transferResult.error && transferResult.error.code !== "PGRST202") {
+      console.error("Failed to load claim transfer account", {
+        code: transferResult.error.code,
+      });
+    }
+    const transfer = transferResult.data?.[0];
+    const transferAccount =
+      transfer?.enabled &&
+      transfer.bank_code &&
+      transfer.bank_name &&
+      transfer.bank_account &&
+      transfer.bank_account_name
+        ? {
+            bankCode: transfer.bank_code,
+            bankName: transfer.bank_name,
+            bankBranch: transfer.bank_branch || undefined,
+            account: transfer.bank_account,
+            accountName: transfer.bank_account_name,
+          }
+        : undefined;
+
     return apiSuccess<PublicClaimSubmissionResult>(
       {
         confirmationCode: row.confirmation_code,
         submittedAt: row.submitted_at,
+        transferAccount,
       },
       201,
     );

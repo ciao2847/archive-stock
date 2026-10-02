@@ -24,6 +24,14 @@ interface CustomerClaimsSummaryResult {
   store_name: string;
   official_line_id: string;
   completion_message: string;
+  transfer_account?: {
+    enabled: boolean;
+    bank_code: string;
+    bank_name: string;
+    bank_branch?: string;
+    account: string;
+    account_name: string;
+  } | null;
   unsettled_amount: number;
   unsettled_items_count: number;
   total_amount: number;
@@ -122,6 +130,19 @@ function formatCustomerClaimsMessage(
   lines.push("----------------------");
   lines.push(`共 ${data.unsettled_items_count} 件待結商品`);
   lines.push(`💰 待付總金額：$${data.unsettled_amount.toLocaleString()} 元`);
+
+  if (data.transfer_account?.enabled && data.transfer_account.account) {
+    lines.push("");
+    lines.push("🏦 匯款帳號資訊：");
+    lines.push(
+      `• 銀行：(${data.transfer_account.bank_code}) ${data.transfer_account.bank_name}${data.transfer_account.bank_branch ? ` ${data.transfer_account.bank_branch}` : ""}`,
+    );
+    lines.push(`• 帳號：${data.transfer_account.account}`);
+    if (data.transfer_account.account_name) {
+      lines.push(`• 戶名：${data.transfer_account.account_name}`);
+    }
+  }
+
   lines.push("");
 
   if (data.completion_message) {

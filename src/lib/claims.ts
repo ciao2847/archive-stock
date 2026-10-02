@@ -79,6 +79,15 @@ export type PublicClaimForm = {
 export type PublicClaimSubmissionResult = {
   confirmationCode: string;
   submittedAt: string;
+  transferAccount?: ClaimTransferAccount;
+};
+
+export type ClaimTransferAccount = {
+  bankCode: string;
+  bankName: string;
+  bankBranch?: string;
+  account: string;
+  accountName: string;
 };
 
 export type ClaimProductTotal = {
@@ -96,6 +105,15 @@ export type ClaimSubmissionItem = {
   name: string;
   quantity: number;
   unitPrice: number;
+};
+
+export type ClaimSubmissionPayment = {
+  id: number;
+  amount: number;
+  transferredAt: string;
+  payerAccountLastFive?: string;
+  note?: string;
+  createdAt: string;
 };
 
 export const CLAIM_PAYMENT_STATUSES = ["pending", "half_paid", "paid"] as const;
@@ -119,6 +137,7 @@ export type ClaimSubmission = {
   paymentStatus: ClaimPaymentStatus;
   createdAt: string;
   items: ClaimSubmissionItem[];
+  payments: ClaimSubmissionPayment[];
 };
 
 export type ClaimFormSettings = {
@@ -162,6 +181,7 @@ export type ClaimFormManagement = {
   forms: ClaimFormListItem[];
   form: ClaimFormSettings | null;
   officialLineId?: string;
+  transferAccount?: ClaimTransferAccount;
   appearance?: ClaimFormAppearance;
   summary: {
     submissionCount: number;
@@ -204,39 +224,61 @@ export type CustomerClaimGroup = {
   latestCreatedAt: string;
 };
 
+export function getClaimSubmissionTotal(submission: ClaimSubmission) {
+  return submission.items.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0,
+  );
+}
+
+export function getClaimSubmissionPaidAmount(submission: ClaimSubmission) {
+  if (submission.payments.length > 0) {
+    return submission.payments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0,
+    );
+  }
+
+  const total = getClaimSubmissionTotal(submission);
+  if (submission.paymentStatus === "paid") return total;
+  if (submission.paymentStatus === "half_paid") return Math.round(total / 2);
+  return 0;
+}
+
+export function getClaimSubmissionOutstandingAmount(
+  submission: ClaimSubmission,
+) {
+  return Math.max(
+    getClaimSubmissionTotal(submission) -
+      getClaimSubmissionPaidAmount(submission),
+    0,
+  );
+}
+
 export function groupClaimSubmissionsByCustomer(
   submissions: ClaimSubmission[],
 ): CustomerClaimGroup[] {
   const groups = new Map<string, CustomerClaimGroup>();
 
   for (const submission of submissions) {
-    const key = submission.phone || submission.nickname || String(submission.id);
+    const key =
+      submission.phone || submission.nickname || String(submission.id);
     const existing = groups.get(key);
 
-    const submissionAmount = submission.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
-      0,
-    );
+    const submissionAmount = getClaimSubmissionTotal(submission);
     const submissionQuantity = submission.items.reduce(
       (sum, item) => sum + item.quantity,
       0,
     );
 
-    const submissionUnsettled =
-      submission.paymentStatus === "paid"
-        ? 0
-        : submission.paymentStatus === "half_paid"
-          ? Math.round(submissionAmount / 2)
-          : submissionAmount;
+    const submissionUnsettled = getClaimSubmissionOutstandingAmount(submission);
 
     if (existing) {
       existing.submissions.push(submission);
       existing.totalQuantity += submissionQuantity;
       existing.totalAmount += submissionAmount;
       existing.unsettledAmount += submissionUnsettled;
-      if (
-        new Date(submission.createdAt) > new Date(existing.latestCreatedAt)
-      ) {
+      if (new Date(submission.createdAt) > new Date(existing.latestCreatedAt)) {
         existing.latestCreatedAt = submission.createdAt;
         existing.nickname = submission.nickname;
       }
@@ -256,9 +298,11 @@ export function groupClaimSubmissionsByCustomer(
   }
 
   for (const group of groups.values()) {
-    const allPaid = group.submissions.every((s) => s.paymentStatus === "paid");
+    const allPaid = group.submissions.every(
+      (submission) => getClaimSubmissionOutstandingAmount(submission) === 0,
+    );
     const allPending = group.submissions.every(
-      (s) => s.paymentStatus === "pending",
+      (submission) => getClaimSubmissionPaidAmount(submission) === 0,
     );
     if (allPaid) {
       group.status = "paid";
@@ -280,10 +324,12 @@ export function formatCustomerClaimLineSummary({
   storeName,
   group,
   officialLineId,
+  transferAccount,
 }: {
   storeName: string;
   group: CustomerClaimGroup;
   officialLineId?: string;
+  transferAccount?: ClaimTransferAccount;
 }): string {
   const lines: string[] = [
     `【${storeName} 預購喊單對帳單】`,
@@ -312,6 +358,10 @@ export function formatCustomerClaimLineSummary({
   lines.push("----------------------");
   lines.push(`共 ${group.totalQuantity} 件商品`);
   lines.push(`總計金額：$${group.totalAmount.toLocaleString()} 元`);
+  const paidAmount = Math.max(group.totalAmount - group.unsettledAmount, 0);
+  if (paidAmount > 0) {
+    lines.push(`已收金額：$${paidAmount.toLocaleString()} 元`);
+  }
   if (group.status === "half_paid") {
     lines.push(
       `待付餘額：$${group.unsettledAmount.toLocaleString()} 元（已付部分款項）`,
@@ -328,8 +378,15 @@ export function formatCustomerClaimLineSummary({
       `官方 LINE：${officialLineId.startsWith("@") ? officialLineId : `@${officialLineId}`}`,
     );
   }
+  if (transferAccount) {
+    lines.push("");
+    lines.push(
+      `匯款銀行：${transferAccount.bankCode} ${transferAccount.bankName}${transferAccount.bankBranch ? ` ${transferAccount.bankBranch}` : ""}`,
+    );
+    lines.push(`匯款帳號：${transferAccount.account}`);
+    lines.push(`戶名：${transferAccount.accountName}`);
+  }
   lines.push("匯款完成後請回傳帳號末五碼，謝謝您！");
 
   return lines.join("\n");
 }
-

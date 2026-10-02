@@ -5,8 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Database,
+  Landmark,
   LogOut,
-  MessageCircle,
   QrCode,
   ShieldCheck,
   UserRound,
@@ -37,6 +37,12 @@ export function SystemSettings({
     qrOtherDestinationUrl: string;
     officialLineId: string;
     claimCompletionMessage: string;
+    claimTransferEnabled: boolean;
+    claimBankCode: string;
+    claimBankName: string;
+    claimBankBranch: string;
+    claimBankAccount: string;
+    claimBankAccountName: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
   selectedInventoryId: string;
@@ -189,12 +195,12 @@ export function SystemSettings({
         {activeInventory && (
           <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
             <div className={`${iconClass} bg-secondary-soft text-green`}>
-              <MessageCircle />
+              <Landmark />
             </div>
             <SettingsCardContent
               eyebrow="喊單完成聯繫"
               title={`${activeInventory.name} 的喊單完成設定`}
-              description="設定顧客送出喊單後看到的結帳提醒與官方 LINE；此設定套用到同一庫藏的所有 IP 喊單頁。"
+              description="設定顧客送出喊單後看到的匯款帳號、結帳提醒與官方 LINE；此設定套用到同一庫藏的所有 IP 喊單頁。"
             >
               <InventoryClaimCheckoutEditor
                 key={activeInventory.id}
@@ -474,12 +480,28 @@ function InventoryClaimCheckoutEditor({
     id: string;
     officialLineId: string;
     claimCompletionMessage: string;
+    claimTransferEnabled: boolean;
+    claimBankCode: string;
+    claimBankName: string;
+    claimBankBranch: string;
+    claimBankAccount: string;
+    claimBankAccountName: string;
   };
   onSaved: () => Promise<unknown>;
 }) {
   const [lineId, setLineId] = useState(inventory.officialLineId);
   const [completionMessage, setCompletionMessage] = useState(
     inventory.claimCompletionMessage,
+  );
+  const [transferEnabled, setTransferEnabled] = useState(
+    inventory.claimTransferEnabled,
+  );
+  const [bankCode, setBankCode] = useState(inventory.claimBankCode);
+  const [bankName, setBankName] = useState(inventory.claimBankName);
+  const [bankBranch, setBankBranch] = useState(inventory.claimBankBranch);
+  const [bankAccount, setBankAccount] = useState(inventory.claimBankAccount);
+  const [bankAccountName, setBankAccountName] = useState(
+    inventory.claimBankAccountName,
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -497,6 +519,29 @@ function InventoryClaimCheckoutEditor({
       setMessage("喊單完成提醒不可超過 1000 個字");
       return;
     }
+    const normalizedBankCode = bankCode.replace(/\D/g, "");
+    const normalizedBankName = bankName.trim();
+    const normalizedBankBranch = bankBranch.trim();
+    const normalizedBankAccount = bankAccount.replace(/\D/g, "");
+    const normalizedBankAccountName = bankAccountName.trim();
+    if (normalizedBankCode && !/^\d{3}$/.test(normalizedBankCode)) {
+      setMessage("銀行代碼請輸入 3 位數字");
+      return;
+    }
+    if (normalizedBankAccount && !/^\d{5,20}$/.test(normalizedBankAccount)) {
+      setMessage("匯款帳號請輸入 5～20 位數字");
+      return;
+    }
+    if (
+      transferEnabled &&
+      (!normalizedBankCode ||
+        !normalizedBankName ||
+        !normalizedBankAccount ||
+        !normalizedBankAccountName)
+    ) {
+      setMessage("啟用匯款帳號前，請填寫銀行代碼、銀行名稱、帳號與戶名");
+      return;
+    }
 
     setSaving(true);
     setMessage("");
@@ -508,6 +553,12 @@ function InventoryClaimCheckoutEditor({
           id: inventory.id,
           officialLineId: normalizedLineId,
           claimCompletionMessage: normalizedCompletionMessage,
+          claimTransferEnabled: transferEnabled,
+          claimBankCode: normalizedBankCode,
+          claimBankName: normalizedBankName,
+          claimBankBranch: normalizedBankBranch,
+          claimBankAccount: normalizedBankAccount,
+          claimBankAccountName: normalizedBankAccountName,
         }),
       });
       const result = (await response.json()) as {
@@ -519,6 +570,11 @@ function InventoryClaimCheckoutEditor({
       }
       setLineId(normalizedLineId);
       setCompletionMessage(normalizedCompletionMessage);
+      setBankCode(normalizedBankCode);
+      setBankName(normalizedBankName);
+      setBankBranch(normalizedBankBranch);
+      setBankAccount(normalizedBankAccount);
+      setBankAccountName(normalizedBankAccountName);
       await onSaved();
       setMessage("喊單完成設定已更新");
     } catch (error) {
@@ -530,6 +586,100 @@ function InventoryClaimCheckoutEditor({
 
   return (
     <div className="mt-4 grid gap-4">
+      <div className="rounded-[8px] border border-line bg-light/50 p-4">
+        <label className="flex cursor-pointer items-center justify-between gap-4">
+          <span>
+            <b className="block text-[13px] text-dark">完成頁顯示匯款帳號</b>
+            <small className="mt-1 block font-normal leading-5 text-muted">
+              只有顧客成功送出喊單後才會看到完整帳號。
+            </small>
+          </span>
+          <input
+            className="peer sr-only"
+            type="checkbox"
+            role="switch"
+            checked={transferEnabled}
+            aria-label="完成頁顯示匯款帳號"
+            onChange={(event) => setTransferEnabled(event.target.checked)}
+          />
+          <span
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary ${
+              transferEnabled ? "bg-success" : "bg-slate-300"
+            }`}
+            aria-hidden="true"
+          >
+            <span
+              className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${
+                transferEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </span>
+        </label>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-[12px] font-semibold">
+            銀行代碼
+            <input
+              className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+              type="text"
+              inputMode="numeric"
+              value={bankCode}
+              maxLength={3}
+              placeholder="例如 822"
+              onChange={(event) =>
+                setBankCode(event.target.value.replace(/\D/g, "").slice(0, 3))
+              }
+            />
+          </label>
+          <label className="block text-[12px] font-semibold">
+            銀行名稱
+            <input
+              className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+              value={bankName}
+              maxLength={80}
+              placeholder="例如 中國信託"
+              onChange={(event) => setBankName(event.target.value)}
+            />
+          </label>
+          <label className="block text-[12px] font-semibold">
+            分行（選填）
+            <input
+              className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+              value={bankBranch}
+              maxLength={100}
+              placeholder="例如 西台南分行"
+              onChange={(event) => setBankBranch(event.target.value)}
+            />
+          </label>
+          <label className="block text-[12px] font-semibold">
+            匯款帳號
+            <input
+              className="mt-2 block w-full rounded-lg border border-line bg-white p-3 font-mono text-[14px] outline-none max-lg:text-[16px]"
+              type="text"
+              inputMode="numeric"
+              value={bankAccount}
+              maxLength={20}
+              placeholder="僅輸入數字"
+              onChange={(event) =>
+                setBankAccount(
+                  event.target.value.replace(/\D/g, "").slice(0, 20),
+                )
+              }
+            />
+          </label>
+          <label className="block text-[12px] font-semibold sm:col-span-2">
+            戶名
+            <input
+              className="mt-2 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+              value={bankAccountName}
+              maxLength={100}
+              placeholder="匯款帳戶戶名"
+              onChange={(event) => setBankAccountName(event.target.value)}
+            />
+          </label>
+        </div>
+      </div>
+
       <label className="block text-[12px] font-semibold">
         官方 LINE ID
         <input

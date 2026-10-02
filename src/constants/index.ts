@@ -6,6 +6,7 @@ export const API_ROUTES = {
   getLocations: "/api/locations",
   getSettlements: "/api/settlements",
   getClaimForms: "/api/claim-forms",
+  getClaimPayments: "/api/claim-payments",
   getAccount: "/api/account",
   getInventoryDatabases: "/api/inventory-databases",
   updateInventoryOfficialLine: "/api/inventory-databases/official-line",

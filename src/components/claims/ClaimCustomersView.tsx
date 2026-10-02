@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
+  Banknote,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -14,16 +14,19 @@ import {
   Search,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 
 import {
   CLAIM_PAYMENT_STATUS_LABELS,
-  CLAIM_PAYMENT_STATUSES,
   formatCustomerClaimLineSummary,
   formatTaipeiDateTime,
+  getClaimSubmissionOutstandingAmount,
+  getClaimSubmissionPaidAmount,
+  getClaimSubmissionTotal,
   groupClaimSubmissionsByCustomer,
-  type ClaimPaymentStatus,
   type ClaimSubmission,
+  type ClaimTransferAccount,
   type CustomerClaimGroup,
 } from "@/lib/claims";
 
@@ -32,27 +35,33 @@ export interface ClaimCustomersViewProps {
   loading: boolean;
   inventoryName: string;
   officialLineId?: string;
-  onUpdatePaymentStatus: (
-    submissionIds: number[],
-    paymentStatus: ClaimPaymentStatus,
-  ) => Promise<void>;
+  transferAccount?: ClaimTransferAccount;
+  onRecordPayment: (input: {
+    submissionId: number;
+    amount: number;
+    transferredAt: string;
+    payerAccountLastFive: string;
+    note: string;
+  }) => Promise<void>;
+  onDeletePayment: (paymentId: number) => Promise<void>;
   onDeleteSubmission: (submissionId: number, formId: number) => Promise<void>;
   onReload: () => Promise<void>;
   initialSearchQuery?: string;
 }
 
-const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
-  pending: "border-muted/50 bg-light text-dark",
-  half_paid: "border-accent/40 bg-accent-soft text-accent-strong",
-  paid: "border-success/35 bg-success-soft text-success",
-};
+function localDateTimeInputValue(date = new Date()) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
 
 export function ClaimCustomersView({
   submissions,
   loading,
   inventoryName,
   officialLineId,
-  onUpdatePaymentStatus,
+  transferAccount,
+  onRecordPayment,
+  onDeletePayment,
   onDeleteSubmission,
   onReload,
   initialSearchQuery = "",
@@ -62,13 +71,22 @@ export function ClaimCustomersView({
     "unsettled" | "paid" | "all"
   >("unsettled");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
-  const [updatingSubmissionId, setUpdatingSubmissionId] = useState<
-    number | null
-  >(null);
   const [deletingSubmissionId, setDeletingSubmissionId] = useState<
     number | null
   >(null);
+  const [paymentEditorSubmissionId, setPaymentEditorSubmissionId] = useState<
+    number | null
+  >(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentTransferredAt, setPaymentTransferredAt] = useState(
+    localDateTimeInputValue,
+  );
+  const [paymentLastFive, setPaymentLastFive] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(
+    null,
+  );
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -140,6 +158,7 @@ export function ClaimCustomersView({
       storeName: inventoryName,
       group,
       officialLineId,
+      transferAccount,
     });
     try {
       await navigator.clipboard.writeText(text);
@@ -151,52 +170,75 @@ export function ClaimCustomersView({
     }
   }
 
-  async function handleBatchUpdateCustomerStatus(
-    group: CustomerClaimGroup,
-    nextStatus: ClaimPaymentStatus,
-  ) {
-    const ids = group.submissions.map((s) => s.id);
-    if (!ids.length) return;
+  function openPaymentEditor(submission: ClaimSubmission) {
+    setPaymentEditorSubmissionId(submission.id);
+    setPaymentAmount(String(getClaimSubmissionOutstandingAmount(submission)));
+    setPaymentTransferredAt(localDateTimeInputValue());
+    setPaymentLastFive("");
+    setPaymentNote("");
+    setActionError("");
+  }
 
-    setUpdatingKey(group.customerKey);
+  async function handleRecordPayment(submission: ClaimSubmission) {
+    const amount = Number(paymentAmount);
+    const outstanding = getClaimSubmissionOutstandingAmount(submission);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) {
+      setActionError(
+        `匯款金額須大於 0，且不可超過待付餘額 $${outstanding.toLocaleString()}。`,
+      );
+      return;
+    }
+    if (paymentLastFive && !/^\d{5}$/.test(paymentLastFive)) {
+      setActionError("帳號末五碼須為 5 位數字，或留空。");
+      return;
+    }
+
+    setSavingPayment(true);
     setActionError("");
     setActionMessage("");
     try {
-      await onUpdatePaymentStatus(ids, nextStatus);
+      await onRecordPayment({
+        submissionId: submission.id,
+        amount,
+        transferredAt: new Date(paymentTransferredAt).toISOString(),
+        payerAccountLastFive: paymentLastFive,
+        note: paymentNote.trim(),
+      });
       await onReload();
+      setPaymentEditorSubmissionId(null);
       setActionMessage(
-        `已將「${group.nickname}」的所有喊單標記為「${CLAIM_PAYMENT_STATUS_LABELS[nextStatus]}」。`,
+        `已登記「${submission.nickname}」匯款 $${amount.toLocaleString()}。`,
       );
     } catch (err) {
       setActionError(
-        err instanceof Error ? err.message : "更新付款狀態失敗，請稍後再試。",
+        err instanceof Error ? err.message : "匯款紀錄新增失敗，請稍後再試。",
       );
     } finally {
-      setUpdatingKey(null);
+      setSavingPayment(false);
     }
   }
 
-  async function handleSingleSubmissionStatusChange(
-    submission: ClaimSubmission,
-    nextStatus: ClaimPaymentStatus,
-  ) {
-    if (submission.paymentStatus === nextStatus) return;
-
-    setUpdatingSubmissionId(submission.id);
+  async function handleDeletePayment(paymentId: number, amount: number) {
+    if (
+      !window.confirm(
+        `確定要刪除這筆 $${amount.toLocaleString()} 的匯款紀錄嗎？`,
+      )
+    ) {
+      return;
+    }
+    setDeletingPaymentId(paymentId);
     setActionError("");
     setActionMessage("");
     try {
-      await onUpdatePaymentStatus([submission.id], nextStatus);
+      await onDeletePayment(paymentId);
       await onReload();
-      setActionMessage(
-        `已將「${submission.nickname}」在「${submission.formTitle}」的喊單標記為「${CLAIM_PAYMENT_STATUS_LABELS[nextStatus]}」。`,
-      );
+      setActionMessage("匯款紀錄已刪除，待付餘額已重新計算。");
     } catch (err) {
       setActionError(
-        err instanceof Error ? err.message : "更新付款狀態失敗，請稍後再試。",
+        err instanceof Error ? err.message : "匯款紀錄刪除失敗，請稍後再試。",
       );
     } finally {
-      setUpdatingSubmissionId(null);
+      setDeletingPaymentId(null);
     }
   }
 
@@ -247,7 +289,7 @@ export function ClaimCustomersView({
             type="button"
             className="icon-btn size-10 shrink-0"
             onClick={() => void onReload()}
-            disabled={loading || updatingKey !== null}
+            disabled={loading || savingPayment || deletingPaymentId !== null}
             aria-label="重新整理顧客對帳資料"
             title="重新整理"
           >
@@ -371,7 +413,6 @@ export function ClaimCustomersView({
         <div className="space-y-4">
           {filteredGroups.map((group) => {
             const isCollapsed = collapsedKeys.has(group.customerKey);
-            const isUpdating = updatingKey === group.customerKey;
             const isCopied = copiedKey === group.customerKey;
             const isPaid = group.status === "paid";
             const isHalf = group.status === "half_paid";
@@ -437,12 +478,13 @@ export function ClaimCustomersView({
                 {!isCollapsed && (
                   <div className="p-4 sm:p-5 space-y-3">
                     {group.submissions.map((sub) => {
-                      const isSubUpdating = updatingSubmissionId === sub.id;
                       const isSubDeleting = deletingSubmissionId === sub.id;
-                      const subTotal = sub.items.reduce(
-                        (sum, item) => sum + item.quantity * item.unitPrice,
-                        0,
-                      );
+                      const subTotal = getClaimSubmissionTotal(sub);
+                      const subPaid = getClaimSubmissionPaidAmount(sub);
+                      const subOutstanding =
+                        getClaimSubmissionOutstandingAmount(sub);
+                      const isPaymentEditorOpen =
+                        paymentEditorSubmissionId === sub.id;
 
                       return (
                         <div
@@ -466,47 +508,45 @@ export function ClaimCustomersView({
                               </span>
                             </div>
 
-                            {/* Sub item payment status buttons */}
-                            <div className="flex items-center gap-1">
-                              {CLAIM_PAYMENT_STATUSES.map((status) => {
-                                const isActive = sub.paymentStatus === status;
-                                return (
-                                  <button
-                                    key={status}
-                                    type="button"
-                                    className={`rounded-[6px] border px-2 py-0.5 text-[10px] font-semibold transition ${
-                                      isActive
-                                        ? PAYMENT_STATUS_ACTIVE_STYLES[status]
-                                        : "border-line bg-white text-muted hover:text-dark"
-                                    }`}
-                                    disabled={
-                                      loading ||
-                                      isSubUpdating ||
-                                      deletingSubmissionId !== null
-                                    }
-                                    onClick={() =>
-                                      void handleSingleSubmissionStatusChange(
-                                        sub,
-                                        status,
-                                      )
-                                    }
-                                  >
-                                    {isSubUpdating && isActive ? (
-                                      <LoaderCircle
-                                        size={10}
-                                        className="inline animate-spin mr-1"
-                                      />
-                                    ) : null}
-                                    {CLAIM_PAYMENT_STATUS_LABELS[status]}
-                                  </button>
-                                );
-                              })}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`rounded-[6px] px-2 py-1 text-[10px] font-bold ${
+                                  subOutstanding === 0
+                                    ? "bg-success-soft text-success"
+                                    : subPaid > 0
+                                      ? "bg-accent-soft text-accent-strong"
+                                      : "border border-line bg-white text-muted"
+                                }`}
+                              >
+                                {subOutstanding === 0
+                                  ? "已付全額"
+                                  : subPaid > 0
+                                    ? "部分匯款"
+                                    : "未匯款"}
+                              </span>
+                              {subOutstanding > 0 && (
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-7 items-center gap-1 rounded-[6px] bg-primary px-2.5 py-1 text-[10px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                                  disabled={
+                                    loading ||
+                                    savingPayment ||
+                                    deletingPaymentId !== null ||
+                                    deletingSubmissionId !== null
+                                  }
+                                  onClick={() => openPaymentEditor(sub)}
+                                >
+                                  <Banknote size={12} aria-hidden="true" />
+                                  登記匯款
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className="ml-1 inline-flex min-h-7 items-center gap-1 rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-danger transition hover:border-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={
                                   loading ||
-                                  updatingSubmissionId !== null ||
+                                  savingPayment ||
+                                  deletingPaymentId !== null ||
                                   deletingSubmissionId !== null
                                 }
                                 onClick={() => void handleDeleteSubmission(sub)}
@@ -550,6 +590,235 @@ export function ClaimCustomersView({
                             <p className="mb-0 mt-2 rounded-[6px] bg-white px-2.5 py-1 text-[11px] text-muted">
                               備註：{sub.notes}
                             </p>
+                          )}
+
+                          <div className="mt-3 grid grid-cols-3 gap-2 rounded-[6px] border border-line/60 bg-white p-2.5 text-center">
+                            <div>
+                              <span className="block text-[10px] text-muted">
+                                訂單金額
+                              </span>
+                              <b className="mt-0.5 block text-[12px] text-dark">
+                                ${subTotal.toLocaleString()}
+                              </b>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] text-muted">
+                                已收金額
+                              </span>
+                              <b className="mt-0.5 block text-[12px] text-success">
+                                ${subPaid.toLocaleString()}
+                              </b>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] text-muted">
+                                待付餘額
+                              </span>
+                              <b className="mt-0.5 block text-[12px] text-accent-strong">
+                                ${subOutstanding.toLocaleString()}
+                              </b>
+                            </div>
+                          </div>
+
+                          {sub.payments.length > 0 && (
+                            <div className="mt-3">
+                              <h5 className="m-0 text-[11px] font-bold text-dark">
+                                匯款紀錄（{sub.payments.length}）
+                              </h5>
+                              <div className="mt-2 space-y-1.5">
+                                {sub.payments.map((payment) => (
+                                  <div
+                                    key={payment.id}
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-success/20 bg-success-soft/40 px-2.5 py-2"
+                                  >
+                                    <div className="min-w-0 text-[11px]">
+                                      <b className="mr-2 text-success">
+                                        ${payment.amount.toLocaleString()}
+                                      </b>
+                                      <span className="text-muted">
+                                        {formatTaipeiDateTime(
+                                          payment.transferredAt,
+                                        )}
+                                      </span>
+                                      {payment.payerAccountLastFive && (
+                                        <span className="ml-2 text-dark">
+                                          末五碼 {payment.payerAccountLastFive}
+                                        </span>
+                                      )}
+                                      {payment.note && (
+                                        <span className="mt-1 block break-words text-muted">
+                                          {payment.note}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="icon-btn size-7 shrink-0 text-danger"
+                                      disabled={
+                                        deletingPaymentId !== null ||
+                                        savingPayment
+                                      }
+                                      onClick={() =>
+                                        void handleDeletePayment(
+                                          payment.id,
+                                          payment.amount,
+                                        )
+                                      }
+                                      aria-label="刪除匯款紀錄"
+                                      title="刪除匯款紀錄"
+                                    >
+                                      {deletingPaymentId === payment.id ? (
+                                        <LoaderCircle
+                                          size={12}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <Trash2 size={12} />
+                                      )}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {sub.payments.length === 0 && subPaid > 0 && (
+                            <p className="mb-0 mt-2 text-[10px] leading-4 text-muted">
+                              此筆為舊版快速付款狀態，尚無逐筆匯款日期與末五碼紀錄。
+                            </p>
+                          )}
+
+                          {isPaymentEditorOpen && (
+                            <div className="mt-3 rounded-[8px] border border-primary/25 bg-primary-soft/40 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <h5 className="m-0 inline-flex items-center gap-1.5 text-[12px] font-bold text-dark">
+                                  <Banknote size={14} aria-hidden="true" />
+                                  新增匯款紀錄
+                                </h5>
+                                <button
+                                  type="button"
+                                  className="icon-btn size-7"
+                                  onClick={() =>
+                                    setPaymentEditorSubmissionId(null)
+                                  }
+                                  aria-label="關閉匯款紀錄表單"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                <label className="text-[11px] font-semibold text-dark">
+                                  匯款金額
+                                  <input
+                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[16px] outline-none focus:border-primary"
+                                    type="number"
+                                    min="0.01"
+                                    max={subOutstanding}
+                                    step="0.01"
+                                    value={paymentAmount}
+                                    onChange={(event) =>
+                                      setPaymentAmount(event.target.value)
+                                    }
+                                  />
+                                  <span className="mt-1.5 flex flex-wrap gap-1.5">
+                                    <button
+                                      type="button"
+                                      className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
+                                      onClick={() =>
+                                        setPaymentAmount(String(subOutstanding))
+                                      }
+                                    >
+                                      剩餘全額
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
+                                      onClick={() =>
+                                        setPaymentAmount(
+                                          String(
+                                            Math.round(subOutstanding * 50) /
+                                              100,
+                                          ),
+                                        )
+                                      }
+                                    >
+                                      剩餘一半
+                                    </button>
+                                  </span>
+                                </label>
+                                <label className="text-[11px] font-semibold text-dark">
+                                  匯款日期時間
+                                  <input
+                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[14px] outline-none focus:border-primary"
+                                    type="datetime-local"
+                                    value={paymentTransferredAt}
+                                    onChange={(event) =>
+                                      setPaymentTransferredAt(
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+                                <label className="text-[11px] font-semibold text-dark">
+                                  匯款帳號末五碼（選填）
+                                  <input
+                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 font-mono text-[16px] outline-none focus:border-primary"
+                                    inputMode="numeric"
+                                    maxLength={5}
+                                    value={paymentLastFive}
+                                    placeholder="12345"
+                                    onChange={(event) =>
+                                      setPaymentLastFive(
+                                        event.target.value
+                                          .replace(/\D/g, "")
+                                          .slice(0, 5),
+                                      )
+                                    }
+                                  />
+                                </label>
+                                <label className="text-[11px] font-semibold text-dark">
+                                  備註（選填）
+                                  <input
+                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[14px] outline-none focus:border-primary"
+                                    maxLength={1000}
+                                    value={paymentNote}
+                                    placeholder="例如：先付一半"
+                                    onChange={(event) =>
+                                      setPaymentNote(event.target.value)
+                                    }
+                                  />
+                                </label>
+                              </div>
+                              <div className="mt-3 flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  className="outline min-h-9 text-[11px]"
+                                  disabled={savingPayment}
+                                  onClick={() =>
+                                    setPaymentEditorSubmissionId(null)
+                                  }
+                                >
+                                  取消
+                                </button>
+                                <button
+                                  type="button"
+                                  className="primary min-h-9 text-[11px]"
+                                  disabled={
+                                    savingPayment ||
+                                    !paymentAmount ||
+                                    !paymentTransferredAt
+                                  }
+                                  onClick={() => void handleRecordPayment(sub)}
+                                >
+                                  {savingPayment && (
+                                    <LoaderCircle
+                                      size={13}
+                                      className="animate-spin"
+                                    />
+                                  )}
+                                  {savingPayment ? "儲存中…" : "儲存匯款紀錄"}
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
@@ -595,38 +864,6 @@ export function ClaimCustomersView({
                         </>
                       )}
                     </button>
-
-                    {!isPaid ? (
-                      <button
-                        type="button"
-                        className="primary min-h-8 text-[12px]"
-                        disabled={loading || isUpdating}
-                        onClick={() =>
-                          void handleBatchUpdateCustomerStatus(group, "paid")
-                        }
-                      >
-                        {isUpdating ? (
-                          <LoaderCircle size={14} className="animate-spin" />
-                        ) : (
-                          <CheckCircle2 size={14} />
-                        )}
-                        整單標記為已結清
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="outline min-h-8 text-[12px] text-muted"
-                        disabled={loading || isUpdating}
-                        onClick={() =>
-                          void handleBatchUpdateCustomerStatus(group, "pending")
-                        }
-                      >
-                        {isUpdating ? (
-                          <LoaderCircle size={14} className="animate-spin" />
-                        ) : null}
-                        重設為未匯款
-                      </button>
-                    )}
                   </div>
                 </div>
               </article>

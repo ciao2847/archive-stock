@@ -81,6 +81,12 @@ export type AccountData = {
     qrOtherDestinationUrl: string;
     officialLineId: string;
     claimCompletionMessage: string;
+    claimTransferEnabled: boolean;
+    claimBankCode: string;
+    claimBankName: string;
+    claimBankBranch: string;
+    claimBankAccount: string;
+    claimBankAccountName: string;
   }>;
   availableUsers: Array<{ id: string; name: string }>;
 };

@@ -521,11 +521,17 @@ export function ClaimSubmissionsView({
 
                   <fieldset
                     className="mt-3 min-w-0 rounded-[8px] border border-line/70 bg-light/45 p-2.5"
-                    disabled={loading || updatingPaymentId !== null}
+                    disabled={
+                      loading ||
+                      updatingPaymentId !== null ||
+                      submission.payments.length > 0
+                    }
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <legend className="px-0 text-[11px] font-semibold text-default">
-                        消費者匯款狀態
+                        {submission.payments.length > 0
+                          ? `已登記 ${submission.payments.length} 筆匯款紀錄`
+                          : "快速付款狀態"}
                       </legend>
                       {updatingPaymentId === submission.id && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-muted">
@@ -560,6 +566,11 @@ export function ClaimSubmissionsView({
                         );
                       })}
                     </div>
+                    {submission.payments.length > 0 && (
+                      <p className="mb-0 mt-2 text-[10px] leading-4 text-muted">
+                        請至「顧客對帳結算」新增或刪除逐筆匯款紀錄，付款狀態會自動計算。
+                      </p>
+                    )}
                   </fieldset>
 
                   <div className="mt-3 flex min-w-0 flex-wrap items-end justify-between gap-3">

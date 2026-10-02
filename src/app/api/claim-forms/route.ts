@@ -18,6 +18,8 @@ import type {
   ClaimPaymentStatus,
   ClaimProductTotal,
   ClaimSubmission,
+  ClaimSubmissionPayment,
+  ClaimTransferAccount,
 } from "@/lib/claims";
 import {
   CLAIM_PAYMENT_STATUSES,
@@ -163,6 +165,36 @@ function mapProductTotals(value: unknown): ClaimProductTotal[] {
   });
 }
 
+function mapSubmissionPayments(value: unknown): ClaimSubmissionPayment[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .flatMap((item) => {
+      const row = recordOf(item);
+      if (!row.id || typeof row.transferred_at !== "string") return [];
+      return [
+        {
+          id: numberOf(row.id),
+          amount: numberOf(row.amount),
+          transferredAt: row.transferred_at,
+          payerAccountLastFive:
+            typeof row.payer_account_last_five === "string"
+              ? row.payer_account_last_five
+              : undefined,
+          note: typeof row.note === "string" ? row.note : undefined,
+          createdAt:
+            typeof row.created_at === "string"
+              ? row.created_at
+              : row.transferred_at,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.transferredAt).getTime() -
+        new Date(a.transferredAt).getTime(),
+    );
+}
+
 export async function GET(request: Request) {
   return withApiErrorHandling("GET /api/claim-forms", async () => {
     const auth = await requireApiUser();
@@ -196,7 +228,7 @@ export async function GET(request: Request) {
         auth.supabase
           .from("inventory_databases")
           .select(
-            "name,official_line_id,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color",
+            "name,official_line_id,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
           )
           .eq("id", ownerId)
           .maybeSingle(),
@@ -253,6 +285,20 @@ export async function GET(request: Request) {
       isOpen: candidate.is_open,
       closesAt: candidate.closes_at || undefined,
     }));
+    const transferAccount: ClaimTransferAccount | undefined =
+      inventoryData?.claim_transfer_enabled &&
+      inventoryData.claim_bank_code &&
+      inventoryData.claim_bank_name &&
+      inventoryData.claim_bank_account &&
+      inventoryData.claim_bank_account_name
+        ? {
+            bankCode: inventoryData.claim_bank_code,
+            bankName: inventoryData.claim_bank_name,
+            bankBranch: inventoryData.claim_bank_branch || undefined,
+            account: inventoryData.claim_bank_account,
+            accountName: inventoryData.claim_bank_account_name,
+          }
+        : undefined;
 
     if (scope === "all") {
       const formIds = mappedForms.map((candidate) => candidate.id);
@@ -263,7 +309,7 @@ export async function GET(request: Request) {
       const { data: submissions, error: submissionsError } = await auth.supabase
         .from("claim_submissions")
         .select(
-          "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price)",
+          "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price),claim_submission_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
         )
         .in("form_id", formIds)
         .order("created_at", { ascending: false });
@@ -294,6 +340,7 @@ export async function GET(request: Request) {
             quantity: item.quantity,
             unitPrice: numberOf(item.unit_price),
           })),
+          payments: mapSubmissionPayments(submission.claim_submission_payments),
         }),
       );
 
@@ -304,6 +351,7 @@ export async function GET(request: Request) {
       forms: mappedForms,
       form: null,
       officialLineId: inventoryData?.official_line_id || undefined,
+      transferAccount,
       appearance: unifiedAppearance,
       summary: {
         submissionCount: 0,
@@ -343,7 +391,7 @@ export async function GET(request: Request) {
     let submissionsQuery = auth.supabase
       .from("claim_submissions")
       .select(
-        "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price)",
+        "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price),claim_submission_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -389,6 +437,7 @@ export async function GET(request: Request) {
           quantity: item.quantity,
           unitPrice: numberOf(item.unit_price),
         })),
+        payments: mapSubmissionPayments(submission.claim_submission_payments),
       }),
     );
     const total = count ?? 0;
@@ -416,6 +465,7 @@ export async function GET(request: Request) {
         })),
       },
       officialLineId: inventoryData?.official_line_id || undefined,
+      transferAccount,
       appearance: unifiedAppearance,
       summary: {
         submissionCount: numberOf(summary.submission_count),
@@ -520,8 +570,7 @@ export async function PATCH(request: Request) {
     }
 
     const ids =
-      input.submissionIds ??
-      (input.submissionId ? [input.submissionId] : []);
+      input.submissionIds ?? (input.submissionId ? [input.submissionId] : []);
 
     let updateQuery = auth.supabase
       .from("claim_submissions")
@@ -582,6 +631,13 @@ export async function DELETE(request: Request) {
         if (error.code === "PGRST202") {
           return apiFailure("移除功能尚未安裝，請先執行最新 migration。", 503);
         }
+        if (error.code === "23503") {
+          return apiFailure(
+            "這筆喊單已有匯款紀錄，請先刪除匯款紀錄後再刪除喊單。",
+            409,
+            error.code,
+          );
+        }
         const messages: Record<string, { message: string; status: number }> = {
           "admin access required": {
             message: "無法移除這個庫藏的顧客喊單明細。",
@@ -627,6 +683,13 @@ export async function DELETE(request: Request) {
     if (error) {
       if (error.code === "PGRST202") {
         return apiFailure("移除功能尚未安裝，請先執行最新 migration。", 503);
+      }
+      if (error.code === "23503") {
+        return apiFailure(
+          "這個 IP 仍有匯款紀錄，請先刪除相關匯款紀錄後再移除。",
+          409,
+          error.code,
+        );
       }
       const messages: Record<string, { message: string; status: number }> = {
         "admin access required": {

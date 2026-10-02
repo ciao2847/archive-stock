@@ -88,6 +88,44 @@ export async function updateClaimSubmissionPaymentStatus(input: {
   }>(response);
 }
 
+export async function recordClaimSubmissionPayment(input: {
+  ownerId: string;
+  submissionId: number;
+  amount: number;
+  transferredAt: string;
+  payerAccountLastFive: string;
+  note: string;
+}) {
+  const response = await fetch(API_ROUTES.getClaimPayments, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readApiResponse<{
+    paymentId: number;
+    paymentStatus: ClaimPaymentStatus;
+    totalPaid: number;
+    outstandingAmount: number;
+  }>(response);
+}
+
+export async function deleteClaimSubmissionPayment(input: {
+  ownerId: string;
+  paymentId: number;
+}) {
+  const response = await fetch(API_ROUTES.getClaimPayments, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readApiResponse<{
+    submissionId: number;
+    paymentStatus: ClaimPaymentStatus;
+    totalPaid: number;
+    outstandingAmount: number;
+  }>(response);
+}
+
 export async function fetchInventoryAllClaimSubmissions(ownerId: string) {
   const query = new URLSearchParams({ ownerId, scope: "all" });
   const response = await fetch(`${API_ROUTES.getClaimForms}?${query}`, {
@@ -97,7 +135,6 @@ export async function fetchInventoryAllClaimSubmissions(ownerId: string) {
 }
 
 export const fetchAllClaimSubmissions = fetchInventoryAllClaimSubmissions;
-
 
 export async function deleteClaimForm(input: {
   ownerId: string;

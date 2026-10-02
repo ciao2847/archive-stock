@@ -10,6 +10,7 @@ import {
   Copy,
   ExternalLink,
   ImageIcon,
+  Landmark,
   MessageCircle,
   Minus,
   Package,
@@ -82,6 +83,7 @@ export function PublicClaimFormView({
     null,
   );
   const [confirmationCopied, setConfirmationCopied] = useState(false);
+  const [transferAccountCopied, setTransferAccountCopied] = useState(false);
   const [requestId] = useState(createRequestId);
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
@@ -228,6 +230,16 @@ export function PublicClaimFormView({
     }
   }
 
+  async function copyTransferAccount() {
+    if (!result?.transferAccount) return;
+    try {
+      await navigator.clipboard.writeText(result.transferAccount.account);
+      setTransferAccountCopied(true);
+    } catch {
+      window.prompt("複製匯款帳號", result.transferAccount.account);
+    }
+  }
+
   if (step === "success" && result) {
     const officialLineChatUrl = form.officialLineId
       ? buildOfficialLineChatUrl(
@@ -343,22 +355,75 @@ export function PublicClaimFormView({
               {form.completionMessage}
             </p>
 
+            {result.transferAccount && (
+              <div className="mt-4 rounded-[10px] border border-[var(--claim-border)] bg-[var(--claim-soft)] p-3.5 md:p-4">
+                <div className="flex items-center gap-2 text-[12px] font-bold md:text-[13px]">
+                  <Landmark
+                    size={16}
+                    className="text-[var(--claim-primary)]"
+                    aria-hidden="true"
+                  />
+                  匯款帳號
+                </div>
+                <dl className="mb-0 mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[11px] md:text-[12px]">
+                  <dt className="text-[var(--claim-surface-muted)]">銀行</dt>
+                  <dd className="m-0 font-semibold">
+                    {result.transferAccount.bankCode}{" "}
+                    {result.transferAccount.bankName}
+                    {result.transferAccount.bankBranch
+                      ? ` ${result.transferAccount.bankBranch}`
+                      : ""}
+                  </dd>
+                  <dt className="self-center text-[var(--claim-surface-muted)]">
+                    帳號
+                  </dt>
+                  <dd className="m-0 flex min-w-0 items-center gap-2">
+                    <strong className="min-w-0 break-all font-mono text-[15px] tracking-[0.04em] md:text-[16px]">
+                      {result.transferAccount.account}
+                    </strong>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] px-2.5 text-[11px] font-bold text-[var(--claim-primary)]"
+                      onClick={() => void copyTransferAccount()}
+                    >
+                      {transferAccountCopied ? (
+                        <Check size={13} aria-hidden="true" />
+                      ) : (
+                        <Copy size={13} aria-hidden="true" />
+                      )}
+                      {transferAccountCopied ? "已複製" : "複製"}
+                    </button>
+                  </dd>
+                  <dt className="text-[var(--claim-surface-muted)]">戶名</dt>
+                  <dd className="m-0 font-semibold">
+                    {result.transferAccount.accountName}
+                  </dd>
+                </dl>
+              </div>
+            )}
+
             <ol className="m-0 mt-3 grid list-none gap-2.5 p-0">
               <li className="flex items-center gap-2.5 text-[12px] font-medium md:text-[13px]">
                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--claim-primary)] text-[10px] font-bold text-[var(--claim-primary-text)]">
                   1
                 </span>
                 <span>
-                  {form.officialLineId
-                    ? `加入官方 LINE 好友（${form.officialLineId}）`
-                    : "依照管理者提供的方式聯繫結帳"}
+                  {result.transferAccount
+                    ? `依上方帳號完成匯款 ${currency.format(subtotal)}`
+                    : form.officialLineId
+                      ? `加入官方 LINE 好友（${form.officialLineId}）`
+                      : "依照管理者提供的方式聯繫結帳"}
                 </span>
               </li>
               <li className="flex items-center gap-2.5 text-[12px] font-medium md:text-[13px]">
                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--claim-primary)] text-[10px] font-bold text-[var(--claim-primary-text)]">
                   2
                 </span>
-                <span>完成匯款，訂單才算正式成立</span>
+                <span>
+                  {result.transferAccount && form.officialLineId
+                    ? `加入官方 LINE（${form.officialLineId}）並回傳帳號末五碼`
+                    : "完成匯款，訂單才算正式成立"}
+                </span>
               </li>
             </ol>
 
