@@ -12,6 +12,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export interface ClaimCustomersViewProps {
     submissionIds: number[],
     paymentStatus: ClaimPaymentStatus,
   ) => Promise<void>;
+  onDeleteSubmission: (submissionId: number, formId: number) => Promise<void>;
   onReload: () => Promise<void>;
   initialSearchQuery?: string;
 }
@@ -51,6 +53,7 @@ export function ClaimCustomersView({
   inventoryName,
   officialLineId,
   onUpdatePaymentStatus,
+  onDeleteSubmission,
   onReload,
   initialSearchQuery = "",
 }: ClaimCustomersViewProps) {
@@ -61,6 +64,9 @@ export function ClaimCustomersView({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<
+    number | null
+  >(null);
+  const [deletingSubmissionId, setDeletingSubmissionId] = useState<
     number | null
   >(null);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
@@ -108,8 +114,7 @@ export function ClaimCustomersView({
       if (!query) return true;
       const cleanPhone = group.phone.replace(/\D/g, "");
       const cleanQuery = query.replace(/\D/g, "");
-      const matchPhone =
-        cleanQuery && cleanPhone.includes(cleanQuery);
+      const matchPhone = cleanQuery && cleanPhone.includes(cleanQuery);
       const matchNickname = group.nickname.toLowerCase().includes(query);
       const matchFormOrItem = group.submissions.some(
         (sub) =>
@@ -192,6 +197,30 @@ export function ClaimCustomersView({
       );
     } finally {
       setUpdatingSubmissionId(null);
+    }
+  }
+
+  async function handleDeleteSubmission(submission: ClaimSubmission) {
+    const confirmed = window.confirm(
+      `確定要刪除「${submission.nickname}」在「${submission.formTitle}」的這筆喊單嗎？\n\n確認編號：${submission.confirmationCode}\n刪除後無法復原，商品統計與採購數量也會同步扣除。`,
+    );
+    if (!confirmed) return;
+
+    setDeletingSubmissionId(submission.id);
+    setActionError("");
+    setActionMessage("");
+    try {
+      await onDeleteSubmission(submission.id, submission.formId);
+      await onReload();
+      setActionMessage(
+        `已刪除「${submission.nickname}」在「${submission.formTitle}」的喊單明細。`,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "喊單明細刪除失敗，請稍後再試。",
+      );
+    } finally {
+      setDeletingSubmissionId(null);
     }
   }
 
@@ -409,6 +438,7 @@ export function ClaimCustomersView({
                   <div className="p-4 sm:p-5 space-y-3">
                     {group.submissions.map((sub) => {
                       const isSubUpdating = updatingSubmissionId === sub.id;
+                      const isSubDeleting = deletingSubmissionId === sub.id;
                       const subTotal = sub.items.reduce(
                         (sum, item) => sum + item.quantity * item.unitPrice,
                         0,
@@ -449,7 +479,11 @@ export function ClaimCustomersView({
                                         ? PAYMENT_STATUS_ACTIVE_STYLES[status]
                                         : "border-line bg-white text-muted hover:text-dark"
                                     }`}
-                                    disabled={loading || isSubUpdating}
+                                    disabled={
+                                      loading ||
+                                      isSubUpdating ||
+                                      deletingSubmissionId !== null
+                                    }
                                     onClick={() =>
                                       void handleSingleSubmissionStatusChange(
                                         sub,
@@ -467,6 +501,28 @@ export function ClaimCustomersView({
                                   </button>
                                 );
                               })}
+                              <button
+                                type="button"
+                                className="ml-1 inline-flex min-h-7 items-center gap-1 rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-danger transition hover:border-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={
+                                  loading ||
+                                  updatingSubmissionId !== null ||
+                                  deletingSubmissionId !== null
+                                }
+                                onClick={() => void handleDeleteSubmission(sub)}
+                                aria-label={`刪除 ${sub.nickname} 在 ${sub.formTitle} 的喊單明細`}
+                              >
+                                {isSubDeleting ? (
+                                  <LoaderCircle
+                                    size={11}
+                                    className="animate-spin"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <Trash2 size={11} aria-hidden="true" />
+                                )}
+                                {isSubDeleting ? "刪除中" : "刪除"}
+                              </button>
                             </div>
                           </div>
 
@@ -481,7 +537,10 @@ export function ClaimCustomersView({
                                   {item.name} × {item.quantity}
                                 </span>
                                 <span className="font-mono font-medium text-muted">
-                                  ${(item.unitPrice * item.quantity).toLocaleString()}
+                                  $
+                                  {(
+                                    item.unitPrice * item.quantity
+                                  ).toLocaleString()}
                                 </span>
                               </div>
                             ))}
@@ -559,10 +618,7 @@ export function ClaimCustomersView({
                         className="outline min-h-8 text-[12px] text-muted"
                         disabled={loading || isUpdating}
                         onClick={() =>
-                          void handleBatchUpdateCustomerStatus(
-                            group,
-                            "pending",
-                          )
+                          void handleBatchUpdateCustomerStatus(group, "pending")
                         }
                       >
                         {isUpdating ? (

@@ -323,6 +323,16 @@ export function ClaimFormPanel({
     });
   }
 
+  async function removeCustomerSubmission(
+    submissionId: number,
+    formId: number,
+  ) {
+    await removeSubmission(submissionId, formId);
+    if (currentForm) {
+      await load(1, false, currentForm.id, customerPhone || undefined);
+    }
+  }
+
   async function updateSubmissionPaymentStatus(
     submissionId: number,
     formId: number,
@@ -903,6 +913,7 @@ export function ClaimFormPanel({
             inventoryName={inventoryName}
             officialLineId={data?.officialLineId}
             onUpdatePaymentStatus={handleBatchCustomerPaymentStatus}
+            onDeleteSubmission={removeCustomerSubmission}
             onReload={() => loadAllSubmissions(true)}
             initialSearchQuery={customerFilterPhone}
           />
