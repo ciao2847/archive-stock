@@ -262,7 +262,7 @@ export function PublicClaimFormView({
                 <p className="mx-auto mb-0 mt-1.5 max-w-[520px] whitespace-pre-wrap text-[13px] leading-6 opacity-85 md:text-[14px]">
                   {form.completionMessage}
                 </p>
-                {officialLineChatUrl ? (
+                {officialLineChatUrl && (
                   <>
                     <a
                       className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--claim-primary)] px-4 py-2.5 text-[14px] font-bold text-[var(--claim-primary-text)] transition hover:bg-[var(--claim-primary-hover)] md:mx-auto md:max-w-[360px]"
@@ -281,10 +281,6 @@ export function PublicClaimFormView({
                       （加入後送出預填訊息，或於對話框輸入手機號碼即可查詢明細）
                     </small>
                   </>
-                ) : (
-                  <p className="mb-0 mt-3 rounded-[8px] bg-[var(--claim-soft)] px-3 py-2 text-[12px] text-[var(--claim-soft-text)]">
-                    請依群組公告聯繫官方 LINE，並提供確認編號結帳。
-                  </p>
                 )}
               </div>
               <div className="mt-5 md:mt-7">
