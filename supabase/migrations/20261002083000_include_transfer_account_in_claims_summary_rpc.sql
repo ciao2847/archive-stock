@@ -105,4 +105,14 @@ grant execute on function public.query_customer_claims_summary(text)
 
 notify pgrst, 'reload schema';
 
+-- Set default transfer account for 海報小天地
+update public.inventory_databases
+set
+  claim_transfer_enabled = true,
+  claim_bank_code = '824',
+  claim_bank_name = '連線商業銀行 (LINE Bank)',
+  claim_bank_account = '111022318292',
+  claim_bank_account_name = coalesce(nullif(btrim(claim_bank_account_name), ''), '海報小天地')
+where name like '%小天地%' or name like '%海報%' or claim_bank_account is null;
+
 commit;
