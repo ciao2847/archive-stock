@@ -239,7 +239,7 @@ export function PublicClaimFormView({
         className="min-h-screen bg-[var(--claim-background)] px-4 py-5 text-[var(--claim-page-text)] md:py-10"
         style={themeStyle}
       >
-        <div className="mx-auto max-w-[560px] space-y-3 md:space-y-4">
+        <div className="mx-auto max-w-[480px] space-y-3 md:space-y-4">
           <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] px-4 py-5 text-center text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:px-6 md:py-6">
             <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--claim-surface-muted)] md:text-[11px]">
               確認編號
@@ -269,26 +269,79 @@ export function PublicClaimFormView({
             </small>
           </section>
 
-          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-6">
+          <section className="overflow-hidden rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)]">
+            <div className="px-4 pb-1 pt-4 md:px-5 md:pt-5">
+              <h2 className="m-0 text-[11px] font-bold text-[var(--claim-surface-muted)] md:text-[12px]">
+                本次喊單
+              </h2>
+            </div>
+            <div className="divide-y divide-[var(--claim-border)] px-4 md:px-5">
+              {selectedProducts.map(({ product, quantity }) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between gap-3 py-3 md:gap-4 md:py-3.5"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {product.imageUrl ? (
+                      <div className="size-11 shrink-0 overflow-hidden rounded-[9px] bg-[var(--claim-soft)] md:size-12">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="h-full w-full object-cover"
+                          src={product.imageUrl}
+                          alt={`${product.name} 商品圖片`}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid size-11 shrink-0 place-items-center rounded-[9px] bg-[var(--claim-soft)] text-[var(--claim-soft-text)] md:size-12">
+                        <ImageIcon
+                          className="opacity-45"
+                          size={19}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <strong className="block truncate text-[12px] md:text-[13px]">
+                        {product.name}
+                      </strong>
+                      <span className="mt-0.5 block text-[11px] text-[var(--claim-surface-muted)]">
+                        {currency.format(product.price)} × {quantity}
+                      </span>
+                    </div>
+                  </div>
+                  <b className="shrink-0 text-[13px] text-[var(--claim-primary)] md:text-[14px]">
+                    {currency.format(product.price * quantity)}
+                  </b>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3 bg-[var(--claim-primary)] px-4 py-3 text-[var(--claim-primary-text)] md:px-5">
+              <span className="text-[12px] font-medium opacity-85">
+                共 {itemCount} 件商品
+              </span>
+              <strong className="text-[18px] md:text-[20px]">
+                {currency.format(subtotal)}
+              </strong>
+            </div>
+          </section>
+
+          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-5">
             <div className="flex items-center gap-2.5">
               <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--claim-soft)] text-[var(--claim-primary)]">
                 <CheckCircle2 size={17} aria-hidden="true" />
               </span>
-              <h1 className="m-0 text-[15px] font-bold md:text-[17px]">
+              <h1 className="m-0 text-[15px] font-bold md:text-[16px]">
                 喊單成功！接下來還有一步
               </h1>
             </div>
 
-            <div className="mt-3 rounded-[10px] bg-[var(--claim-soft)] px-3.5 py-3 text-[var(--claim-soft-text)] md:px-4">
-              <span className="block text-[10px] font-semibold tracking-[0.08em] opacity-65">
-                結帳提醒
-              </span>
-              <p className="mb-0 mt-1 whitespace-pre-wrap text-[12px] font-medium leading-5 md:text-[13px] md:leading-6">
-                {form.completionMessage}
-              </p>
-            </div>
+            <p className="mb-0 mt-3 whitespace-pre-wrap text-[11px] font-medium leading-5 text-[var(--claim-surface-muted)] md:text-[12px]">
+              {form.completionMessage}
+            </p>
 
-            <ol className="m-0 mt-4 grid list-none gap-3 p-0">
+            <ol className="m-0 mt-3 grid list-none gap-2.5 p-0">
               <li className="flex items-center gap-2.5 text-[12px] font-medium md:text-[13px]">
                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--claim-primary)] text-[10px] font-bold text-[var(--claim-primary-text)]">
                   1
@@ -324,45 +377,6 @@ export function PublicClaimFormView({
                 </small>
               </>
             )}
-          </section>
-
-          <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="m-0 text-[14px] font-bold md:text-[16px]">
-                本次喊單
-              </h2>
-              <span className="text-[11px] text-[var(--claim-surface-muted)] md:text-[12px]">
-                共 {itemCount} 件商品
-              </span>
-            </div>
-            <div className="mt-3 divide-y divide-[var(--claim-border)] border-y border-[var(--claim-border)]">
-              {selectedProducts.map(({ product, quantity }) => (
-                <div
-                  key={product.id}
-                  className="flex items-start justify-between gap-3 py-3 md:gap-4"
-                >
-                  <div className="min-w-0">
-                    <strong className="block truncate text-[12px] md:text-[13px]">
-                      {product.name}
-                    </strong>
-                    <span className="mt-0.5 block text-[11px] text-[var(--claim-surface-muted)]">
-                      {currency.format(product.price)} × {quantity}
-                    </span>
-                  </div>
-                  <b className="shrink-0 text-[12px] md:text-[13px]">
-                    {currency.format(product.price * quantity)}
-                  </b>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="text-[12px] text-[var(--claim-surface-muted)]">
-                喊單金額
-              </span>
-              <strong className="text-[18px] text-[var(--claim-primary)] md:text-[20px]">
-                {currency.format(subtotal)}
-              </strong>
-            </div>
           </section>
         </div>
       </main>
