@@ -9,12 +9,17 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  AlertCircle,
+  Check,
   ClipboardList,
+  ExternalLink,
   Link2,
   LoaderCircle,
+  Palette,
   Plus,
   RefreshCw,
   Search,
+  Send,
   Settings2,
   Trash2,
   X,
@@ -43,6 +48,7 @@ import {
   type ClaimFormManagement,
 } from "@/lib/claims";
 import type { Order, Product } from "@/lib/types";
+import { ClaimFormAppearanceSettings } from "./ClaimFormAppearanceSettings";
 import {
   ClaimProductSettings,
   defaultProductDraft,
@@ -63,7 +69,7 @@ function csvCell(value: string | number) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export type ClaimTab = "submissions" | "settings";
+export type ClaimTab = "submissions" | "settings" | "appearance";
 
 export function ClaimFormPanel({
   ownerId,
@@ -393,7 +399,10 @@ export function ClaimFormPanel({
     }
   }
 
-  async function save(customIsOpen?: boolean) {
+  async function save(
+    customIsOpen?: boolean,
+    savedArea: "settings" | "appearance" = "settings",
+  ) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       setError("請填寫 IP 名稱／喊單標題。");
@@ -437,9 +446,11 @@ export function ClaimFormPanel({
       setSavedMessage(
         isNewForm
           ? `「${trimmedTitle}」IP 喊單頁已成功建立！`
-          : nextIsOpen
-            ? "設定已儲存，公開頁目前可接受喊單。"
-            : "設定已儲存。",
+          : savedArea === "appearance"
+            ? "表單外觀已儲存，並套用至此庫藏所有 IP 喊單頁。"
+            : nextIsOpen
+              ? "設定已儲存，公開頁目前可接受喊單。"
+              : "設定已儲存。",
       );
     } catch (saveError) {
       if (uploadedBannerPath) {
@@ -671,7 +682,7 @@ export function ClaimFormPanel({
 
         {/* Top Tab Navigation */}
         <div className="flex flex-col items-stretch gap-3 border-b border-line pb-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:items-center">
+          <div className="grid w-full grid-cols-3 gap-2 md:flex md:w-auto md:items-center">
             <button
               type="button"
               className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
@@ -689,7 +700,7 @@ export function ClaimFormPanel({
               </span>
               {currentForm && data?.summary.customerCount ? (
                 <span
-                  className={`shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold md:px-2 md:text-[11px] ${activeTab === "submissions" ? "bg-white/25 text-white" : "bg-light text-muted"}`}
+                  className={`hidden shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold sm:inline-flex md:px-2 md:text-[11px] ${activeTab === "submissions" ? "bg-white/25 text-white" : "bg-light text-muted"}`}
                 >
                   {data.summary.customerCount}
                   <span className="hidden sm:inline"> 人</span>
@@ -708,17 +719,32 @@ export function ClaimFormPanel({
             >
               <Settings2 className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="md:hidden">外觀與商品</span>
-                <span className="hidden md:inline">表單外觀與商品設定</span>
+                <span className="md:hidden">商品設定</span>
+                <span className="hidden md:inline">表單與商品設定</span>
               </span>
               {selectedIds.size > 0 && (
                 <span
-                  className={`shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold md:px-2 md:text-[11px] ${activeTab === "settings" ? "bg-white/25 text-white" : "bg-light text-muted"}`}
+                  className={`hidden shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold sm:inline-flex md:px-2 md:text-[11px] ${activeTab === "settings" ? "bg-white/25 text-white" : "bg-light text-muted"}`}
                 >
                   {selectedIds.size}
                   <span className="hidden sm:inline"> 項</span>
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-1 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
+                activeTab === "appearance"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted hover:bg-light hover:text-dark"
+              }`}
+              onClick={() => setActiveTab("appearance")}
+            >
+              <Palette className="shrink-0" size={17} />
+              <span className="min-w-0 text-center leading-tight">
+                表單外觀
+              </span>
             </button>
           </div>
 
@@ -773,23 +799,6 @@ export function ClaimFormPanel({
             setIsOpen={setIsOpen}
             closesAt={closesAt}
             setClosesAt={setClosesAt}
-            bannerImageUrl={bannerImageUrl}
-            bannerImageFile={bannerImageFile}
-            bannerImageRemoved={bannerImageRemoved}
-            bannerPosition={bannerPosition}
-            onSelectBannerImage={(file) => {
-              setBannerImageFile(file);
-              setBannerImageRemoved(false);
-              setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
-            }}
-            onRemoveBannerImage={() => {
-              setBannerImageFile(null);
-              setBannerImageRemoved(true);
-              setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
-            }}
-            onBannerPositionChange={setBannerPosition}
-            theme={theme}
-            setTheme={setTheme}
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
             productDrafts={productDrafts}
@@ -813,6 +822,88 @@ export function ClaimFormPanel({
                 : undefined
             }
           />
+        )}
+
+        {activeTab === "appearance" && (
+          <div className="w-full min-w-0 max-w-full space-y-6 lg:pb-28">
+            {error && (
+              <div className="flex items-center gap-2 rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger">
+                <AlertCircle size={17} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {savedMessage && (
+              <div className="flex items-center gap-2 rounded-[8px] bg-success-soft px-4 py-3 text-[13px] text-success">
+                <Check size={17} className="shrink-0" />
+                <span>{savedMessage}</span>
+              </div>
+            )}
+
+            <ClaimFormAppearanceSettings
+              inventoryName={inventoryName}
+              title={title}
+              description={description}
+              bannerImageUrl={bannerImageUrl}
+              bannerImageFile={bannerImageFile}
+              bannerImageRemoved={bannerImageRemoved}
+              bannerPosition={bannerPosition}
+              onSelectBannerImage={(file) => {
+                setBannerImageFile(file);
+                setBannerImageRemoved(false);
+                setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
+              }}
+              onRemoveBannerImage={() => {
+                setBannerImageFile(null);
+                setBannerImageRemoved(true);
+                setBannerPosition(DEFAULT_CLAIM_FORM_BANNER_POSITION);
+              }}
+              onBannerPositionChange={setBannerPosition}
+              theme={theme}
+              onThemeChange={setTheme}
+              disabled={saving}
+            />
+
+            <div className="claim-fixed-actions rounded-[8px] border border-line bg-white lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-white/95 lg:backdrop-blur-md">
+              <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-9">
+                <span className="text-[13px] font-semibold text-dark">
+                  此庫藏所有 IP 喊單頁共用這組外觀
+                </span>
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  {publicPath && (
+                    <a
+                      className="outline min-h-10 flex-1 justify-center text-[13px] no-underline sm:flex-none"
+                      href={publicPath}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <ExternalLink size={15} />
+                      預覽前台
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="primary min-h-10 flex-1 justify-center sm:min-w-[150px] sm:flex-none"
+                    disabled={
+                      saving || !title.trim() || hasInvalidProductSettings
+                    }
+                    onClick={() => void save(undefined, "appearance")}
+                  >
+                    {saving ? (
+                      <LoaderCircle className="animate-spin" size={17} />
+                    ) : (
+                      <Send size={17} />
+                    )}
+                    {saving
+                      ? "儲存中…"
+                      : currentForm
+                        ? "儲存表單外觀"
+                        : "發佈喊單頁"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>

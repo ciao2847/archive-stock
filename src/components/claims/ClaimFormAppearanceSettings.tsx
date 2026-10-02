@@ -223,9 +223,10 @@ export function ClaimFormAppearanceSettings({
           <Palette size={18} aria-hidden="true" />
         </span>
         <div>
-          <h3 className="mb-0 text-[17px] font-bold text-dark">公開頁外觀</h3>
+          <h3 className="mb-0 text-[17px] font-bold text-dark">表單外觀</h3>
           <p className="mb-0 mt-0.5 text-[12px] text-muted">
-            設定頂部橫幅背景圖與整頁色系，此庫藏所有 IP 喊單頁共用同一組外觀風格。
+            設定頂部橫幅背景圖與整頁色系，此庫藏所有 IP
+            喊單頁共用同一組外觀風格。
           </p>
         </div>
       </div>

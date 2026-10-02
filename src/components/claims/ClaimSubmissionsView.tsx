@@ -176,7 +176,7 @@ export function ClaimSubmissionsView({
             onClick={onNavigateToSettings}
           >
             <Settings2 size={16} />
-            設定外觀與商品
+            商品設定
           </button>
         </div>
       </div>
