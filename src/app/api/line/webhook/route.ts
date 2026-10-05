@@ -319,16 +319,6 @@ export async function POST(request: Request) {
             channelAccessToken,
           );
         }
-      } else {
-        const helpMessage = [
-          "我還不太確定你想查詢什麼 🥹",
-          "可以點選下方選單查看相關資訊！",
-          "",
-          "• 查詢明細：請輸入填單的「10 碼手機號碼」",
-          "• 匯款帳號：(824) 連線商業銀行 111022318292",
-          "• 真人協助：請輸入「人工客服」💪",
-        ].join("\n");
-        await sendLineReply(event.replyToken, helpMessage, channelAccessToken);
       }
     }
   }
