@@ -95,6 +95,7 @@ export type DashboardView =
   | "dashboard"
   | "products"
   | "claims"
+  | "bundle-claims"
   | "orders"
   | "packing"
   | "locations"

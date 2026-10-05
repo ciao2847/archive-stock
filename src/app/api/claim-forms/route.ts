@@ -21,6 +21,7 @@ import type {
   ClaimSubmissionPayment,
   ClaimTransferAccount,
 } from "@/lib/claims";
+import { asUntypedSupabase } from "@/lib/api/bundle-claims-server";
 import {
   CLAIM_PAYMENT_STATUSES,
   TAIWAN_MOBILE_PHONE_PATTERN,
@@ -306,20 +307,38 @@ export async function GET(request: Request) {
 
     if (scope === "all") {
       const formIds = mappedForms.map((candidate) => candidate.id);
-      if (!formIds.length) {
-        return apiSuccess({ submissions: [] });
-      }
-
-      const { data: submissions, error: submissionsError } = await auth.supabase
-        .from("claim_submissions")
+      const normalPromise = formIds.length
+        ? auth.supabase
+            .from("claim_submissions")
+            .select(
+              "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price),claim_submission_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
+            )
+            .in("form_id", formIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null });
+      const bundlePromise = asUntypedSupabase(auth.supabase)
+        .from("bundle_claim_orders")
         .select(
-          "id,form_id,confirmation_code,nickname,phone,notes,payment_status,created_at,claim_submission_items(id,product_id,product_sku,product_name,quantity,unit_price),claim_submission_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
+          "id,confirmation_code,title,total_amount,customer_nickname,customer_phone,customer_notes,confirmed_at,bundle_claim_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
         )
-        .in("form_id", formIds)
-        .order("created_at", { ascending: false });
+        .eq("owner_id", ownerId)
+        .eq("status", "confirmed")
+        .order("confirmed_at", { ascending: false });
+      const [normalResult, bundleResult] = await Promise.all([
+        normalPromise,
+        bundlePromise,
+      ]);
+      const { data: submissions, error: submissionsError } = normalResult;
 
       if (submissionsError) {
         return apiFailure(submissionsError.message, 400, submissionsError.code);
+      }
+      if (bundleResult.error) {
+        return apiFailure(
+          bundleResult.error.message,
+          400,
+          bundleResult.error.code,
+        );
       }
 
       const formTitleById = new Map(
@@ -327,6 +346,7 @@ export async function GET(request: Request) {
       );
       const mappedSubmissions: ClaimSubmission[] = (submissions ?? []).map(
         (submission) => ({
+          source: "claim",
           id: submission.id,
           formId: submission.form_id,
           formTitle: formTitleById.get(submission.form_id) || "未命名喊單頁",
@@ -348,7 +368,51 @@ export async function GET(request: Request) {
         }),
       );
 
-      return apiSuccess({ submissions: mappedSubmissions });
+      const mappedBundleSubmissions: ClaimSubmission[] = (
+        bundleResult.data ?? []
+      ).map((raw) => {
+        const submission = recordOf(raw);
+        const rawPayments = submission.bundle_claim_payments;
+        const payments = mapSubmissionPayments(
+          Array.isArray(rawPayments)
+            ? rawPayments
+            : rawPayments && typeof rawPayments === "object"
+              ? [rawPayments]
+              : [],
+        );
+        return {
+          source: "bundle",
+          id: numberOf(submission.id),
+          formId: 0,
+          formTitle: "單張大禮包喊單",
+          confirmationCode: String(submission.confirmation_code ?? ""),
+          nickname: String(submission.customer_nickname ?? ""),
+          phone: String(submission.customer_phone ?? ""),
+          notes:
+            typeof submission.customer_notes === "string"
+              ? submission.customer_notes
+              : undefined,
+          paymentStatus: payments.length > 0 ? "paid" : "pending",
+          createdAt: String(submission.confirmed_at ?? ""),
+          items: [
+            {
+              id: numberOf(submission.id),
+              sku: "BUNDLE",
+              name: String(submission.title ?? "單張大禮包"),
+              quantity: 1,
+              unitPrice: numberOf(submission.total_amount),
+            },
+          ],
+          payments,
+        };
+      });
+
+      return apiSuccess({
+        submissions: [...mappedSubmissions, ...mappedBundleSubmissions].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
+      });
     }
 
     const emptyResult: ClaimFormManagement = {
@@ -424,6 +488,7 @@ export async function GET(request: Request) {
     );
     const mappedSubmissions: ClaimSubmission[] = (submissions ?? []).map(
       (submission) => ({
+        source: "claim",
         id: submission.id,
         formId: submission.form_id,
         formTitle: formTitleById.get(submission.form_id) || "未命名喊單頁",

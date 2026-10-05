@@ -38,6 +38,7 @@ import {
   updateClaimSubmissionPaymentStatus,
   uploadClaimFormBanner,
 } from "@/lib/api/claims";
+import { performBundleClaimAction } from "@/lib/api/bundle-claims";
 import { createClaimFormBannerImage } from "@/lib/claim-form-assets";
 import {
   DEFAULT_CLAIM_FORM_BANNER_POSITION,
@@ -311,7 +312,11 @@ export function ClaimFormPanel({
   async function removeCustomerSubmission(
     submissionId: number,
     formId: number,
+    source: ClaimSubmission["source"] = "claim",
   ) {
+    if (source === "bundle") {
+      throw new Error("已確認的單張大禮包喊單不可刪除。");
+    }
     await removeSubmission(submissionId, formId);
     if (currentForm) {
       await load(1, false, currentForm.id, customerPhone || undefined);
@@ -333,16 +338,46 @@ export function ClaimFormPanel({
   }
 
   async function recordCustomerPayment(input: {
+    source: ClaimSubmission["source"];
     submissionId: number;
     amount: number;
     transferredAt: string;
     payerAccountLastFive: string;
     note: string;
   }) {
-    await recordClaimSubmissionPayment({ ownerId, ...input });
+    if (input.source === "bundle") {
+      await performBundleClaimAction({
+        action: "record_payment",
+        ownerId,
+        orderId: input.submissionId,
+        transferredAt: input.transferredAt,
+        payerAccountLastFive: input.payerAccountLastFive,
+        note: input.note,
+      });
+      return;
+    }
+    await recordClaimSubmissionPayment({
+      ownerId,
+      submissionId: input.submissionId,
+      amount: input.amount,
+      transferredAt: input.transferredAt,
+      payerAccountLastFive: input.payerAccountLastFive,
+      note: input.note,
+    });
   }
 
-  async function removeCustomerPayment(paymentId: number) {
+  async function removeCustomerPayment(
+    paymentId: number,
+    submission: ClaimSubmission,
+  ) {
+    if (submission.source === "bundle") {
+      await performBundleClaimAction({
+        action: "reverse_payment",
+        ownerId,
+        orderId: submission.id,
+      });
+      return;
+    }
     await deleteClaimSubmissionPayment({ ownerId, paymentId });
   }
 

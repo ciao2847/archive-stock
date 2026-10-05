@@ -14,6 +14,202 @@ export type Database = {
   }
   public: {
     Tables: {
+      bundle_claim_order_images: {
+        Row: {
+          byte_size: number
+          created_at: string
+          id: number
+          media_type: string
+          order_id: number
+          original_filename: string
+          sort_order: number
+          storage_path: string
+        }
+        Insert: {
+          byte_size: number
+          created_at?: string
+          id?: never
+          media_type: string
+          order_id: number
+          original_filename: string
+          sort_order?: number
+          storage_path: string
+        }
+        Update: {
+          byte_size?: number
+          created_at?: string
+          id?: never
+          media_type?: string
+          order_id?: number
+          original_filename?: string
+          sort_order?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_claim_order_images_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "bundle_claim_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_claim_orders: {
+        Row: {
+          confirmation_code: string
+          confirmation_request_id: string | null
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_hint: string | null
+          customer_nickname: string | null
+          customer_notes: string | null
+          customer_phone: string | null
+          customer_phone_normalized: string | null
+          description: string | null
+          expires_at: string | null
+          id: number
+          outbound_checked_at: string | null
+          outbound_checked_by: string | null
+          owner_id: string
+          public_token: string
+          receiving_checked_at: string | null
+          receiving_checked_by: string | null
+          status: string
+          title: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          confirmation_code?: string
+          confirmation_request_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_hint?: string | null
+          customer_nickname?: string | null
+          customer_notes?: string | null
+          customer_phone?: string | null
+          customer_phone_normalized?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: never
+          outbound_checked_at?: string | null
+          outbound_checked_by?: string | null
+          owner_id: string
+          public_token?: string
+          receiving_checked_at?: string | null
+          receiving_checked_by?: string | null
+          status?: string
+          title?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          confirmation_code?: string
+          confirmation_request_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_hint?: string | null
+          customer_nickname?: string | null
+          customer_notes?: string | null
+          customer_phone?: string | null
+          customer_phone_normalized?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: never
+          outbound_checked_at?: string | null
+          outbound_checked_by?: string | null
+          owner_id?: string
+          public_token?: string
+          receiving_checked_at?: string | null
+          receiving_checked_by?: string | null
+          status?: string
+          title?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_claim_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_orders_outbound_checked_by_fkey"
+            columns: ["outbound_checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_orders_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_databases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_orders_receiving_checked_by_fkey"
+            columns: ["receiving_checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_claim_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: number
+          note: string | null
+          order_id: number
+          payer_account_last_five: string | null
+          transferred_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          note?: string | null
+          order_id: number
+          payer_account_last_five?: string | null
+          transferred_at: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          note?: string | null
+          order_id?: number
+          payer_account_last_five?: string | null
+          transferred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_claim_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "bundle_claim_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_form_products: {
         Row: {
           display_name: string
@@ -1288,6 +1484,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_bundle_claim_order_image: {
+        Args: {
+          p_byte_size: number
+          p_media_type: string
+          p_order_id: number
+          p_original_filename: string
+          p_owner_id: string
+          p_storage_path: string
+        }
+        Returns: {
+          image_id: number
+          sort_order: number
+        }[]
+      }
       adjust_product_stock: {
         Args: { p_new_stock: number; p_product_id: string }
         Returns: number
@@ -1383,6 +1593,20 @@ export type Database = {
               public_token: string
             }[]
           }
+      confirm_bundle_claim_order: {
+        Args: {
+          p_nickname: string
+          p_notes: string
+          p_phone: string
+          p_request_id: string
+          p_token: string
+        }
+        Returns: {
+          confirmation_code: string
+          order_id: number
+          submitted_at: string
+        }[]
+      }
       consume_product_for_package: {
         Args: {
           p_label_id?: string
@@ -1440,6 +1664,20 @@ export type Database = {
           reason: string
           sku: string
           valid: boolean
+        }[]
+      }
+      create_bundle_claim_order: {
+        Args: {
+          p_customer_hint: string
+          p_description: string
+          p_expires_at: string
+          p_owner_id: string
+          p_title: string
+          p_total_amount: number
+        }
+        Returns: {
+          order_id: number
+          public_token: string
         }[]
       }
       create_financial_settlement: {
@@ -1507,6 +1745,18 @@ export type Database = {
       customer_identity_key: {
         Args: { p_contact: string; p_name: string; p_nickname: string }
         Returns: string
+      }
+      delete_bundle_claim_order_draft: {
+        Args: { p_order_id: number; p_owner_id: string }
+        Returns: boolean
+      }
+      delete_bundle_claim_order_image: {
+        Args: { p_image_id: number; p_order_id: number; p_owner_id: string }
+        Returns: string
+      }
+      delete_bundle_claim_payment: {
+        Args: { p_order_id: number; p_owner_id: string }
+        Returns: number
       }
       delete_claim_form: {
         Args: { p_form_id: number; p_owner_id: string }
@@ -1594,9 +1844,27 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      open_bundle_claim_order: {
+        Args: { p_order_id: number; p_owner_id: string }
+        Returns: boolean
+      }
       query_customer_claims_summary: {
         Args: { p_inventory_id: string; p_phone: string }
         Returns: Json
+      }
+      record_bundle_claim_payment: {
+        Args: {
+          p_amount: number
+          p_note: string
+          p_order_id: number
+          p_owner_id: string
+          p_payer_account_last_five: string
+          p_transferred_at: string
+        }
+        Returns: {
+          paid_amount: number
+          payment_id: number
+        }[]
       }
       record_claim_submission_payment: {
         Args: {
@@ -1614,9 +1882,25 @@ export type Database = {
           total_paid: number
         }[]
       }
+      reorder_bundle_claim_order_images: {
+        Args: { p_image_ids: number[]; p_order_id: number; p_owner_id: string }
+        Returns: boolean
+      }
+      revoke_bundle_claim_order: {
+        Args: { p_order_id: number; p_owner_id: string }
+        Returns: boolean
+      }
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
+      }
+      set_bundle_claim_outbound_check: {
+        Args: { p_checked: boolean; p_order_id: number; p_owner_id: string }
+        Returns: boolean
+      }
+      set_bundle_claim_receiving_check: {
+        Args: { p_checked: boolean; p_order_id: number; p_owner_id: string }
+        Returns: boolean
       }
       submit_public_claim: {
         Args: {
@@ -1631,6 +1915,18 @@ export type Database = {
           confirmation_code: string
           submitted_at: string
         }[]
+      }
+      update_bundle_claim_order_draft: {
+        Args: {
+          p_customer_hint: string
+          p_description: string
+          p_expires_at: string
+          p_order_id: number
+          p_owner_id: string
+          p_title: string
+          p_total_amount: number
+        }
+        Returns: boolean
       }
       update_inventory_claim_checkout_settings: {
         Args: {

@@ -7,6 +7,8 @@ export const API_ROUTES = {
   getSettlements: "/api/settlements",
   getClaimForms: "/api/claim-forms",
   getClaimPayments: "/api/claim-payments",
+  getBundleClaims: "/api/bundle-claims",
+  getBundleClaimImages: (id: number) => `/api/bundle-claims/${id}/images`,
   getAccount: "/api/account",
   getInventoryDatabases: "/api/inventory-databases",
   updateInventoryOfficialLine: "/api/inventory-databases/official-line",
@@ -18,6 +20,8 @@ export const API_ROUTES = {
   getProduct: (id: string) => `/api/products/${encodeURIComponent(id)}`,
   getPublicClaimForm: (token: string) =>
     `/api/public/claim-forms/${encodeURIComponent(token)}`,
+  getPublicBundleClaim: (token: string) =>
+    `/api/public/bundle-claims/${encodeURIComponent(token)}`,
 } as const;
 
 export const UI_BREAKPOINTS = {

@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardList,
   LayoutDashboard,
+  Images,
   Megaphone,
   Menu,
   Plus,
@@ -43,6 +44,8 @@ import {
 } from "@/components/packing/PackingQueue";
 import { downloadPrintLabels } from "@/lib/api/print-labels";
 import { ClaimFormPanel } from "@/components/claims/ClaimFormPanel";
+import { BundleClaimPanel } from "@/components/bundle-claims/BundleClaimPanel";
+import type { ClaimTab } from "@/components/claims/ClaimFormPanel";
 
 type View = DashboardView;
 
@@ -134,6 +137,8 @@ export function Dashboard({ authScope }: { authScope: string }) {
   }, [reloadAccount, reloadOrders, reloadProducts]);
 
   const [view, setView] = useState<View>("dashboard");
+  const [claimInitialTab, setClaimInitialTab] =
+    useState<ClaimTab>("submissions");
   const [searchQueries, setSearchQueries] = useState<
     Partial<Record<View, string>>
   >({});
@@ -301,6 +306,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
     { id: "dashboard", label: "總覽", icon: LayoutDashboard },
     { id: "products", label: "商品庫存", icon: Boxes },
     { id: "claims", label: "喊單管理", icon: Megaphone },
+    { id: "bundle-claims", label: "單張大禮包喊單系統", icon: Images },
     { id: "orders", label: "訂單管理", icon: ClipboardList },
     { id: "packing", label: "掃碼出貨", icon: QrCode },
   ] as const;
@@ -322,6 +328,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
               key={n.id}
               className={view === n.id ? "active" : ""}
               onClick={() => {
+                if (n.id === "claims") setClaimInitialTab("submissions");
                 setView(n.id);
                 setMobile(false);
               }}
@@ -483,28 +490,32 @@ export function Dashboard({ authScope }: { authScope: string }) {
                       ? "商品庫存"
                       : view === "claims"
                         ? "喊單管理"
-                        : view === "orders"
-                          ? "訂單管理"
-                          : view === "locations"
-                            ? "庫位管理"
-                            : view === "settlement"
-                              ? "財務結算"
-                              : view === "settings"
-                                ? "系統設定"
-                                : `${greeting}，${userName}`}
+                        : view === "bundle-claims"
+                          ? "單張大禮包喊單系統"
+                          : view === "orders"
+                            ? "訂單管理"
+                            : view === "locations"
+                              ? "庫位管理"
+                              : view === "settlement"
+                                ? "財務結算"
+                                : view === "settings"
+                                  ? "系統設定"
+                                  : `${greeting}，${userName}`}
                   </h1>
                   <p>
                     {view === "dashboard"
                       ? activeInventoryName
                       : view === "claims"
                         ? "管理公開商品、顧客喊單與採購數量。"
-                        : view === "locations"
-                          ? "建立並查看收藏品的實際存放位置。"
-                          : view === "settlement"
-                            ? "彙整銷售收入、批次成本與目前淨利。"
-                            : view === "settings"
-                              ? "管理帳號與系統連線資訊。"
-                              : "快速找到每一件收藏品，減少人工核對。"}
+                        : view === "bundle-claims"
+                          ? "將討論串確認好的截圖與固定總額整理成顧客確認連結。"
+                          : view === "locations"
+                            ? "建立並查看收藏品的實際存放位置。"
+                            : view === "settlement"
+                              ? "彙整銷售收入、批次成本與目前淨利。"
+                              : view === "settings"
+                                ? "管理帳號與系統連線資訊。"
+                                : "快速找到每一件收藏品，減少人工核對。"}
                   </p>
                 </div>
                 {view === "orders" ? (
@@ -542,7 +553,8 @@ export function Dashboard({ authScope }: { authScope: string }) {
                   view !== "settings" &&
                   view !== "locations" &&
                   view !== "settlement" &&
-                  view !== "claims" && (
+                  view !== "claims" &&
+                  view !== "bundle-claims" && (
                     <button
                       className="primary"
                       onClick={() => setCreating(true)}
@@ -707,11 +719,23 @@ export function Dashboard({ authScope }: { authScope: string }) {
               )}
               {view === "claims" && selectedOwnerId && (
                 <ClaimFormPanel
+                  key={`${selectedOwnerId}-${claimInitialTab}`}
                   ownerId={selectedOwnerId}
                   inventoryName={activeInventoryName}
                   products={scopedProducts}
                   orders={scopedOrders}
                   onReloadProducts={loadProducts}
+                  initialTab={claimInitialTab}
+                />
+              )}
+              {view === "bundle-claims" && selectedOwnerId && (
+                <BundleClaimPanel
+                  ownerId={selectedOwnerId}
+                  inventoryName={activeInventoryName}
+                  onOpenAppearance={() => {
+                    setClaimInitialTab("appearance");
+                    setView("claims");
+                  }}
                 />
               )}
               {view === "locations" && selectedOwnerId && (

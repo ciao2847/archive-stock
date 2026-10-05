@@ -31,7 +31,6 @@ interface CustomerClaimsSummaryResult {
     bank_name: string;
     bank_branch?: string;
     account: string;
-    account_name: string;
   } | null;
   unsettled_amount: number;
   unsettled_items_count: number;
@@ -39,7 +38,9 @@ interface CustomerClaimsSummaryResult {
   total_items_count: number;
   all_paid: boolean;
   submissions: Array<{
+    source_type?: "claim" | "bundle";
     form_title: string;
+    description?: string | null;
     confirmation_code: string;
     payment_status: "pending" | "half_paid" | "paid";
     paid_amount: number;
@@ -123,7 +124,13 @@ function formatCustomerClaimsMessage(
   ];
 
   for (const sub of unsettledSubmissions) {
-    lines.push(`• ${sub.form_title}`);
+    lines.push(`• ${sub.form_title}（確認編號：${sub.confirmation_code}）`);
+    const description = sub.description?.replace(/\s+/g, " ").trim();
+    if (sub.source_type === "bundle" && description) {
+      lines.push(
+        `  說明：${description.length > 160 ? `${description.slice(0, 160)}…` : description}`,
+      );
+    }
     for (const item of sub.items) {
       lines.push(
         `  - ${item.name} × ${item.quantity}（$${item.subtotal.toLocaleString()}）`,
@@ -271,7 +278,9 @@ export async function POST(request: Request) {
             lineInventoryId,
           )
         ) {
-          console.error("LINE claim lookup configuration is missing or invalid");
+          console.error(
+            "LINE claim lookup configuration is missing or invalid",
+          );
           await sendLineReply(
             event.replyToken,
             "系統設定尚未完成，請輸入「人工客服」聯繫小幫手。",

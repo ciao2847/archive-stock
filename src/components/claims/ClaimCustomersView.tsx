@@ -37,14 +37,22 @@ export interface ClaimCustomersViewProps {
   officialLineId?: string;
   transferAccount?: ClaimTransferAccount;
   onRecordPayment: (input: {
+    source: ClaimSubmission["source"];
     submissionId: number;
     amount: number;
     transferredAt: string;
     payerAccountLastFive: string;
     note: string;
   }) => Promise<void>;
-  onDeletePayment: (paymentId: number) => Promise<void>;
-  onDeleteSubmission: (submissionId: number, formId: number) => Promise<void>;
+  onDeletePayment: (
+    paymentId: number,
+    submission: ClaimSubmission,
+  ) => Promise<void>;
+  onDeleteSubmission: (
+    submissionId: number,
+    formId: number,
+    source: ClaimSubmission["source"],
+  ) => Promise<void>;
   onReload: () => Promise<void>;
   initialSearchQuery?: string;
 }
@@ -71,11 +79,11 @@ export function ClaimCustomersView({
     "unsettled" | "paid" | "all"
   >("unsettled");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [deletingSubmissionId, setDeletingSubmissionId] = useState<
-    number | null
+  const [deletingSubmissionKey, setDeletingSubmissionKey] = useState<
+    string | null
   >(null);
-  const [paymentEditorSubmissionId, setPaymentEditorSubmissionId] = useState<
-    number | null
+  const [paymentEditorSubmissionKey, setPaymentEditorSubmissionKey] = useState<
+    string | null
   >(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentTransferredAt, setPaymentTransferredAt] = useState(
@@ -90,6 +98,9 @@ export function ClaimCustomersView({
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
+
+  const submissionKey = (submission: ClaimSubmission) =>
+    `${submission.source}:${submission.id}`;
 
   const allGroups = useMemo(
     () => groupClaimSubmissionsByCustomer(submissions),
@@ -171,7 +182,7 @@ export function ClaimCustomersView({
   }
 
   function openPaymentEditor(submission: ClaimSubmission) {
-    setPaymentEditorSubmissionId(submission.id);
+    setPaymentEditorSubmissionKey(submissionKey(submission));
     setPaymentAmount(String(getClaimSubmissionOutstandingAmount(submission)));
     setPaymentTransferredAt(localDateTimeInputValue());
     setPaymentLastFive("");
@@ -182,6 +193,15 @@ export function ClaimCustomersView({
   async function handleRecordPayment(submission: ClaimSubmission) {
     const amount = Number(paymentAmount);
     const outstanding = getClaimSubmissionOutstandingAmount(submission);
+    if (
+      submission.source === "bundle" &&
+      Math.abs(amount - outstanding) > 0.001
+    ) {
+      setActionError(
+        `單張大禮包只能登記全額 $${outstanding.toLocaleString()}。`,
+      );
+      return;
+    }
     if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) {
       setActionError(
         `匯款金額須大於 0，且不可超過待付餘額 $${outstanding.toLocaleString()}。`,
@@ -198,6 +218,7 @@ export function ClaimCustomersView({
     setActionMessage("");
     try {
       await onRecordPayment({
+        source: submission.source,
         submissionId: submission.id,
         amount,
         transferredAt: new Date(paymentTransferredAt).toISOString(),
@@ -205,7 +226,7 @@ export function ClaimCustomersView({
         note: paymentNote.trim(),
       });
       await onReload();
-      setPaymentEditorSubmissionId(null);
+      setPaymentEditorSubmissionKey(null);
       setActionMessage(
         `已登記「${submission.nickname}」匯款 $${amount.toLocaleString()}。`,
       );
@@ -218,7 +239,11 @@ export function ClaimCustomersView({
     }
   }
 
-  async function handleDeletePayment(paymentId: number, amount: number) {
+  async function handleDeletePayment(
+    submission: ClaimSubmission,
+    paymentId: number,
+    amount: number,
+  ) {
     if (
       !window.confirm(
         `確定要刪除這筆 $${amount.toLocaleString()} 的匯款紀錄嗎？`,
@@ -230,7 +255,7 @@ export function ClaimCustomersView({
     setActionError("");
     setActionMessage("");
     try {
-      await onDeletePayment(paymentId);
+      await onDeletePayment(paymentId, submission);
       await onReload();
       setActionMessage("匯款紀錄已刪除，待付餘額已重新計算。");
     } catch (err) {
@@ -248,11 +273,15 @@ export function ClaimCustomersView({
     );
     if (!confirmed) return;
 
-    setDeletingSubmissionId(submission.id);
+    setDeletingSubmissionKey(submissionKey(submission));
     setActionError("");
     setActionMessage("");
     try {
-      await onDeleteSubmission(submission.id, submission.formId);
+      await onDeleteSubmission(
+        submission.id,
+        submission.formId,
+        submission.source,
+      );
       await onReload();
       setActionMessage(
         `已刪除「${submission.nickname}」在「${submission.formTitle}」的喊單明細。`,
@@ -262,7 +291,7 @@ export function ClaimCustomersView({
         err instanceof Error ? err.message : "喊單明細刪除失敗，請稍後再試。",
       );
     } finally {
-      setDeletingSubmissionId(null);
+      setDeletingSubmissionKey(null);
     }
   }
 
@@ -478,23 +507,29 @@ export function ClaimCustomersView({
                 {!isCollapsed && (
                   <div className="p-4 sm:p-5 space-y-3">
                     {group.submissions.map((sub) => {
-                      const isSubDeleting = deletingSubmissionId === sub.id;
+                      const subKey = submissionKey(sub);
+                      const isSubDeleting = deletingSubmissionKey === subKey;
                       const subTotal = getClaimSubmissionTotal(sub);
                       const subPaid = getClaimSubmissionPaidAmount(sub);
                       const subOutstanding =
                         getClaimSubmissionOutstandingAmount(sub);
                       const isPaymentEditorOpen =
-                        paymentEditorSubmissionId === sub.id;
+                        paymentEditorSubmissionKey === subKey;
 
                       return (
                         <div
-                          key={sub.id}
+                          key={subKey}
                           className="rounded-[8px] border border-line/70 bg-light/20 p-3.5 transition-colors"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
                               <span className="rounded-[6px] bg-primary-soft px-2 py-0.5 text-[11px] font-bold text-primary-strong">
                                 {sub.formTitle}
+                              </span>
+                              <span className="rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-bold text-muted">
+                                {sub.source === "bundle"
+                                  ? "單張大禮包"
+                                  : "商品喊單"}
                               </span>
                               <span className="font-mono text-[10px] text-muted">
                                 #{sub.confirmationCode}
@@ -532,7 +567,7 @@ export function ClaimCustomersView({
                                     loading ||
                                     savingPayment ||
                                     deletingPaymentId !== null ||
-                                    deletingSubmissionId !== null
+                                    deletingSubmissionKey !== null
                                   }
                                   onClick={() => openPaymentEditor(sub)}
                                 >
@@ -540,29 +575,33 @@ export function ClaimCustomersView({
                                   登記匯款
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                className="ml-1 inline-flex min-h-7 items-center gap-1 rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-danger transition hover:border-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
-                                disabled={
-                                  loading ||
-                                  savingPayment ||
-                                  deletingPaymentId !== null ||
-                                  deletingSubmissionId !== null
-                                }
-                                onClick={() => void handleDeleteSubmission(sub)}
-                                aria-label={`刪除 ${sub.nickname} 在 ${sub.formTitle} 的喊單明細`}
-                              >
-                                {isSubDeleting ? (
-                                  <LoaderCircle
-                                    size={11}
-                                    className="animate-spin"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <Trash2 size={11} aria-hidden="true" />
-                                )}
-                                {isSubDeleting ? "刪除中" : "刪除"}
-                              </button>
+                              {sub.source === "claim" && (
+                                <button
+                                  type="button"
+                                  className="ml-1 inline-flex min-h-7 items-center gap-1 rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-danger transition hover:border-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
+                                  disabled={
+                                    loading ||
+                                    savingPayment ||
+                                    deletingPaymentId !== null ||
+                                    deletingSubmissionKey !== null
+                                  }
+                                  onClick={() =>
+                                    void handleDeleteSubmission(sub)
+                                  }
+                                  aria-label={`刪除 ${sub.nickname} 在 ${sub.formTitle} 的喊單明細`}
+                                >
+                                  {isSubDeleting ? (
+                                    <LoaderCircle
+                                      size={11}
+                                      className="animate-spin"
+                                      aria-hidden="true"
+                                    />
+                                  ) : (
+                                    <Trash2 size={11} aria-hidden="true" />
+                                  )}
+                                  {isSubDeleting ? "刪除中" : "刪除"}
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -659,6 +698,7 @@ export function ClaimCustomersView({
                                       }
                                       onClick={() =>
                                         void handleDeletePayment(
+                                          sub,
                                           payment.id,
                                           payment.amount,
                                         )
@@ -698,7 +738,7 @@ export function ClaimCustomersView({
                                   type="button"
                                   className="icon-btn size-7"
                                   onClick={() =>
-                                    setPaymentEditorSubmissionId(null)
+                                    setPaymentEditorSubmissionKey(null)
                                   }
                                   aria-label="關閉匯款紀錄表單"
                                 >
@@ -715,6 +755,7 @@ export function ClaimCustomersView({
                                     max={subOutstanding}
                                     step="0.01"
                                     value={paymentAmount}
+                                    readOnly={sub.source === "bundle"}
                                     onChange={(event) =>
                                       setPaymentAmount(event.target.value)
                                     }
@@ -729,20 +770,22 @@ export function ClaimCustomersView({
                                     >
                                       剩餘全額
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
-                                      onClick={() =>
-                                        setPaymentAmount(
-                                          String(
-                                            Math.round(subOutstanding * 50) /
-                                              100,
-                                          ),
-                                        )
-                                      }
-                                    >
-                                      剩餘一半
-                                    </button>
+                                    {sub.source === "claim" && (
+                                      <button
+                                        type="button"
+                                        className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
+                                        onClick={() =>
+                                          setPaymentAmount(
+                                            String(
+                                              Math.round(subOutstanding * 50) /
+                                                100,
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        剩餘一半
+                                      </button>
+                                    )}
                                   </span>
                                 </label>
                                 <label className="text-[11px] font-semibold text-dark">
@@ -781,7 +824,11 @@ export function ClaimCustomersView({
                                     className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[14px] outline-none focus:border-primary"
                                     maxLength={1000}
                                     value={paymentNote}
-                                    placeholder="例如：先付一半"
+                                    placeholder={
+                                      sub.source === "bundle"
+                                        ? "例如：已核對全額"
+                                        : "例如：先付一半"
+                                    }
                                     onChange={(event) =>
                                       setPaymentNote(event.target.value)
                                     }
@@ -794,7 +841,7 @@ export function ClaimCustomersView({
                                   className="outline min-h-9 text-[11px]"
                                   disabled={savingPayment}
                                   onClick={() =>
-                                    setPaymentEditorSubmissionId(null)
+                                    setPaymentEditorSubmissionKey(null)
                                   }
                                 >
                                   取消

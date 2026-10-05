@@ -127,6 +127,7 @@ export const CLAIM_PAYMENT_STATUS_LABELS: Record<ClaimPaymentStatus, string> = {
 };
 
 export type ClaimSubmission = {
+  source: "claim" | "bundle";
   id: number;
   formId: number;
   formTitle: string;
