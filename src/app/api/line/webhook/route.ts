@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
 interface LineMessageEvent {
   type: string;
@@ -41,6 +42,8 @@ interface CustomerClaimsSummaryResult {
     form_title: string;
     confirmation_code: string;
     payment_status: "pending" | "half_paid" | "paid";
+    paid_amount: number;
+    outstanding_amount: number;
     created_at: string;
     items: Array<{
       name: string;
@@ -95,6 +98,10 @@ function formatCustomerClaimsMessage(
   data: CustomerClaimsSummaryResult,
   phone: string,
 ): string {
+  if (!data.valid) {
+    return "系統設定尚未完成，請輸入「人工客服」聯繫小幫手。";
+  }
+
   if (!data.found) {
     return `查無電話「${phone}」的喊單紀錄。\n請確認號碼是否與填單時填寫的手機號碼一致，謝謝您！`;
   }
@@ -123,7 +130,9 @@ function formatCustomerClaimsMessage(
       );
     }
     if (sub.payment_status === "half_paid") {
-      lines.push(`  （註：此單已付部分款項）`);
+      lines.push(
+        `  （已付 $${sub.paid_amount.toLocaleString()}，尚待付 $${sub.outstanding_amount.toLocaleString()}）`,
+      );
     }
   }
 
@@ -131,19 +140,9 @@ function formatCustomerClaimsMessage(
   lines.push(`共 ${data.unsettled_items_count} 件待結商品`);
   lines.push(`💰 待付總金額：$${data.unsettled_amount.toLocaleString()} 元`);
 
-  const transferAccount =
-    data.transfer_account?.enabled && data.transfer_account.account
-      ? data.transfer_account
-      : {
-          enabled: true,
-          bank_code: "824",
-          bank_name: "連線商業銀行 (LINE Bank)",
-          bank_branch: "",
-          account: "111022318292",
-          account_name: "",
-        };
+  const transferAccount = data.transfer_account;
 
-  if (transferAccount.enabled && transferAccount.account) {
+  if (transferAccount?.enabled && transferAccount.account) {
     lines.push("");
     lines.push("🏦 匯款帳號資訊：");
     lines.push(
@@ -153,6 +152,10 @@ function formatCustomerClaimsMessage(
     if (transferAccount.account_name) {
       lines.push(`• 戶名：${transferAccount.account_name}`);
     }
+  } else {
+    lines.push("");
+    lines.push("🏦 匯款資料：");
+    lines.push("此庫藏尚未設定匯款帳號，請輸入「人工客服」聯繫小幫手。");
   }
 
   lines.push("");
@@ -161,7 +164,7 @@ function formatCustomerClaimsMessage(
     lines.push(data.completion_message);
   } else {
     lines.push(
-      "匯款完成後請直接在此回傳「帳號末五碼」，小幫手會為您核對並標記結清，謝謝您！",
+      "匯款完成後請回傳「帳號末五碼」，管理者核對後會在系統登記付款狀態。",
     );
   }
 
@@ -171,6 +174,9 @@ function formatCustomerClaimsMessage(
 export async function POST(request: Request) {
   const channelSecret = process.env.LINE_CHANNEL_SECRET;
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const lineInventoryId = process.env.LINE_INVENTORY_ID?.trim();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
   const rawBody = await request.text();
   const signature = request.headers.get("x-line-signature");
@@ -207,17 +213,34 @@ export async function POST(request: Request) {
     ) {
       const userText = event.message.text?.trim() ?? "";
 
-      const isInstructional = /請輸入|範例|例如|\(例[：:]|無卡匯款/i.test(userText);
-      const isCheckoutIntent = /結帳|查詢|查單|對帳|買單|明細|結算|訂單/i.test(userText);
-      const isPaymentReportIntent = /末[五5]碼|後[五5]碼|已匯款|匯款完成|已轉帳/i.test(userText);
+      const isInstructional =
+        /請輸入.*(?:電話|手機)|(?:電話|手機).*(?:輸入|查詢)/i.test(userText);
+      const isCheckoutIntent = /結帳|查詢|查單|對帳|買單|明細|結算|訂單/i.test(
+        userText,
+      );
+      const isPaymentReportIntent =
+        /^\d{5}$/.test(userText) ||
+        /末[五5]碼|後[五5]碼|已匯款|匯款完成|已轉帳/i.test(userText);
       const isBankInfoIntent = /匯款|轉帳|帳號|銀行|代碼|戶名/i.test(userText);
       const isCustomerServiceIntent = /人工|客服|真人/i.test(userText);
       const isFormSubmitIntent = /確認編號|已完成.*喊單/i.test(userText);
 
       // Check if user input contains a Taiwan mobile number (09xxxxxxxx)
-      const phoneMatch = userText.match(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}|09\d{8}/);
+      const phoneMatch = userText.match(
+        /09\d{2}[-\s]?\d{3}[-\s]?\d{3}|09\d{8}/,
+      );
       const matchedPhone = phoneMatch ? phoneMatch[0].replace(/\D/g, "") : null;
-      const isDummyPhone = matchedPhone === "0912345678" || matchedPhone === "0900000000";
+      const isDummyPhone =
+        matchedPhone === "0912345678" || matchedPhone === "0900000000";
+      const paymentLastFive = isPaymentReportIntent
+        ? (userText.match(/(?:^|\D)(\d{5})(?:\D|$)/)?.[1] ?? null)
+        : null;
+
+      const checkoutPrompt = [
+        "🔍 結帳與明細查詢",
+        "請輸入喊單時填寫的 10 碼手機號碼（09xxxxxxxx）。",
+        "查詢成功後，系統會顯示尚未結帳明細與該庫藏的匯款資料。",
+      ].join("\n");
 
       // 1. Customer service intent
       if (isCustomerServiceIntent) {
@@ -231,69 +254,52 @@ export async function POST(request: Request) {
 
       // 2. Payment report intent (takes priority over general bank inquiry)
       if (isPaymentReportIntent) {
-        const reportReply = [
-          "已收到您的匯款回報！🙌",
-          "小幫手會盡快為您核對並在系統標記結清，感謝您的配合與支持！",
-        ].join("\n");
+        const reportReply = paymentLastFive
+          ? [
+              `已收到匯款帳號末五碼「${paymentLastFive}」！🙌`,
+              "管理者核對金額與明細後，會在系統登記付款狀態；此回覆不代表已完成對帳。",
+            ].join("\n")
+          : "請回傳匯款帳號的「末五碼」（共 5 位數字），方便管理者核對款項。";
         await sendLineReply(event.replyToken, reportReply, channelAccessToken);
         continue;
       }
 
-      // 3. Bank / Remittance info inquiry
-      if (isBankInfoIntent && !matchedPhone) {
-        const bankReply = [
-          "🏦 海報小天地 匯款帳號資訊：",
-          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
-          "• 帳號：111022318292",
-          "",
-          "如需查詢待結帳明細，請直接在此輸入您的「10 碼手機號碼」！",
-          "匯款完成後請在此回傳「帳號末五碼」，小幫手會為您核對，謝謝您！",
-          "（無卡匯款請洽主理人索取資訊）",
-        ].join("\n");
-        await sendLineReply(event.replyToken, bankReply, channelAccessToken);
-        continue;
-      }
+      // A real phone number takes the user directly to the scoped lookup.
+      if (matchedPhone && !isDummyPhone) {
+        if (
+          !lineInventoryId ||
+          !supabaseUrl ||
+          !supabaseSecretKey ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            lineInventoryId,
+          )
+        ) {
+          console.error("LINE claim lookup configuration is missing or invalid");
+          await sendLineReply(
+            event.replyToken,
+            "系統設定尚未完成，請輸入「人工客服」聯繫小幫手。",
+            channelAccessToken,
+          );
+          continue;
+        }
 
-      // 4. Instructional prompt, checkout intent without phone, or dummy phone
-      if (isInstructional || (isCheckoutIntent && (!matchedPhone || isDummyPhone)) || (matchedPhone && isDummyPhone)) {
-        const checkoutPrompt = [
-          "🔍 結帳與明細查詢",
-          "請直接在此輸入您填單登記的「10 碼手機號碼」（例如：09xxxxxxxx），系統將為您整理待付明細！",
-          "",
-          "🏦 匯款帳號資訊：",
-          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
-          "• 帳號：111022318292",
-          "（無卡匯款請洽主理人索取資訊）",
-          "",
-          "匯款完成後請在此回傳「帳號末五碼」，小幫手會為您核對並標記結清，謝謝您！",
-        ].join("\n");
-        await sendLineReply(event.replyToken, checkoutPrompt, channelAccessToken);
-        continue;
-      }
-
-      // 5. Form submit confirmation text without matched phone
-      if (isFormSubmitIntent && !matchedPhone) {
-        const formSubmitPrompt = [
-          "已收到您的喊單登記！🙌",
-          "如需查詢待結帳明細，請輸入填單的「10 碼手機號碼」（例：0912345678）。",
-          "",
-          "🏦 匯款帳號資訊：",
-          "• 銀行：(824) 連線商業銀行 (LINE Bank)",
-          "• 帳號：111022318292",
-          "（無卡匯款請洽主理人索取資訊）",
-          "",
-          "您也可以隨時點選下方選單查看相關功能！",
-        ].join("\n");
-        await sendLineReply(event.replyToken, formSubmitPrompt, channelAccessToken);
-        continue;
-      }
-
-      if (matchedPhone) {
         try {
-          const supabase = await createClient();
+          const supabase = createClient<Database>(
+            supabaseUrl,
+            supabaseSecretKey,
+            {
+              auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+              },
+            },
+          );
           const { data, error } = await supabase.rpc(
             "query_customer_claims_summary",
-            { p_phone: matchedPhone },
+            {
+              p_inventory_id: lineInventoryId,
+              p_phone: matchedPhone,
+            },
           );
 
           if (error) {
@@ -319,6 +325,23 @@ export async function POST(request: Request) {
             channelAccessToken,
           );
         }
+        continue;
+      }
+
+      // Intent messages only ask for a phone number. Account details are
+      // returned after a successful, inventory-scoped lookup.
+      if (
+        isInstructional ||
+        isCheckoutIntent ||
+        isBankInfoIntent ||
+        isFormSubmitIntent ||
+        isDummyPhone
+      ) {
+        await sendLineReply(
+          event.replyToken,
+          checkoutPrompt,
+          channelAccessToken,
+        );
       }
     }
   }

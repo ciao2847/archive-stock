@@ -1595,7 +1595,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       query_customer_claims_summary: {
-        Args: { p_phone: string }
+        Args: { p_inventory_id: string; p_phone: string }
         Returns: Json
       }
       record_claim_submission_payment: {
