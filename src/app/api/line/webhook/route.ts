@@ -149,9 +149,6 @@ function formatCustomerClaimsMessage(
       `• 銀行：(${transferAccount.bank_code}) ${transferAccount.bank_name}${transferAccount.bank_branch ? ` ${transferAccount.bank_branch}` : ""}`,
     );
     lines.push(`• 帳號：${transferAccount.account}`);
-    if (transferAccount.account_name) {
-      lines.push(`• 戶名：${transferAccount.account_name}`);
-    }
   } else {
     lines.push("");
     lines.push("🏦 匯款資料：");
