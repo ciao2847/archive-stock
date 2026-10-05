@@ -384,7 +384,6 @@ export function formatCustomerClaimLineSummary({
       `匯款銀行：${transferAccount.bankCode} ${transferAccount.bankName}${transferAccount.bankBranch ? ` ${transferAccount.bankBranch}` : ""}`,
     );
     lines.push(`匯款帳號：${transferAccount.account}`);
-    lines.push(`戶名：${transferAccount.accountName}`);
   }
   lines.push("匯款完成後請回傳帳號末五碼，謝謝您！");
 
