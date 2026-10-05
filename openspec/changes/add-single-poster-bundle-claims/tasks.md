@@ -41,4 +41,4 @@
 
 - [x] 7.1 Add end-to-end coverage for create/upload/open/confirm/pay/receive/outbound/reopen/revoke flows plus mobile and cross-tenant regressions; verify the targeted test suite passes consistently
 - [x] 7.2 Run formatting, lint, type checking, production build, and the existing claim/LINE regression suites; verify all commands pass without introducing warnings treated as release blockers
-- [ ] 7.3 Apply the reviewed Supabase migration, deploy to Vercel Production, and perform production smoke tests for authenticated admin, private images, Turnstile confirmation, completion settings, LINE lookup, and 375-pixel responsiveness; verify `archive-stock.vercel.app` serves the released workflow end to end
+- [x] 7.3 Apply the reviewed Supabase migration, deploy to Vercel Production, and perform production smoke tests for authenticated admin, private images, Turnstile confirmation, completion settings, LINE lookup, and 375-pixel responsiveness; verify `archive-stock.vercel.app` serves the released workflow end to end
