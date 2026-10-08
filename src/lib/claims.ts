@@ -127,6 +127,9 @@ export const CLAIM_PAYMENT_STATUS_LABELS: Record<ClaimPaymentStatus, string> = {
 };
 
 export type ClaimSubmission = {
+  updatedAt?: string;
+  receivingCheckedAt?: string;
+  outboundCheckedAt?: string;
   source: "claim" | "bundle";
   id: number;
   formId: number;
@@ -333,11 +336,11 @@ export function formatCustomerClaimLineSummary({
   transferAccount?: ClaimTransferAccount;
 }): string {
   const lines: string[] = [
-    `【${storeName} 預購喊單對帳單】`,
+    `【${storeName} 預購訂購對帳單】`,
     `顧客：${group.nickname}`,
     `電話：${group.phone}`,
     "",
-    "喊單明細：",
+    "訂購明細：",
   ];
 
   const formMap = new Map<string, ClaimSubmissionItem[]>();

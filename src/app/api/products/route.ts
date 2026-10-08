@@ -21,7 +21,6 @@ type ProductRow = {
   stock: number;
   status: string;
   price: number | string | null;
-  cost: number | string | null;
   image_paths: string[] | null;
   poster_format: string | null;
   poster_size: string | null;
@@ -43,10 +42,11 @@ export async function GET() {
   const auth = await requireApiUser();
   if (!auth.ok) return auth.response;
 
+  // The allocation table adds another path to locations; select the primary-location FK explicitly.
   const { data, error } = await auth.supabase
     .from("products")
     .select(
-      "id,owner_id,sku,name,category,country,source,stock,status,price,cost,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations(code),owner:profiles!products_owner_id_fkey(display_name)",
+      "id,owner_id,sku,name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations!products_location_id_fkey(code),owner:profiles!products_owner_id_fkey(display_name)",
     )
     .order("created_at", { ascending: false });
   if (error) return apiFailure(error.message, 400, error.code);
@@ -57,7 +57,28 @@ export async function GET() {
     () => new Map<string, string>(),
   );
 
+  const db = auth.supabase as import("@supabase/supabase-js").SupabaseClient;
+  const allocationResult = await db
+    .from("product_location_stocks")
+    .select(
+      "product_id,quantity,locations!product_location_stocks_location_id_fkey(code,display_name)",
+    );
+  if (
+    allocationResult.error &&
+    !["42P01", "PGRST205", "PGRST200"].includes(allocationResult.error.code)
+  )
+    return apiFailure("庫位分配資料讀取失敗，請重新載入", 503);
+  // Older deployments can still read products before the storage migration is applied.
+  const allocations = (allocationResult.data ?? []) as unknown as Array<{
+    product_id: string;
+    quantity: number;
+    locations: { code: string; display_name: string | null } | null;
+  }>;
   const products: Product[] = rows.map((row) => {
+    const assigned = allocations.filter(
+      (a) => a.product_id === row.id && a.locations,
+    );
+    const primaryCode = firstRelation(row.locations)?.code ?? "";
     const imagePath = row.image_paths?.[0];
     const thumbnailPath = row.image_paths?.[1] || imagePath;
     const image = imagePath ? signedUrls.get(imagePath) : undefined;
@@ -74,11 +95,18 @@ export async function GET() {
       format: row.poster_format || undefined,
       size: row.poster_size || undefined,
       crafts: row.poster_crafts ?? undefined,
-      location: firstRelation(row.locations)?.code || "未指定",
+      location: assigned[0]?.locations?.code || primaryCode || "未指定",
+      primaryLocationCode: primaryCode,
+      locationLabel:
+        assigned
+          .map(
+            (a) =>
+              `${a.locations?.display_name || a.locations?.code}（${a.quantity} 張）`,
+          )
+          .join("、") || undefined,
       stock: row.stock,
       status: PRODUCT_STATUS_LABELS[row.status] || "在庫",
       price: toNumber(row.price),
-      cost: toNumber(row.cost),
       description: row.description || "",
       feature: row.identifying_features || undefined,
       accent: "#5A87B1",
@@ -108,14 +136,14 @@ export async function POST(request: Request) {
       "create_inventory_product",
       {
         p_name: input.name,
-        p_work: input.work,
+        p_work: null as unknown as string,
         p_category: input.category,
         p_country: input.country,
         p_source: input.source,
         p_location: input.location,
         p_stock: input.stock,
         p_price: input.price,
-        p_cost: input.cost,
+        p_cost: 0, // Product costs have been retired; costs belong to accounting periods.
         p_image_paths: input.imagePaths,
         p_poster_format: input.format,
         p_poster_size: input.size,

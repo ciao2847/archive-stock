@@ -22,19 +22,32 @@ const productBaseSchema = z.object({
 
 export const createProductSchema = productBaseSchema
   .extend({
-    work: z.string().trim().min(1).max(300),
+    preorderOnly: z.boolean().optional().default(false),
     stock: z.number().int().min(0).max(1000),
     location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
-    cost: z.number().nonnegative(),
     imagePaths: z.array(z.string().min(1).max(1000)).max(2),
     crafts: z.array(z.string().max(100)).max(30),
   })
   .superRefine((product, context) => {
-    if (product.stock > 0 && !product.location) {
+    if (!product.preorderOnly && !product.country.trim()) {
       context.addIssue({
         code: "custom",
-        path: ["location"],
-        message: "有現貨時必須填寫庫位",
+        path: ["country"],
+        message: "請選擇國家版本",
+      });
+    }
+    if (!product.preorderOnly && product.imagePaths.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["imagePaths"],
+        message: "請上傳商品圖片",
+      });
+    }
+    if (product.preorderOnly && product.stock !== 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["stock"],
+        message: "預購商品庫存必須為 0",
       });
     }
   });
@@ -44,7 +57,6 @@ export const updateProductSchema = productBaseSchema.extend({
   crafts: z.array(z.string().max(100)).max(30).optional(),
   imagePaths: z.array(z.string().min(1).max(1000)).max(2).optional(),
   location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
-  cost: z.number().nonnegative().nullable(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

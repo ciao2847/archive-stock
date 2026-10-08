@@ -15,12 +15,8 @@ import {
   Check,
   CheckCircle2,
   Clipboard,
-  Clock3,
-  ExternalLink,
   ImagePlus,
   Images,
-  Landmark,
-  Link2,
   LoaderCircle,
   PackageCheck,
   Palette,
@@ -32,14 +28,24 @@ import {
   ShieldCheck,
   Trash2,
   Undo2,
-  UserRound,
   X,
 } from "lucide-react";
 
+import { RemoveRecordButton } from "@/components/order-management/RemoveRecordButton";
+import { CustomerList } from "@/components/order-management/CustomerList";
+import { OrderContactDetails } from "@/components/order-management/OrderContactDetails";
+import { OrderItems } from "@/components/order-management/OrderItems";
+import { PaymentHistory } from "@/components/order-management/PaymentHistory";
+import { PaymentSection } from "@/components/order-management/PaymentSection";
+import {
+  PaymentRecordEditor,
+  type PaymentEditorValues,
+} from "@/components/order-management/PaymentRecordEditor";
+import { BundleMenuControl } from "@/components/bundle-claims/BundleMenuControl";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import {
   createBundleClaimDraft,
-  deleteBundleClaimDraft,
+  deleteBundleClaimOrder,
   fetchBundleClaims,
   performBundleClaimAction,
   removeBundleClaimImage,
@@ -50,8 +56,11 @@ import {
   BUNDLE_CLAIM_IMAGE,
   BUNDLE_CLAIM_STATUS_LABELS,
   bundleClaimDraftSchema,
+  bundleProductSchema,
+  sumBundleProductAmounts,
   formatBundleClaimMoney,
   validateBundleClaimImage,
+  type BundleClaimCampaign,
   type BundleClaimFilter,
   type BundleClaimImage,
   type BundleClaimOrder,
@@ -109,7 +118,6 @@ function PendingImage({ file }: { file: File }) {
 
 export function BundleClaimPanel({
   ownerId,
-  inventoryName,
   onOpenAppearance,
 }: {
   ownerId: string;
@@ -122,15 +130,77 @@ export function BundleClaimPanel({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [paymentEditor, setPaymentEditor] = useState<{
+    owner: string;
+    orderId: number;
+    values: PaymentEditorValues;
+  } | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<BundleClaimFilter>("all");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | "all">(
+    "all",
+  );
+  const campaignRef = useRef<number | "all">("all");
+  useEffect(() => {
+    campaignRef.current = selectedCampaignId;
+  }, [selectedCampaignId]);
+  const [campaignRefresh, setCampaignRefresh] = useState(0);
+  const [campaigns, setCampaigns] = useState<BundleClaimCampaign[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorOrderId, setEditorOrderId] = useState<number | null>(null);
-  const [title, setTitle] = useState("單張大禮包");
+  const [editorCampaignId, setEditorCampaignId] = useState<number | null>(null);
   const [description, setDescription] = useState("");
-  const [totalAmount, setTotalAmount] = useState("");
+  const [productFields, setProductFields] = useState<
+    Record<string, { name: string; amount: string }>
+  >({});
+  const [fileKeys, setFileKeys] = useState(new Map<File, string>());
+  function fileKey(file: File) {
+    return fileKeys.get(file) ?? "";
+  }
+  function changeProduct(key: string, field: "name" | "amount", value: string) {
+    setProductFields((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { name: "", amount: "" }), [field]: value },
+    }));
+  }
+  function productInputs(key: string, index: number) {
+    const value = productFields[key] ?? { name: "", amount: "" };
+    return (
+      <div className="mt-2 space-y-2">
+        <label className="block text-[11px] font-semibold text-dark">
+          商品名稱 {index + 1}
+          <input
+            className="mt-1 min-h-10 w-full min-w-0 rounded-[6px] border border-line bg-white px-2 text-[13px]"
+            value={value.name}
+            onChange={(event) => changeProduct(key, "name", event.target.value)}
+            maxLength={120}
+            required
+            disabled={working}
+          />
+        </label>
+        <label className="block text-[11px] font-semibold text-dark">
+          商品金額 {index + 1}（TWD）
+          <input
+            className="mt-1 min-h-10 w-full min-w-0 rounded-[6px] border border-line bg-white px-2 text-[13px]"
+            type="number"
+            min="0.01"
+            max="9999999999.99"
+            step="0.01"
+            inputMode="decimal"
+            value={value.amount}
+            onChange={(event) =>
+              changeProduct(key, "amount", event.target.value)
+            }
+            required
+            disabled={working}
+          />
+        </label>
+      </div>
+    );
+  }
   const [customerHint, setCustomerHint] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -149,41 +219,74 @@ export function BundleClaimPanel({
     [editorOrderId, orders],
   );
 
+  const totalAmount = sumBundleProductAmounts([
+    ...(editorOrder?.images ?? []).map(
+      (image) => Number(productFields[`image-${image.id}`]?.amount) || 0,
+    ),
+    ...pendingFiles.map(
+      (file) => Number(productFields[fileKey(file)]?.amount) || 0,
+    ),
+  ]);
+
   const load = useCallback(
     async (preferredId?: number | null, signal?: AbortSignal) => {
       const requestedOwner = ownerId;
+      const requestedCampaign = selectedCampaignId;
       try {
         const result = await fetchBundleClaims({
           ownerId: requestedOwner,
           search,
           filter,
+          campaignId:
+            selectedCampaignId === "all" ? undefined : selectedCampaignId,
           signal,
         });
-        if (ownerRef.current !== requestedOwner) return;
+        if (
+          signal?.aborted ||
+          ownerRef.current !== requestedOwner ||
+          campaignRef.current !== requestedCampaign
+        )
+          return;
         setOrders(result.orders);
         setSelectedId((current) => {
           const candidate = preferredId ?? current;
           return result.orders.some((order) => order.id === candidate)
             ? candidate
-            : (result.orders[0]?.id ?? null);
+            : ((filter === "all"
+                ? result.orders.find(
+                    (order) =>
+                      order.status !== "cancelled" &&
+                      order.status !== "expired",
+                  )
+                : undefined
+              )?.id ??
+                result.orders[0]?.id ??
+                null);
         });
         setError("");
       } catch (loadError) {
-        if (signal?.aborted || ownerRef.current !== requestedOwner) return;
+        if (
+          signal?.aborted ||
+          ownerRef.current !== requestedOwner ||
+          campaignRef.current !== requestedCampaign
+        )
+          return;
         setOrders([]);
         setSelectedId(null);
         setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "單張大禮包喊單讀取失敗",
+          loadError instanceof Error ? loadError.message : "配單確認讀取失敗",
         );
       } finally {
-        if (!signal?.aborted && ownerRef.current === requestedOwner) {
+        if (
+          !signal?.aborted &&
+          ownerRef.current === requestedOwner &&
+          campaignRef.current === requestedCampaign
+        ) {
           setLoading(false);
         }
       }
     },
-    [filter, ownerId, search],
+    [filter, ownerId, search, selectedCampaignId],
   );
 
   useEffect(() => {
@@ -193,11 +296,16 @@ export function BundleClaimPanel({
     setEditorOpen(false);
     setEditorOrderId(null);
     setPendingFiles([]);
+    setFileKeys(new Map());
     setSearch("");
     setFilter("all");
     setError("");
     setMessage("");
     setLoading(true);
+    setSelectedCampaignId("all");
+    setCampaigns([]);
+    setEditorCampaignId(null);
+    setProductFields({});
   }, [ownerId]);
 
   useEffect(() => {
@@ -212,14 +320,34 @@ export function BundleClaimPanel({
     };
   }, [load]);
 
+  const selectCampaign = useCallback((id: number | "all") => {
+    if (campaignRef.current === id) return;
+    campaignRef.current = id;
+    setSelectedCampaignId(id);
+    setOrders([]);
+    setSelectedId(null);
+    setEditorOpen(false);
+    setEditorOrderId(null);
+    setPendingFiles([]);
+    setFileKeys(new Map());
+    setProductFields({});
+    setError("");
+    setMessage("");
+  }, []);
+
   function resetEditor() {
     setEditorOrderId(null);
-    setTitle("單張大禮包");
     setDescription("");
-    setTotalAmount("");
+    setProductFields({});
+    setEditorCampaignId(
+      selectedCampaignId !== "all"
+        ? selectedCampaignId
+        : (campaigns[0]?.id ?? null),
+    );
     setCustomerHint("");
     setExpiresAt("");
     setPendingFiles([]);
+    setFileKeys(new Map());
     setError("");
   }
 
@@ -227,18 +355,34 @@ export function BundleClaimPanel({
     resetEditor();
     setSearch("");
     setFilter("all");
+    if (selectedCampaignId === "all" && campaigns[0])
+      setSelectedCampaignId(campaigns[0].id);
     setEditorOpen(true);
     setMessage("");
   }
 
   function startEdit(order: BundleClaimOrder) {
     setEditorOrderId(order.id);
-    setTitle(order.title);
     setDescription(order.description ?? "");
-    setTotalAmount(String(order.totalAmount));
+    setProductFields(
+      Object.fromEntries(
+        order.images.map((image) => [
+          `image-${image.id}`,
+          {
+            name: image.productName ?? "",
+            amount:
+              image.productAmount === undefined
+                ? ""
+                : String(image.productAmount),
+          },
+        ]),
+      ),
+    );
+    setEditorCampaignId(order.campaignId ?? campaigns[0]?.id ?? null);
     setCustomerHint(order.customerHint ?? "");
     setExpiresAt(toLocalDateTimeInput(order.expiresAt));
     setPendingFiles([]);
+    setFileKeys(new Map());
     setEditorOpen(true);
     setError("");
     setMessage("");
@@ -254,7 +398,7 @@ export function BundleClaimPanel({
       BUNDLE_CLAIM_IMAGE.maxCount - existingCount - pendingFiles.length,
     );
     if (incoming.length > available) {
-      setError(`每筆喊單最多 ${BUNDLE_CLAIM_IMAGE.maxCount} 張截圖。`);
+      setError(`每筆配單最多 ${BUNDLE_CLAIM_IMAGE.maxCount} 張截圖。`);
       return;
     }
     const invalid = incoming
@@ -264,17 +408,62 @@ export function BundleClaimPanel({
       setError(`${invalid.file.name}：${invalid.error}`);
       return;
     }
+    setFileKeys(
+      (current) =>
+        new Map([
+          ...current,
+          ...incoming.map((file) => [file, crypto.randomUUID()] as const),
+        ]),
+    );
     setPendingFiles((current) => [...current, ...incoming]);
     setError("");
   }
 
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const amount = Number(totalAmount);
+    const existingCount = editorOrder?.images.length ?? 0;
+    if (existingCount + pendingFiles.length === 0) {
+      setError("請先新增至少一張商品圖片");
+      return;
+    }
+    if (!editorCampaignId) {
+      setError("請先建立或選擇配單活動");
+      return;
+    }
+    const entries = [
+      ...(editorOrder?.images ?? []).map((image) => ({
+        id: image.id,
+        ...productFields[`image-${image.id}`],
+      })),
+      ...pendingFiles.map((file) => ({
+        id: 1,
+        ...productFields[fileKey(file)],
+      })),
+    ];
+    if (
+      entries.some(
+        (product) =>
+          !bundleProductSchema.safeParse({
+            ...product,
+            amount: Number(product.amount),
+          }).success,
+      )
+    ) {
+      setError("請填寫每張商品圖片的品名與有效金額");
+      return;
+    }
+    const amount = totalAmount;
+    if (!amount || amount <= 0) {
+      setError("總金額必須大於 0");
+      return;
+    }
     const parsed = bundleClaimDraftSchema.safeParse({
       ownerId,
       orderId: editorOrderId ?? undefined,
-      title,
+      campaignId: editorCampaignId ?? undefined,
+      title:
+        campaigns.find((campaign) => campaign.id === editorCampaignId)?.title ||
+        "配單",
       description,
       totalAmount: amount,
       customerHint,
@@ -284,9 +473,8 @@ export function BundleClaimPanel({
       setError(parsed.error.issues[0]?.message || "請確認草稿內容");
       return;
     }
-    const existingCount = editorOrder?.images.length ?? 0;
     if (existingCount + pendingFiles.length > BUNDLE_CLAIM_IMAGE.maxCount) {
-      setError(`每筆喊單最多 ${BUNDLE_CLAIM_IMAGE.maxCount} 張截圖。`);
+      setError(`每筆配單最多 ${BUNDLE_CLAIM_IMAGE.maxCount} 張截圖。`);
       return;
     }
 
@@ -304,21 +492,48 @@ export function BundleClaimPanel({
       savedOrderId = saved.orderId;
       if (!editorOrderId) setEditorOrderId(saved.orderId);
 
+      const products = (editorOrder?.images ?? []).map((image) => ({
+        id: image.id,
+        name: productFields[`image-${image.id}`].name,
+        amount: Number(productFields[`image-${image.id}`].amount),
+      }));
       for (const file of pendingFiles) {
-        await uploadBundleClaimImage({ ownerId, orderId: saved.orderId, file });
+        const details = productFields[fileKey(file)];
+        const image = await uploadBundleClaimImage({
+          ownerId,
+          orderId: saved.orderId,
+          file,
+        });
+        products.push({
+          id: image.id,
+          name: details.name,
+          amount: Number(details.amount),
+        });
+        setProductFields((current) => ({
+          ...current,
+          [`image-${image.id}`]: details,
+        }));
         setPendingFiles((current) =>
           current.filter((candidate) => candidate !== file),
         );
       }
 
+      await performBundleClaimAction({
+        ownerId,
+        orderId: saved.orderId,
+        action: "set_products",
+        products,
+      });
       setEditorOpen(false);
       setEditorOrderId(null);
       setPendingFiles([]);
+      setFileKeys(new Map());
       setMessage(
         pendingFiles.length > 0
-          ? "草稿與核對截圖已儲存。確認內容後即可開放顧客連結。"
+          ? "草稿與商品圖片已儲存。核對內容後，開放這份配單即可加入共同選單。"
           : "草稿已儲存。",
       );
+      setCampaignRefresh((current) => current + 1);
       await load(saved.orderId);
     } catch (saveError) {
       if (savedOrderId) await load(savedOrderId).catch(() => undefined);
@@ -340,28 +555,64 @@ export function BundleClaimPanel({
       await performBundleClaimAction({ ownerId, ...input });
       setMessage(successMessage);
       await load(preferredId);
+      return true;
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "操作失敗");
+      return false;
     } finally {
       setWorking(false);
     }
   }
 
-  function publicUrl(order: BundleClaimOrder) {
-    if (typeof window === "undefined") return `/bundle/${order.publicToken}`;
-    return `${window.location.origin}/bundle/${order.publicToken}`;
-  }
-
-  async function copyLink(order: BundleClaimOrder) {
-    const url = publicUrl(order);
-    try {
-      await navigator.clipboard.writeText(url);
-      setMessage("顧客喊單連結已複製。");
-    } catch {
-      window.prompt("複製顧客喊單連結", url);
+  async function saveBundlePayment() {
+    if (
+      !selected ||
+      !paymentEditor ||
+      working ||
+      selected.status !== "confirmed" ||
+      selected.payment ||
+      paymentEditor.owner !== ownerId ||
+      paymentEditor.orderId !== selected.id
+    )
+      return;
+    const values = paymentEditor.values;
+    const amount = Number(values.amount);
+    const transferredAt = new Date(values.transferredAt);
+    if (
+      amount !== selected.totalAmount ||
+      !Number.isFinite(transferredAt.getTime()) ||
+      (values.lastFive && !/^\d{5}$/.test(values.lastFive))
+    ) {
+      setError("請確認全額金額、匯款時間與帳號末五碼。");
+      return;
     }
+    if (
+      !window.confirm(
+        `確定登記已收到全額 ${formatBundleClaimMoney(selected.totalAmount)}？`,
+      )
+    )
+      return;
+    const saved = await runAction(
+      {
+        action: "record_payment",
+        orderId: selected.id,
+        transferredAt: transferredAt.toISOString(),
+        payerAccountLastFive: values.lastFive,
+        note: values.note.trim(),
+      },
+      "已登記全額付款。",
+    );
+    if (saved) setPaymentEditor(null);
   }
-
+  function customerRows(records: BundleClaimOrder[]) {
+    return records.map((order) => ({
+      key: String(order.id),
+      name: order.customerNickname || order.customerHint || "尚未指定顧客",
+      amount: formatBundleClaimMoney(order.totalAmount),
+      status: statusLabel(order),
+      statusClassName: statusClasses(order),
+    }));
+  }
   async function removeImage(image: BundleClaimImage) {
     if (
       !editorOrderId ||
@@ -404,42 +655,51 @@ export function BundleClaimPanel({
     );
   }
 
-  async function deleteDraft(order: BundleClaimOrder) {
-    if (!window.confirm(`確定刪除草稿「${order.title}」？此操作無法復原。`)) {
+  async function removeOrder(order: BundleClaimOrder) {
+    if (working) return;
+    if (order.payment || order.receivingCheckedAt || order.outboundCheckedAt) {
+      setError("請先撤銷付款與入出庫核對，再移除配單。");
       return;
     }
+    const customer =
+      order.customerNickname || order.customerHint || "尚未指定顧客";
+    if (
+      !window.confirm(
+        `確定移除「${customer}」的這筆配單嗎？\n\n活動：${order.title}\n確認編號：${order.confirmationCode}\n總額：${formatBundleClaimMoney(order.totalAmount)}\n\n商品與圖片紀錄將一併移除，移除後無法復原。`,
+      )
+    )
+      return;
     setWorking(true);
+    setRemovingId(order.id);
+    setError("");
+    setMessage("");
     try {
-      await deleteBundleClaimDraft({ ownerId, orderId: order.id });
-      setMessage("草稿已刪除。");
-      setEditorOpen(false);
-      setEditorOrderId(null);
+      await deleteBundleClaimOrder({
+        ownerId,
+        orderId: order.id,
+        expectedUpdatedAt: order.updatedAt || undefined,
+      });
+      setCampaignRefresh((current) => current + 1);
+      setMessage("配單已移除。");
+      setPaymentEditor(null);
+      if (editorOrderId === order.id) resetEditor();
+      setSelectedId(null);
       await load(null);
-    } catch (deleteError) {
+    } catch (error) {
       setError(
-        deleteError instanceof Error ? deleteError.message : "草稿刪除失敗",
+        error instanceof Error ? error.message : "配單移除失敗，請稍後再試。",
       );
     } finally {
       setWorking(false);
+      setRemovingId(null);
     }
   }
 
   return (
     <div className="min-w-0 space-y-5 pb-8">
-      <section className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5">
+      <section className="min-w-0 px-1">
         <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold tracking-[0.12em] text-primary">
-              截圖核對 · 固定總額 · 全額付款
-            </span>
-            <h2 className="mb-0 mt-1 text-[20px] text-dark md:text-[23px]">
-              單張大禮包喊單系統
-            </h2>
-            <p className="mb-0 mt-1.5 max-w-[680px] text-[13px] leading-6 text-muted">
-              討論串確認品項與報價後，在這裡保留截圖、填入顧客固定總額，再分享一次性確認連結。
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="bundle-management-actions">
             <button
               type="button"
               className="outline"
@@ -448,13 +708,27 @@ export function BundleClaimPanel({
               <Palette size={16} />
               表單外觀
             </button>
-            <button type="button" className="primary" onClick={startCreate}>
+            <button
+              type="button"
+              className="primary"
+              onClick={startCreate}
+              disabled={campaigns.length === 0}
+            >
               <Plus size={17} />
-              新增喊單
+              新增姓名選項
             </button>
           </div>
         </div>
       </section>
+
+      <BundleMenuControl
+        key={ownerId}
+        ownerId={ownerId}
+        refreshKey={campaignRefresh}
+        selectedCampaignId={selectedCampaignId}
+        onSelectCampaign={selectCampaign}
+        onCampaignsChange={setCampaigns}
+      />
 
       {message && (
         <div className="flex items-start gap-2 rounded-[8px] border border-success/25 bg-success-soft px-4 py-3 text-[13px] text-success-strong">
@@ -496,60 +770,63 @@ export function BundleClaimPanel({
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <label className="block min-w-0">
                 <span className="mb-2 block text-[13px] font-semibold text-dark">
-                  顧客看到的名稱 <em className="not-italic text-danger">*</em>
-                </span>
-                <input
-                  className="min-h-12 w-full min-w-0 rounded-[8px] border border-line px-4 text-[15px]"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  maxLength={120}
-                  required
-                />
-              </label>
-              <label className="block min-w-0">
-                <span className="mb-2 block text-[13px] font-semibold text-dark">
-                  固定總額（TWD） <em className="not-italic text-danger">*</em>
-                </span>
-                <input
-                  className="min-h-12 w-full min-w-0 rounded-[8px] border border-line px-4 text-[15px]"
-                  value={totalAmount}
-                  onChange={(event) => setTotalAmount(event.target.value)}
-                  type="number"
-                  min="0.01"
-                  max="9999999999.99"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="例：1200"
-                  required
-                />
-              </label>
-              <label className="block min-w-0 md:col-span-2">
-                <span className="mb-2 block text-[13px] font-semibold text-dark">
-                  品項說明（選填）
-                </span>
-                <textarea
-                  className="min-h-24 w-full min-w-0 resize-y rounded-[8px] border border-line px-4 py-3 text-[14px]"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  maxLength={2000}
-                  placeholder="例如：依討論串分配的 3 張單張海報，請以截圖為準。"
-                />
-              </label>
-              <label className="block min-w-0">
-                <span className="mb-2 block text-[13px] font-semibold text-dark">
-                  顧客提示（選填）
+                  顧客群組暱稱／選項名稱{" "}
+                  <em className="not-italic text-danger">*</em>
                 </span>
                 <input
                   className="min-h-12 w-full min-w-0 rounded-[8px] border border-line px-4 text-[14px]"
                   value={customerHint}
                   onChange={(event) => setCustomerHint(event.target.value)}
                   maxLength={100}
-                  placeholder="例如：請用討論串相同暱稱"
+                  placeholder="例如：james（共同選單顯示的暱稱）"
+                  required
                 />
               </label>
+
               <label className="block min-w-0">
                 <span className="mb-2 block text-[13px] font-semibold text-dark">
-                  連結到期時間（選填）
+                  商品加總金額（TWD）
+                </span>
+                <input
+                  className="min-h-12 w-full min-w-0 rounded-[8px] border border-line px-4 text-[15px]"
+                  value={totalAmount}
+                  readOnly
+                  type="number"
+                  min="0.01"
+                  max="9999999999.99"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="依商品金額自動加總"
+                />
+                <span className="mt-1.5 block text-[11px] leading-5 text-muted">
+                  依下方商品金額自動加總，無需手動填寫。
+                </span>
+              </label>
+              {campaigns.length > 0 && (
+                <label className="block min-w-0">
+                  <span className="mb-2 block text-[13px] font-semibold text-dark">
+                    歸屬活動
+                  </span>
+                  <select
+                    className="min-h-12 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[14px] text-dark"
+                    value={editorCampaignId ?? ""}
+                    onChange={(e) =>
+                      setEditorCampaignId(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                  >
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="block min-w-0">
+                <span className="mb-2 block text-[13px] font-semibold text-dark">
+                  姓名選項到期時間（選填）
                 </span>
                 <input
                   className="min-h-12 w-full min-w-0 rounded-[8px] border border-line px-4 text-[14px]"
@@ -558,15 +835,27 @@ export function BundleClaimPanel({
                   type="datetime-local"
                 />
               </label>
+              <label className="block min-w-0 md:col-span-2">
+                <span className="mb-2 block text-[13px] font-semibold text-dark">
+                  配單補充說明（選填）
+                </span>
+                <textarea
+                  className="min-h-20 w-full min-w-0 resize-y rounded-[8px] border border-line px-4 py-3 text-[14px]"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  maxLength={2000}
+                  placeholder="例如：商品狀態或其他需要客人留意的說明。"
+                />
+              </label>
             </div>
 
             <div className="mt-5 rounded-[10px] border border-line bg-light/55 p-3.5 md:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h4 className="m-0 text-[14px] text-dark">核對截圖</h4>
+                  <h4 className="m-0 text-[14px] text-dark">商品截圖</h4>
                   <p className="mb-0 mt-1 text-[11px] leading-5 text-muted">
                     JPG、PNG、WebP；每張最多 8MB，最多 10
-                    張。開放連結後不可更換。
+                    張。截圖將作為買家核對的商品憑證。
                   </p>
                 </div>
                 <button
@@ -576,7 +865,7 @@ export function BundleClaimPanel({
                   disabled={working}
                 >
                   <ImagePlus size={16} />
-                  選擇截圖
+                  新增商品圖片
                 </button>
                 <input
                   ref={fileInputRef}
@@ -592,25 +881,8 @@ export function BundleClaimPanel({
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   {editorOrder?.images.map((image, index) => (
                     <div key={image.id} className="min-w-0">
-                      <button
-                        type="button"
-                        className="aspect-[4/5] w-full overflow-hidden rounded-[8px] border border-line bg-white p-0"
-                        onClick={() =>
-                          setLightboxImage({
-                            src: image.url,
-                            alt: image.originalFilename,
-                            label: `截圖 ${index + 1}`,
-                          })
-                        }
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={image.url}
-                          alt={image.originalFilename}
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
-                      <div className="mt-1.5 flex items-center justify-center gap-1">
+                      {productInputs(`image-${image.id}`, index)}
+                      <div className="mt-2 flex items-center justify-center gap-1">
                         <button
                           type="button"
                           className="grid size-8 place-items-center rounded-[8px] border border-line bg-white"
@@ -654,16 +926,24 @@ export function BundleClaimPanel({
                           待上傳
                         </span>
                       </div>
+                      {productInputs(
+                        fileKey(file),
+                        (editorOrder?.images.length ?? 0) + index,
+                      )}
                       <button
                         type="button"
-                        className="mt-1.5 min-h-8 w-full rounded-[8px] border border-line bg-white text-[11px] text-danger"
-                        onClick={() =>
+                        disabled={working}
+                        className="mt-2 min-h-8 w-full rounded-[8px] border border-line bg-white text-[11px] text-danger"
+                        onClick={() => {
                           setPendingFiles((current) =>
-                            current.filter(
-                              (_, fileIndex) => fileIndex !== index,
-                            ),
-                          )
-                        }
+                            current.filter((candidate) => candidate !== file),
+                          );
+                          setFileKeys((current) => {
+                            const next = new Map(current);
+                            next.delete(file);
+                            return next;
+                          });
+                        }}
                       >
                         移除
                       </button>
@@ -695,21 +975,58 @@ export function BundleClaimPanel({
         </section>
       )}
 
-      <section className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5">
-        <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+      <section
+        className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
+        aria-label="配單搜尋"
+      >
+        <form
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void load(selectedId);
+          }}
+          className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+        >
           <label className="relative block min-w-0">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
               size={17}
+              aria-hidden="true"
             />
             <input
-              className="min-h-11 w-full min-w-0 rounded-[8px] border border-line pl-10 pr-4 text-[14px]"
+              className="claim-customer-search-input min-h-11 w-full min-w-0 rounded-[8px] border border-line pl-10 pr-11 text-[14px]"
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="搜尋名稱、確認編號、暱稱或電話"
+              aria-label="搜尋名稱、確認編號、暱稱或電話"
+              maxLength={100}
+              autoComplete="off"
             />
+            {search && (
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-muted"
+                onClick={() => setSearch("")}
+                aria-label="清除配單搜尋"
+              >
+                <X size={15} />
+              </button>
+            )}
           </label>
+          <button type="submit" className="outline min-h-11" disabled={loading}>
+            {loading ? (
+              <LoaderCircle className="animate-spin" size={16} />
+            ) : (
+              <Search size={16} />
+            )}
+            {loading ? "查詢中" : "查詢"}
+          </button>
+        </form>
+        <p className="mb-0 mt-2 text-[11px] text-muted" role="status">
+          輸入後自動搜尋，也可以按 Enter 或查詢。
+        </p>
+        <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
           <select
             className="min-h-11 min-w-0 rounded-[8px] border border-line bg-white px-3 text-[13px] font-semibold text-dark"
             value={filter}
@@ -735,16 +1052,13 @@ export function BundleClaimPanel({
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-5 md:grid-cols-2 md:items-start">
-        <section className="min-w-0 rounded-[12px] border border-line bg-white p-3.5 md:p-4">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] lg:items-start">
+        <section className="min-w-0">
           <div className="flex items-center justify-between gap-3 px-1 pb-3">
             <div>
               <span className="text-[11px] font-bold text-primary">
-                喊單清單
+                配單清單
               </span>
-              <h3 className="mb-0 mt-0.5 text-[17px] text-dark">
-                {inventoryName}
-              </h3>
             </div>
             <span className="rounded-[8px] bg-light px-2.5 py-1 text-[11px] font-bold text-muted">
               {orders.length} 筆
@@ -762,423 +1076,455 @@ export function BundleClaimPanel({
               <Images className="mx-auto text-muted" size={28} />
               <p className="mb-0 mt-3 text-[13px] text-muted">
                 {search || filter !== "all"
-                  ? "沒有符合條件的喊單"
-                  : "尚未建立單張大禮包喊單"}
+                  ? "沒有符合條件的配單"
+                  : "尚未建立配單確認"}
               </p>
             </div>
           ) : (
-            <div className="grid gap-2.5">
-              {orders.map((order) => (
-                <button
-                  key={order.id}
-                  type="button"
-                  className={`min-w-0 rounded-[10px] border p-3.5 text-left transition ${selected?.id === order.id ? "border-primary bg-primary-soft/55" : "border-line bg-white hover:border-primary/50"}`}
-                  onClick={() => setSelectedId(order.id)}
-                >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <strong className="block truncate text-[14px] text-dark">
-                        {order.title}
-                      </strong>
-                      <span className="mt-1 block truncate font-mono text-[10px] text-muted">
-                        {order.confirmationCode}
-                      </span>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-[7px] px-2 py-1 text-[10px] font-bold ${statusClasses(order)}`}
-                    >
-                      {statusLabel(order)}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex items-end justify-between gap-3">
-                    <div className="min-w-0 text-[11px] leading-5 text-muted">
-                      <span className="block truncate">
-                        {order.customerNickname ||
-                          order.customerHint ||
-                          "尚未指定顧客"}
-                      </span>
-                      <span>
-                        {formatTaipeiDateTime(
-                          order.confirmedAt || order.createdAt,
+            <>
+              <CustomerList
+                rows={customerRows(
+                  filter === "all"
+                    ? orders.filter(
+                        (order) =>
+                          order.status !== "cancelled" &&
+                          order.status !== "expired",
+                      )
+                    : orders,
+                )}
+                selectedKey={selected && String(selected.id)}
+                disabled={working}
+                onSelect={(key) => {
+                  setSelectedId(Number(key));
+                  setPaymentEditor(null);
+                }}
+              />
+              {filter === "all" &&
+                orders.some(
+                  (order) =>
+                    order.status === "cancelled" || order.status === "expired",
+                ) && (
+                  <details className="mt-3 rounded-[8px] border border-line p-3 text-[12px] text-muted">
+                    <summary className="cursor-pointer">
+                      查看已撤銷／過期（
+                      {
+                        orders.filter(
+                          (order) =>
+                            order.status === "cancelled" ||
+                            order.status === "expired",
+                        ).length
+                      }
+                      ）
+                    </summary>
+                    <div className="mt-2">
+                      <CustomerList
+                        rows={customerRows(
+                          orders.filter(
+                            (order) =>
+                              order.status === "cancelled" ||
+                              order.status === "expired",
+                          ),
                         )}
-                      </span>
+                        selectedKey={selected && String(selected.id)}
+                        disabled={working}
+                        onSelect={(key) => {
+                          setSelectedId(Number(key));
+                          setPaymentEditor(null);
+                        }}
+                      />
                     </div>
-                    <strong className="shrink-0 text-[16px] text-[#B7791F]">
-                      {formatBundleClaimMoney(order.totalAmount)}
-                    </strong>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </details>
+                )}
+            </>
           )}
         </section>
 
-        <section className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:sticky md:top-4 md:p-5">
+        <section className="min-w-0 rounded-[14px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6">
           {!selected ? (
             <div className="grid min-h-64 place-items-center text-center text-[13px] text-muted">
               <div>
                 <Clipboard className="mx-auto" size={30} />
-                <p className="mb-0 mt-3">選擇左側喊單查看內容</p>
+                <p className="mb-0 mt-3">選擇左側配單查看內容</p>
               </div>
             </div>
           ) : (
             <div className="min-w-0">
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
+              <OrderContactDetails
+                badge={
                   <span
-                    className={`inline-flex rounded-[7px] px-2 py-1 text-[10px] font-bold ${statusClasses(selected)}`}
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClasses(selected)}`}
                   >
                     {statusLabel(selected)}
                   </span>
-                  <h3 className="mb-0 mt-2 break-words text-[19px] text-dark">
-                    {selected.title}
-                  </h3>
-                  <span className="mt-1 block break-all font-mono text-[11px] text-muted">
-                    {selected.confirmationCode}
-                  </span>
-                </div>
-                <strong className="shrink-0 text-[20px] text-[#B7791F]">
-                  {formatBundleClaimMoney(selected.totalAmount)}
-                </strong>
-              </div>
-
-              {selected.description && (
-                <p className="mb-0 mt-3 whitespace-pre-wrap break-words rounded-[8px] bg-light/60 px-3 py-2.5 text-[12px] leading-6 text-muted">
-                  {selected.description}
+                }
+                name={
+                  selected.customerNickname ||
+                  selected.customerHint ||
+                  "尚未指定顧客"
+                }
+                phone={selected.customerPhone}
+                notes={selected.customerNotes}
+                metadata={
+                  <>
+                    <p className="m-0">活動：{selected.title}</p>
+                    <p className="m-0 font-mono">
+                      確認編號：{selected.confirmationCode}
+                    </p>
+                    <p className="m-0">
+                      建立：{formatTaipeiDateTime(selected.createdAt)}
+                    </p>
+                    {selected.confirmedAt && (
+                      <p className="m-0">
+                        確認：{formatTaipeiDateTime(selected.confirmedAt)}
+                      </p>
+                    )}
+                    {selected.expiresAt && (
+                      <p className="m-0">
+                        到期：{formatTaipeiDateTime(selected.expiresAt)}
+                      </p>
+                    )}
+                    {selected.description && (
+                      <p className="m-0 whitespace-pre-wrap">
+                        說明：{selected.description}
+                      </p>
+                    )}
+                  </>
+                }
+              />
+              <OrderItems
+                items={selected.images.map((image, index) => ({
+                  key: String(image.id),
+                  name:
+                    image.productName ||
+                    `${selected.title} · 商品 ${index + 1}`,
+                  quantity: 1,
+                  amount:
+                    image.productAmount !== undefined
+                      ? formatBundleClaimMoney(image.productAmount)
+                      : undefined,
+                  imageUrl: image.url,
+                }))}
+                total={formatBundleClaimMoney(selected.totalAmount)}
+                onPreview={(item) =>
+                  setLightboxImage({
+                    src: item.imageUrl!,
+                    alt: item.name,
+                    label: item.name,
+                  })
+                }
+              />
+              {selected.status === "open" && (
+                <p className="mt-4 rounded-[9px] border border-line bg-light/50 p-3 text-[12px] leading-6 text-muted">
+                  這個姓名選項已開放。請分享上方的共同連結，讓客人點選自己的姓名、核對品項與截圖，並送出表單留下配單紀錄。
                 </p>
               )}
 
-              {selected.images.length > 0 && (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {selected.images.map((image, index) => (
-                    <button
-                      key={image.id}
-                      type="button"
-                      className="relative aspect-[4/5] min-w-0 overflow-hidden rounded-[8px] border border-line bg-light p-0"
-                      onClick={() =>
-                        setLightboxImage({
-                          src: image.url,
-                          alt: image.originalFilename,
-                          label: `核對截圖 ${index + 1}／${selected.images.length}`,
-                        })
+              {selected.status === "confirmed" && (
+                <>
+                  <PaymentSection
+                    summary={
+                      selected.payment
+                        ? `已付 ${formatBundleClaimMoney(selected.totalAmount)}`
+                        : `待付 ${formatBundleClaimMoney(selected.totalAmount)}`
+                    }
+                    actions={
+                      selected.payment ? (
+                        <details className="text-[12px]">
+                          <summary className="cursor-pointer text-muted">
+                            更多操作
+                          </summary>
+                          <button
+                            type="button"
+                            className="outline mt-2 text-[12px]"
+                            disabled={working}
+                            onClick={() => {
+                              if (window.confirm("確定撤銷這筆全額付款紀錄？"))
+                                void runAction(
+                                  {
+                                    action: "reverse_payment",
+                                    orderId: selected.id,
+                                  },
+                                  "付款紀錄已撤銷。",
+                                );
+                            }}
+                          >
+                            撤銷付款
+                          </button>
+                        </details>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary min-h-9 text-[12px]"
+                          disabled={working}
+                          onClick={() => {
+                            setPaymentEditor({
+                              owner: ownerId,
+                              orderId: selected.id,
+                              values: {
+                                amount: String(selected.totalAmount),
+                                transferredAt: toLocalDateTimeInput(
+                                  new Date().toISOString(),
+                                ),
+                                lastFive: "",
+                                note: "",
+                              },
+                            });
+                            setError("");
+                          }}
+                        >
+                          登記全額付款
+                        </button>
+                      )
+                    }
+                  >
+                    <PaymentHistory
+                      records={
+                        selected.payment
+                          ? [
+                              {
+                                key: String(selected.payment.id),
+                                amount: formatBundleClaimMoney(
+                                  selected.totalAmount,
+                                ),
+                                transferredAt: formatTaipeiDateTime(
+                                  selected.payment.transferredAt,
+                                ),
+                                lastFive: selected.payment.payerAccountLastFive,
+                                note: selected.payment.note,
+                              },
+                            ]
+                          : []
                       }
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={image.url}
-                        alt={image.originalFilename}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      <span className="absolute bottom-1.5 right-1.5 grid size-5 place-items-center rounded-[6px] bg-black/60 text-[9px] font-bold text-white">
-                        {index + 1}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    />
+                    {!selected.payment &&
+                      paymentEditor?.owner === ownerId &&
+                      paymentEditor.orderId === selected.id && (
+                        <PaymentRecordEditor
+                          values={paymentEditor.values}
+                          onChange={(values) =>
+                            setPaymentEditor({ ...paymentEditor, values })
+                          }
+                          amountReadOnly
+                          maximumAmount={selected.totalAmount}
+                          saving={working}
+                          onSubmit={() => void saveBundlePayment()}
+                          onCancel={() => setPaymentEditor(null)}
+                        />
+                      )}
+                  </PaymentSection>
+                  <section
+                    aria-label="入出庫核對"
+                    className="mt-4 rounded-[9px] border border-line px-3.5 pt-3.5"
+                  >
+                    <h4 className="m-0 text-[13px] font-bold text-dark">
+                      入出庫核對
+                    </h4>
+                    <div className="divide-y divide-line">
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <PackageCheck
+                            className="shrink-0 text-primary"
+                            size={17}
+                          />
+                          <div className="min-w-0">
+                            <strong className="block text-[12px] text-dark">
+                              入庫核對
+                            </strong>
+                            <span className="text-[11px] text-muted">
+                              {selected.receivingCheckedAt
+                                ? formatTaipeiDateTime(
+                                    selected.receivingCheckedAt,
+                                  )
+                                : "尚未核對"}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={
+                            selected.receivingCheckedAt ? "outline" : "primary"
+                          }
+                          disabled={working}
+                          onClick={() =>
+                            void runAction(
+                              {
+                                action: "set_receiving",
+                                orderId: selected.id,
+                                checked: !selected.receivingCheckedAt,
+                              },
+                              selected.receivingCheckedAt
+                                ? "已撤銷入庫核對，出貨核對也已清除。"
+                                : "已完成入庫核對。",
+                            )
+                          }
+                        >
+                          {selected.receivingCheckedAt ? (
+                            <Undo2 size={15} />
+                          ) : (
+                            <Check size={15} />
+                          )}
+                          {selected.receivingCheckedAt ? "撤銷" : "完成核對"}
+                        </button>
+                      </div>
 
-              {(selected.status === "open" ||
-                selected.status === "confirmed") && (
-                <div className="mt-4 min-w-0 rounded-[9px] border border-line bg-light/50 p-3">
-                  <span className="text-[10px] font-bold text-muted">
-                    顧客連結
-                  </span>
-                  <code className="mt-1.5 block min-w-0 break-all text-[11px] text-dark">
-                    /bundle/{selected.publicToken}
-                  </code>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className="outline min-w-0"
-                      onClick={() => void copyLink(selected)}
-                    >
-                      <Clipboard size={15} />
-                      複製連結
-                    </button>
-                    <a
-                      className="outline min-w-0"
-                      href={`/bundle/${selected.publicToken}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <ExternalLink size={15} />
-                      預覽
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {selected.status === "confirmed" && (
-                <div className="mt-4 rounded-[9px] border border-line p-3.5">
-                  <div className="flex items-center gap-2 text-[12px] font-bold text-primary">
-                    <UserRound size={16} />
-                    顧客確認資料
-                  </div>
-                  <dl className="mb-0 mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-[12px]">
-                    <dt className="text-muted">暱稱</dt>
-                    <dd className="m-0 min-w-0 break-words font-semibold">
-                      {selected.customerNickname}
-                    </dd>
-                    <dt className="text-muted">手機</dt>
-                    <dd className="m-0 font-mono font-semibold">
-                      {selected.customerPhone}
-                    </dd>
-                    <dt className="text-muted">時間</dt>
-                    <dd className="m-0">
-                      {formatTaipeiDateTime(selected.confirmedAt)}
-                    </dd>
-                    {selected.customerNotes && (
-                      <>
-                        <dt className="text-muted">備註</dt>
-                        <dd className="m-0 min-w-0 whitespace-pre-wrap break-words">
-                          {selected.customerNotes}
-                        </dd>
-                      </>
-                    )}
-                  </dl>
-                </div>
-              )}
-
-              {selected.status === "confirmed" && (
-                <div className="mt-4 grid gap-2.5">
-                  <div className="flex items-center justify-between gap-3 rounded-[9px] border border-line p-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Landmark className="shrink-0 text-primary" size={17} />
-                      <div className="min-w-0">
-                        <strong className="block text-[12px] text-dark">
-                          付款狀態
-                        </strong>
-                        <span className="text-[11px] text-muted">
-                          {selected.payment
-                            ? `${formatTaipeiDateTime(selected.payment.transferredAt)} · 全額`
-                            : "尚未登記匯款"}
-                        </span>
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <ShieldCheck
+                            className="shrink-0 text-primary"
+                            size={17}
+                          />
+                          <div className="min-w-0">
+                            <strong className="block text-[12px] text-dark">
+                              出貨核對
+                            </strong>
+                            <span className="text-[11px] text-muted">
+                              {selected.outboundCheckedAt
+                                ? formatTaipeiDateTime(
+                                    selected.outboundCheckedAt,
+                                  )
+                                : selected.receivingCheckedAt
+                                  ? "尚未核對"
+                                  : "需先完成入庫核對"}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={
+                            selected.outboundCheckedAt ? "outline" : "primary"
+                          }
+                          disabled={working || !selected.receivingCheckedAt}
+                          onClick={() =>
+                            void runAction(
+                              {
+                                action: "set_outbound",
+                                orderId: selected.id,
+                                checked: !selected.outboundCheckedAt,
+                              },
+                              selected.outboundCheckedAt
+                                ? "已撤銷出貨核對。"
+                                : "已完成出貨核對。",
+                            )
+                          }
+                        >
+                          {selected.outboundCheckedAt ? (
+                            <Undo2 size={15} />
+                          ) : (
+                            <Check size={15} />
+                          )}
+                          {selected.outboundCheckedAt ? "撤銷" : "完成核對"}
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className={selected.payment ? "outline" : "primary"}
-                      disabled={working}
-                      onClick={() => {
-                        if (selected.payment) {
-                          if (!window.confirm("確定撤銷這筆全額付款紀錄？"))
+                  </section>
+                </>
+              )}
+
+              {selected.status === "draft" &&
+                selected.images.some(
+                  (image) => !image.productName || !image.productAmount,
+                ) && (
+                  <p className="mb-0 mt-4 text-[12px] leading-5 text-muted">
+                    請先編輯草稿，填寫每張商品的品名與金額，儲存後再開放。
+                  </p>
+                )}
+              {(selected.status === "draft" || selected.status === "open") && (
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
+                  {selected.status === "draft" && (
+                    <>
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => startEdit(selected)}
+                        disabled={working}
+                      >
+                        <Pencil size={15} />
+                        編輯草稿
+                      </button>
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={
+                          working ||
+                          selected.images.length === 0 ||
+                          !selected.totalAmount ||
+                          selected.totalAmount <= 0 ||
+                          selected.images.some(
+                            (image) =>
+                              !image.productName || !image.productAmount,
+                          ) ||
+                          sumBundleProductAmounts(
+                            selected.images.map(
+                              (image) => image.productAmount ?? 0,
+                            ),
+                          ) !== selected.totalAmount
+                        }
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              `開放後金額與截圖就不能修改。確定開放「${selected.title}」？共同選單開放時，這份配單也會公開列出。`,
+                            )
+                          )
                             return;
                           void runAction(
-                            {
-                              action: "reverse_payment",
-                              orderId: selected.id,
-                            },
-                            "付款紀錄已撤銷。",
+                            { action: "open", orderId: selected.id },
+                            "這份配單已開放。可分享上方共同連結，讓顧客選擇自己的那份。",
                           );
-                          return;
-                        }
-                        if (
-                          !window.confirm(
-                            `確定登記已收到全額 ${formatBundleClaimMoney(selected.totalAmount)}？`,
+                        }}
+                      >
+                        <Send size={15} />
+                        開放這份配單
+                      </button>
+                    </>
+                  )}
+                  {selected.status === "open" && (
+                    <>
+                      <button
+                        type="button"
+                        className="outline text-danger"
+                        disabled={working}
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              "撤下後，客人將無法再從共同選單選擇這份配單。確定撤下姓名選項？",
+                            )
                           )
-                        )
-                          return;
-                        void runAction(
-                          {
-                            action: "record_payment",
-                            orderId: selected.id,
-                            transferredAt: new Date().toISOString(),
-                            payerAccountLastFive: "",
-                            note: "",
-                          },
-                          "已登記全額付款。",
-                        );
-                      }}
-                    >
-                      {selected.payment ? (
-                        <Undo2 size={15} />
-                      ) : (
-                        <Check size={15} />
-                      )}
-                      {selected.payment ? "撤銷" : "已全額付款"}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 rounded-[9px] border border-line p-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <PackageCheck
-                        className="shrink-0 text-primary"
-                        size={17}
-                      />
-                      <div className="min-w-0">
-                        <strong className="block text-[12px] text-dark">
-                          入庫核對
-                        </strong>
-                        <span className="text-[11px] text-muted">
-                          {selected.receivingCheckedAt
-                            ? formatTaipeiDateTime(selected.receivingCheckedAt)
-                            : "尚未核對"}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={
-                        selected.receivingCheckedAt ? "outline" : "primary"
-                      }
-                      disabled={working}
-                      onClick={() =>
-                        void runAction(
-                          {
-                            action: "set_receiving",
-                            orderId: selected.id,
-                            checked: !selected.receivingCheckedAt,
-                          },
-                          selected.receivingCheckedAt
-                            ? "已撤銷入庫核對，出貨核對也已清除。"
-                            : "已完成入庫核對。",
-                        )
-                      }
-                    >
-                      {selected.receivingCheckedAt ? (
-                        <Undo2 size={15} />
-                      ) : (
-                        <Check size={15} />
-                      )}
-                      {selected.receivingCheckedAt ? "撤銷" : "完成核對"}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 rounded-[9px] border border-line p-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <ShieldCheck
-                        className="shrink-0 text-primary"
-                        size={17}
-                      />
-                      <div className="min-w-0">
-                        <strong className="block text-[12px] text-dark">
-                          出貨核對
-                        </strong>
-                        <span className="text-[11px] text-muted">
-                          {selected.outboundCheckedAt
-                            ? formatTaipeiDateTime(selected.outboundCheckedAt)
-                            : selected.receivingCheckedAt
-                              ? "尚未核對"
-                              : "需先完成入庫核對"}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={
-                        selected.outboundCheckedAt ? "outline" : "primary"
-                      }
-                      disabled={working || !selected.receivingCheckedAt}
-                      onClick={() =>
-                        void runAction(
-                          {
-                            action: "set_outbound",
-                            orderId: selected.id,
-                            checked: !selected.outboundCheckedAt,
-                          },
-                          selected.outboundCheckedAt
-                            ? "已撤銷出貨核對。"
-                            : "已完成出貨核對。",
-                        )
-                      }
-                    >
-                      {selected.outboundCheckedAt ? (
-                        <Undo2 size={15} />
-                      ) : (
-                        <Check size={15} />
-                      )}
-                      {selected.outboundCheckedAt ? "撤銷" : "完成核對"}
-                    </button>
-                  </div>
+                            return;
+                          void runAction(
+                            { action: "revoke", orderId: selected.id },
+                            "姓名選項已撤下。",
+                          );
+                        }}
+                      >
+                        <X size={15} />
+                        撤下姓名選項
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
-
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
-                {selected.status === "draft" && (
-                  <>
-                    <button
-                      type="button"
-                      className="outline"
-                      onClick={() => startEdit(selected)}
-                      disabled={working}
-                    >
-                      <Pencil size={15} />
-                      編輯草稿
-                    </button>
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={working || selected.images.length === 0}
-                      onClick={() => {
-                        if (
-                          !window.confirm(
-                            `開放後金額與截圖就不能修改。確定產生「${selected.title}」顧客連結？`,
-                          )
-                        )
-                          return;
-                        void runAction(
-                          { action: "open", orderId: selected.id },
-                          "顧客連結已開放，可以複製分享。",
-                        );
-                      }}
-                    >
-                      <Send size={15} />
-                      開放顧客連結
-                    </button>
-                    <button
-                      type="button"
-                      className="outline text-danger"
-                      onClick={() => void deleteDraft(selected)}
-                      disabled={working}
-                    >
-                      <Trash2 size={15} />
-                      刪除草稿
-                    </button>
-                  </>
-                )}
-                {selected.status === "open" && (
-                  <>
-                    <button
-                      type="button"
-                      className="primary"
-                      onClick={() => void copyLink(selected)}
-                    >
-                      <Link2 size={15} />
-                      複製顧客連結
-                    </button>
-                    <button
-                      type="button"
-                      className="outline text-danger"
-                      disabled={working}
-                      onClick={() => {
-                        if (
-                          !window.confirm(
-                            "撤銷後顧客將無法再開啟連結，確定撤銷？",
-                          )
-                        )
-                          return;
-                        void runAction(
-                          { action: "revoke", orderId: selected.id },
-                          "顧客連結已撤銷。",
-                        );
-                      }}
-                    >
-                      <X size={15} />
-                      撤銷連結
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="mt-4 grid gap-1.5 text-[10px] leading-5 text-muted">
-                <span className="flex items-center gap-1.5">
-                  <Clock3 size={12} /> 建立：
-                  {formatTaipeiDateTime(selected.createdAt)}
-                </span>
-                {selected.expiresAt && (
-                  <span>到期：{formatTaipeiDateTime(selected.expiresAt)}</span>
-                )}
+              <div className="mt-4 border-t border-line pt-3">
+                <RemoveRecordButton
+                  ariaLabel={`移除 ${selected.customerNickname || selected.customerHint || "未指定顧客"} 的配單`}
+                  busy={removingId === selected.id}
+                  disabled={
+                    working ||
+                    Boolean(
+                      selected.payment ||
+                        selected.receivingCheckedAt ||
+                        selected.outboundCheckedAt,
+                    )
+                  }
+                  reason={
+                    selected.payment
+                      ? "請先撤銷付款，再移除這筆配單。"
+                      : selected.receivingCheckedAt ||
+                          selected.outboundCheckedAt
+                        ? "請先撤銷入出庫核對，再移除這筆配單。"
+                        : undefined
+                  }
+                  onClick={() => void removeOrder(selected)}
+                />
               </div>
             </div>
           )}

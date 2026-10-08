@@ -8,6 +8,7 @@ export const API_ROUTES = {
   getClaimForms: "/api/claim-forms",
   getClaimPayments: "/api/claim-payments",
   getBundleClaims: "/api/bundle-claims",
+  getBundleCampaigns: "/api/bundle-campaigns",
   getBundleClaimImages: (id: number) => `/api/bundle-claims/${id}/images`,
   getAccount: "/api/account",
   getInventoryDatabases: "/api/inventory-databases",

@@ -149,14 +149,14 @@ export function Overview({
                 <i className="green" />
                 <div>
                   <b>NT$ {finance.revenue.toLocaleString()}</b>
-                  <small>已完成銷售總額</small>
+                  <small>已確認帳期營收</small>
                 </div>
               </div>
               <div className="activity-row">
                 <i className="rust" />
                 <div>
                   <b>NT$ {finance.cost.toLocaleString()}</b>
-                  <small>累計批次成本總額</small>
+                  <small>已確認帳期成本總額</small>
                 </div>
               </div>
               <div className="activity-row">
@@ -171,7 +171,7 @@ export function Overview({
                   >
                     NT$ {finance.profit.toLocaleString()}
                   </b>
-                  <small>目前淨利</small>
+                  <small>帳期累計結餘</small>
                 </div>
               </div>
             </>

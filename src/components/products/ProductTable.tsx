@@ -2,7 +2,10 @@
 
 import { ChevronRight } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { ResponsiveTable, type TableColumn } from "@/components/ui/ResponsiveTable";
+import {
+  ResponsiveTable,
+  type TableColumn,
+} from "@/components/ui/ResponsiveTable";
 
 const PRODUCT_COLUMNS: TableColumn[] = [
   { key: "product", label: "商品", className: "sm:max-lg:!pl-4" },
@@ -79,20 +82,21 @@ export function ProductTable({
                 {product.thumbnail ? (
                   <ProductImage
                     src={product.thumbnail}
-                    alt={`${product.work} 商品圖`}
+                    alt={`${product.name} 商品圖`}
                   />
                 ) : (
-                  product.work.slice(0, 1)
+                  product.name.slice(0, 1)
                 )}
               </span>
               <div>
                 <b className="max-md:block max-md:max-w-full max-md:truncate">
-                  {product.work}
+                  {product.name}
                 </b>
-                <small className="max-md:hidden">{product.name}</small>
                 <div className="mt-2 hidden items-center gap-2 max-md:flex">
                   <code>{product.id}</code>
-                  <span className="location">{product.location}</span>
+                  <span className="location">
+                    {product.locationLabel || product.location}
+                  </span>
                 </div>
               </div>
             </div>
@@ -108,7 +112,9 @@ export function ProductTable({
             </small>
           </td>
           <td className="max-md:hidden">
-            <span className="location">{product.location}</span>
+            <span className="location">
+              {product.locationLabel || product.location}
+            </span>
           </td>
           <td className="max-md:hidden">{product.stock}</td>
           <td className="max-md:col-start-2 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0">

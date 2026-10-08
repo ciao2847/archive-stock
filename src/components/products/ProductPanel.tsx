@@ -6,7 +6,6 @@ import {
   MapPin,
   Printer,
   Pencil,
-  ShieldCheck,
   ZoomIn,
   Trash2,
   LoaderCircle,
@@ -94,21 +93,20 @@ export function ProductPanel({
         >
           {p.image ? (
             <>
-              <ProductImage src={p.image} alt={`${p.work} 商品主圖`} />
+              <ProductImage src={p.image} alt={`${p.name} 商品主圖`} />
               <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-[8px] bg-black/65 px-3 py-2 text-[12px] tracking-normal text-white">
                 <ZoomIn size={15} />
                 點擊放大
               </span>
             </>
           ) : (
-            <span>{p.work}</span>
+            <span>{p.name}</span>
           )}
         </button>
         <div className="flex items-start justify-between px-7">
           <div>
             <span className="pill green">{p.status}</span>
-            <h2 className="mb-1 mt-3 text-[24px]">{p.work}</h2>
-            <p className="m-0 text-muted">{p.name}</p>
+            <h2 className="mb-1 mt-3 text-[24px]">{p.name}</h2>
           </div>
           <button
             className="icon-btn"
@@ -159,7 +157,7 @@ export function ProductPanel({
               目前庫位
             </small>
             <strong className="font-mono text-[17px] font-medium">
-              {p.location}
+              {p.locationLabel || p.location}
             </strong>
           </div>
           <button className="border-0 bg-transparent text-rust">
@@ -167,12 +165,6 @@ export function ProductPanel({
           </button>
         </div>
         {p.dbId && <QrLabels productId={p.dbId} sku={p.id} />}
-        {
-          <div className="mx-7 my-4 flex items-center gap-2 text-[11px] text-muted">
-            <ShieldCheck size={18} />
-            成本 NT$ {p.cost.toLocaleString()}
-          </div>
-        }
         {isAdmin && (
           <button
             type="button"
@@ -192,7 +184,7 @@ export function ProductPanel({
       {preview && p.image && (
         <ImageLightbox
           src={p.image}
-          alt={`${p.work} 商品圖片`}
+          alt={`${p.name} 商品圖片`}
           label={`${p.id} · ${p.name}`}
           onClose={() => setPreview(false)}
         />

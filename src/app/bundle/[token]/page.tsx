@@ -28,10 +28,10 @@ export async function generateMetadata({
   return {
     title: {
       absolute: claim?.storeName
-        ? `單張大禮包喊單｜${claim.storeName}`
-        : "單張大禮包喊單｜庫藏 Archive Stock",
+        ? `配單確認｜${claim.storeName}`
+        : "配單確認｜庫藏 Archive Stock",
     },
-    description: "核對管理者整理的商品截圖與固定總額，並完成喊單確認。",
+    description: "核對管理者整理的商品截圖與固定總額，並完成配單確認確認。",
     robots: { index: false, follow: false },
   };
 }
@@ -43,7 +43,7 @@ function Unavailable({ loadFailed }: { loadFailed: boolean }) {
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-danger-soft text-danger">
           <AlertCircle size={28} />
         </span>
-        <h1 className="mb-0 mt-5 text-[23px]">目前無法開啟這份喊單</h1>
+        <h1 className="mb-0 mt-5 text-[23px]">目前無法開啟這份配單</h1>
         <p className="mx-auto mb-0 mt-3 max-w-[420px] text-[14px] leading-7 text-muted">
           {loadFailed
             ? "系統暫時無法讀取資料，請稍後重新整理；若持續發生，請聯絡管理者。"

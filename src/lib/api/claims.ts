@@ -15,12 +15,14 @@ export async function fetchClaimFormManagement(
   formId?: number,
   page = 1,
   customerPhone?: string,
+  signal?: AbortSignal,
 ) {
   const query = new URLSearchParams({ ownerId, page: String(page) });
   if (formId) query.set("formId", String(formId));
-  if (customerPhone) query.set("customerPhone", customerPhone);
+  if (customerPhone) query.set("customerSearch", customerPhone.trim());
   const response = await fetch(`${API_ROUTES.getClaimForms}?${query}`, {
     cache: "no-store",
+    signal,
   });
   return readApiResponse<ClaimFormManagement>(response);
 }

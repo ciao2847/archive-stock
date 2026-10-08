@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   newProductSchema as schema,
+  preorderProductSchema,
   type NewProductForm as Form,
 } from "./new-product-schema";
 import { PosterSpecFields } from "./PosterSpecFields";
@@ -24,6 +25,7 @@ import {
   PRODUCT_CATEGORIES,
 } from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
+import { getStorage } from "@/lib/api/locations";
 import { createProductImageVariants } from "@/lib/product-images";
 import {
   createProduct as createProductApi,
@@ -49,6 +51,24 @@ export function NewProduct({
   title?: string;
   preorderOnly?: boolean;
 }) {
+  const [locationOptions, setLocationOptions] = useState<
+    Array<{ code: string; name: string }>
+  >([]);
+  useEffect(() => {
+    if (preorderOnly) return;
+    const controller = new AbortController();
+    void getStorage(ownerId, controller.signal)
+      .then((data) =>
+        setLocationOptions(
+          data.slots.map((slot) => ({
+            code: slot.code,
+            name: `${data.cabinets.find((c) => c.id === slot.cabinet_id)?.name ?? "櫃子"}／${slot.display_name ?? slot.code}`,
+          })),
+        ),
+      )
+      .catch(() => {});
+    return () => controller.abort();
+  }, [ownerId, preorderOnly]);
   const [poster, setPoster] = useState(true);
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -60,16 +80,14 @@ export function NewProduct({
     handleSubmit,
     formState: { errors },
   } = useForm<Form>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(preorderOnly ? preorderProductSchema : schema),
     defaultValues: {
-      work: preorderOnly ? "預購商品" : undefined,
       category: POSTER_CATEGORY,
-      country: preorderOnly ? "" : undefined,
-      source: preorderOnly ? "" : undefined,
+      country: "",
+      source: "",
       stock: preorderOnly ? 0 : (initialStock ?? DEFAULT_VALUES.productStock),
       location: preorderOnly ? "" : (initialLocation ?? ""),
-      price: DEFAULT_VALUES.amount,
-      cost: DEFAULT_VALUES.amount,
+      price: "",
       format: preorderOnly ? "" : undefined,
       size: preorderOnly ? POSTER_SIZES[0] : undefined,
       crafts: [],
@@ -108,6 +126,10 @@ export function NewProduct({
   }
 
   async function createProduct(values: Form) {
+    if (!preorderOnly && !image) {
+      setImageError("請上傳商品圖片");
+      return;
+    }
     setSaving(true);
     setSubmitError("");
     const imagePaths: string[] = [];
@@ -124,7 +146,7 @@ export function NewProduct({
       const res = await createProductApi(
         {
           name: values.name,
-          work: values.work,
+          preorderOnly,
           category: values.category,
           country: values.country,
           source: values.source,
@@ -133,7 +155,6 @@ export function NewProduct({
             ? 0
             : toNumber(values.stock, DEFAULT_VALUES.productStock),
           price: toNumber(values.price),
-          cost: preorderOnly ? 0 : toNumber(values.cost),
           imagePaths,
           format:
             values.category === POSTER_CATEGORY ? values.format || "" : "",
@@ -165,7 +186,7 @@ export function NewProduct({
         <div className="drawer-head">
           <div>
             <span className="eyebrow">
-              {preorderOnly ? "預購喊單" : "商品入庫"}
+              {preorderOnly ? "預購訂購" : "商品入庫"}
             </span>
             <h2>{title || "新增商品"}</h2>
           </div>
@@ -213,7 +234,7 @@ export function NewProduct({
             ) : (
               <label className="upload">
                 <ImagePlus />
-                <b>上傳商品主圖</b>
+                <b>上傳商品圖片（必填）</b>
                 <span>JPG、PNG、WebP，最多 10MB</span>
                 <input
                   type="file"
@@ -232,10 +253,10 @@ export function NewProduct({
                 <ClipboardList size={18} aria-hidden="true" />
               </span>
               <div>
-                <b className="block text-[13px]">先收喊單，再依總數叫貨</b>
+                <b className="block text-[13px]">先收訂購，再依總數叫貨</b>
                 <p className="mb-0 mt-1 text-[12px] leading-5 text-[#526b80]">
                   只要填寫商品名稱、尺寸與販售金額。系統會自動以庫存 0
-                  建立，不佔用現貨；截止後再依喊單總數採購。
+                  建立，不佔用現貨；截止後再依訂購總數採購。
                 </p>
               </div>
             </div>
@@ -270,76 +291,95 @@ export function NewProduct({
               </>
             ) : (
               <>
-                <Field label="商品名稱" error={errors.name?.message}>
+                <Field label="名稱（必填）" error={errors.name?.message}>
                   <input
                     {...register("name")}
                     placeholder="例：烘焙款 IMAX 海報"
+                    required
                   />
                 </Field>
-                <Field label="作品名稱" error={errors.work?.message}>
-                  <input {...register("work")} placeholder="搜尋或建立作品" />
-                </Field>
-                <Field label="商品類型">
-                  <select
-                    {...register("category")}
-                    onChange={(e) =>
-                      setPoster(e.target.value === POSTER_CATEGORY)
-                    }
-                  >
-                    {PRODUCT_CATEGORIES.map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="國家">
-                  <select {...register("country")}>
+                <Field label="國家版本（必填）" error={errors.country?.message}>
+                  <select {...register("country")} required>
+                    <option value="">請選擇國家版本</option>
                     {COUNTRIES.map((item) => (
                       <option key={item}>{item}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="發行來源">
-                  <input {...register("source")} placeholder="CGV、官方快閃…" />
-                </Field>
-                <Field label="庫位" error={errors.location?.message}>
-                  <input {...register("location")} placeholder="A-03-02" />
-                  <small>尚未進貨、庫存填 0 時可先留空。</small>
-                </Field>
-                <Field label="庫存數量">
-                  <input type="number" {...register("stock")} />
-                </Field>
-                <Field label="商品售價（每件）" error={errors.price?.message}>
+                <Field label="販售金額（必填）" error={errors.price?.message}>
                   <input
                     type="number"
                     min="0"
                     step="1"
                     {...register("price")}
-                    placeholder="每件售價"
+                    placeholder="每件販售金額"
+                    required
                   />
                 </Field>
-                <Field label="本批成本總額" error={errors.cost?.message}>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    {...register("cost")}
-                    placeholder="整批成本，不必拆單件"
-                  />
-                </Field>
-                {poster && <PosterSpecFields register={register} />}
                 <Field
-                  label="功能描述"
-                  wide
-                  error={errors.description?.message}
+                  label="存放格位（選填）"
+                  error={errors.location?.message}
                 >
-                  <textarea
-                    {...register("description")}
-                    rows={5}
-                    placeholder="商品內容、特色或故事背景"
-                    aria-invalid={Boolean(errors.description)}
-                  />
-                  <small>選填，最多 2,000 字元，支援換行。</small>
+                  <select {...register("location")}>
+                    <option value="">待整理（稍後安排）</option>
+                    {initialLocation &&
+                      !locationOptions.some(
+                        (s) => s.code === initialLocation,
+                      ) && (
+                        <option value={initialLocation}>
+                          {initialLocation}
+                        </option>
+                      )}
+                    {locationOptions.map((slot) => (
+                      <option key={slot.code} value={slot.code}>
+                        {slot.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small>選擇櫃子格位，不需要輸入庫位代碼。</small>
                 </Field>
+                <details className="col-span-full mt-2 rounded-xl border border-line p-4">
+                  <summary className="cursor-pointer text-sm font-semibold">
+                    更多資訊（選填）
+                  </summary>
+                  <div className="form-grid">
+                    <Field label="商品類型">
+                      <select
+                        {...register("category")}
+                        onChange={(e) =>
+                          setPoster(e.target.value === POSTER_CATEGORY)
+                        }
+                      >
+                        {PRODUCT_CATEGORIES.map((item) => (
+                          <option key={item}>{item}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="發行來源">
+                      <input
+                        {...register("source")}
+                        placeholder="CGV、官方快閃…"
+                      />
+                    </Field>
+                    <Field label="庫存數量">
+                      <input type="number" {...register("stock")} />
+                    </Field>
+                    {poster && <PosterSpecFields register={register} />}
+                    <Field
+                      label="功能描述"
+                      wide
+                      error={errors.description?.message}
+                    >
+                      <textarea
+                        {...register("description")}
+                        rows={5}
+                        placeholder="商品內容、特色或故事背景"
+                        aria-invalid={Boolean(errors.description)}
+                      />
+                      <small>選填，最多 2,000 字元，支援換行。</small>
+                    </Field>
+                  </div>
+                </details>
               </>
             )}
           </div>

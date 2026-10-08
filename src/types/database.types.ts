@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      bundle_claim_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          enabled: boolean
+          id: number
+          owner_id: string
+          public_token: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          enabled?: boolean
+          id?: never
+          owner_id: string
+          public_token?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          enabled?: boolean
+          id?: never
+          owner_id?: string
+          public_token?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_claim_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_campaigns_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_databases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_claim_order_images: {
         Row: {
           byte_size: number
@@ -22,6 +73,8 @@ export type Database = {
           media_type: string
           order_id: number
           original_filename: string
+          product_amount: number | null
+          product_name: string | null
           sort_order: number
           storage_path: string
         }
@@ -32,6 +85,8 @@ export type Database = {
           media_type: string
           order_id: number
           original_filename: string
+          product_amount?: number | null
+          product_name?: string | null
           sort_order?: number
           storage_path: string
         }
@@ -42,6 +97,8 @@ export type Database = {
           media_type?: string
           order_id?: number
           original_filename?: string
+          product_amount?: number | null
+          product_name?: string | null
           sort_order?: number
           storage_path?: string
         }
@@ -57,6 +114,7 @@ export type Database = {
       }
       bundle_claim_orders: {
         Row: {
+          campaign_id: number | null
           confirmation_code: string
           confirmation_request_id: string | null
           confirmed_at: string | null
@@ -82,6 +140,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          campaign_id?: number | null
           confirmation_code?: string
           confirmation_request_id?: string | null
           confirmed_at?: string | null
@@ -107,6 +166,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          campaign_id?: number | null
           confirmation_code?: string
           confirmation_request_id?: string | null
           confirmed_at?: string | null
@@ -159,6 +219,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_orders_campaign_owner_fk"
+            columns: ["campaign_id", "owner_id"]
+            isOneToOne: false
+            referencedRelation: "bundle_claim_campaigns"
+            referencedColumns: ["id", "owner_id"]
           },
         ]
       }
@@ -562,6 +629,8 @@ export type Database = {
       }
       inventory_databases: {
         Row: {
+          bundle_menu_enabled: boolean
+          bundle_menu_token: string
           claim_bank_account: string | null
           claim_bank_account_name: string | null
           claim_bank_branch: string | null
@@ -587,6 +656,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bundle_menu_enabled?: boolean
+          bundle_menu_token?: string
           claim_bank_account?: string | null
           claim_bank_account_name?: string | null
           claim_bank_branch?: string | null
@@ -612,6 +683,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bundle_menu_enabled?: boolean
+          bundle_menu_token?: string
           claim_bank_account?: string | null
           claim_bank_account_name?: string | null
           claim_bank_branch?: string | null
@@ -1392,6 +1465,7 @@ export type Database = {
       settlements: {
         Row: {
           cost: number
+          cost_source: string
           created_at: string
           created_by: string
           id: string
@@ -1404,6 +1478,7 @@ export type Database = {
         }
         Insert: {
           cost?: number
+          cost_source?: string
           created_at?: string
           created_by: string
           id?: string
@@ -1416,6 +1491,7 @@ export type Database = {
         }
         Update: {
           cost?: number
+          cost_source?: string
           created_at?: string
           created_by?: string
           id?: string
@@ -1442,6 +1518,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_period_costs: {
+        Row: { id: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; revision: number; created_by: string; updated_by: string; created_at: string; updated_at: string }
+        Insert: { id?: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; revision?: number; created_by: string; updated_by: string; created_at?: string; updated_at?: string }
+        Update: { amount?: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; updated_by?: string }
+        Relationships: []
+      }
+      financial_period_cost_revisions: {
+        Row: { cost_id: string; revision: number; owner_id: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at: string }
+        Insert: { cost_id: string; revision: number; owner_id: string; amount: number; calculator_path?: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at?: string }
+        Update: { notes?: string }
+        Relationships: []
       }
       works: {
         Row: {
@@ -1607,6 +1695,21 @@ export type Database = {
           submitted_at: string
         }[]
       }
+      confirm_bundle_menu_order: {
+        Args: {
+          p_menu_token: string
+          p_nickname: string
+          p_notes: string
+          p_order_id: number
+          p_phone: string
+          p_request_id: string
+        }
+        Returns: {
+          confirmation_code: string
+          order_id: number
+          submitted_at: string
+        }[]
+      }
       consume_product_for_package: {
         Args: {
           p_label_id?: string
@@ -1680,10 +1783,34 @@ export type Database = {
           public_token: string
         }[]
       }
+      create_campaign_bundle_claim_order: {
+        Args: {
+          p_campaign_id: number
+          p_customer_hint: string
+          p_description: string
+          p_expires_at: string
+          p_owner_id: string
+          p_title: string
+          p_total_amount: number
+        }
+        Returns: {
+          order_id: number
+          public_token: string
+        }[]
+      }
+      confirm_financial_period_cost: {
+        Args: { p_owner_id: string; p_start: string; p_end: string; p_amount: number; p_calculator_path: string; p_evidence_paths: string[]; p_notes: string; p_expected_revision: number }
+        Returns: Database["public"]["Tables"]["financial_period_costs"]["Row"]
+      }
+      get_financial_period_preview: {
+        Args: { p_owner_id: string; p_start: string; p_end: string }
+        Returns: Json
+      }
       create_financial_settlement: {
         Args: { p_end?: string; p_owner_id: string; p_start?: string }
         Returns: {
           cost: number
+          cost_source: string
           created_at: string
           created_by: string
           id: string
@@ -1746,6 +1873,10 @@ export type Database = {
         Args: { p_contact: string; p_name: string; p_nickname: string }
         Returns: string
       }
+      delete_bundle_claim_order: {
+        Args: { p_owner_id: string; p_order_id: number; p_expected_updated_at?: string };
+        Returns: string[];
+      };
       delete_bundle_claim_order_draft: {
         Args: { p_order_id: number; p_owner_id: string }
         Returns: boolean
@@ -1890,6 +2021,32 @@ export type Database = {
         Args: { p_order_id: number; p_owner_id: string }
         Returns: boolean
       }
+      save_bundle_claim_campaign: {
+        Args: {
+          p_campaign_id: number
+          p_description: string
+          p_enabled: boolean
+          p_owner_id: string
+          p_title: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          description: string
+          enabled: boolean
+          id: number
+          owner_id: string
+          public_token: string
+          title: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "bundle_claim_campaigns"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       set_admin_product_cost: {
         Args: { p_cost: number; p_product_id: string }
         Returns: undefined
@@ -1897,6 +2054,10 @@ export type Database = {
       set_bundle_claim_outbound_check: {
         Args: { p_checked: boolean; p_order_id: number; p_owner_id: string }
         Returns: boolean
+      }
+      set_bundle_claim_products: {
+        Args: { p_order_id: number; p_owner_id: string; p_products: Json }
+        Returns: number
       }
       set_bundle_claim_receiving_check: {
         Args: { p_checked: boolean; p_order_id: number; p_owner_id: string }
@@ -1918,6 +2079,19 @@ export type Database = {
       }
       update_bundle_claim_order_draft: {
         Args: {
+          p_customer_hint: string
+          p_description: string
+          p_expires_at: string
+          p_order_id: number
+          p_owner_id: string
+          p_title: string
+          p_total_amount: number
+        }
+        Returns: boolean
+      }
+      update_campaign_bundle_claim_order_draft: {
+        Args: {
+          p_campaign_id: number
           p_customer_hint: string
           p_description: string
           p_expires_at: string

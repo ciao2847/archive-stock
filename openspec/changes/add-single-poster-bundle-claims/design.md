@@ -122,3 +122,25 @@ Separate event tables were considered but deferred because the current requireme
 
 Rollback removes the navigation and disables create/confirm endpoints first, leaving tables and private objects intact so financial and verification evidence is not lost. Application code can then revert to the previous lookup behavior. Destructive removal of stored orders or screenshots requires a separate approved retention/migration operation.
 
+
+## Shared-menu extension (2026-10-06)
+
+Add `bundle_menu_token` (random UUID) and `bundle_menu_enabled` (initially false) to inventory settings. Authorized staff explicitly publish `/bundles/[token]`. The menu includes only that inventory's non-expired open and confirmed allocations. Labels use the preassigned customer hint, falling back to title. Public DTOs exclude individual order tokens, submitted contact details/notes, confirmation numbers, payments and warehouse metadata. Sign private screenshots only after validating menu availability and inventory scope.
+
+Selecting an option reserves nothing. A service-only RPC locks the enabled inventory menu and selected order, checks their relationship, and delegates first confirmation to the existing order function. Different requests for a confirmed allocation fail; retries with the original request ID return the original receipt. Return completion only to the submitting request; the public menu shows confirmed options disabled. Existing individual links and settlement/fulfillment remain compatible. Menu disable prevents future reads and submissions; already signed images expire after their short TTL.
+
+The client shows selection before contact entry, prepopulates nickname, resets form and Turnstile when selection changes, refreshes availability after conflicts, and retains the receipt only in the active page. Submitted phone/contact notes are never included in shared-menu reads.
+
+### Direct name buttons
+
+Use a visible wrapping group of name buttons instead of a dropdown. Keep the group visible after selection so customers can switch directly between names; changing names resets contact/consent/challenge state through the existing keyed form. Show confirmed names disabled with their status. Collapse the all-bundle preview into a details panel so the first action is choosing a name. The admin uses “新增姓名選項” repeatedly to add each allocation before publishing it into the common menu.
+
+### Shared link admin workflow
+
+The admin allocation detail panel does not display individual customer URLs or copy/preview actions. Staff use the single inventory menu control to share one common link. Allocation details retain descriptions, fixed totals, screenshots and submitted customer records for receiving/outbound checks. Removing an open allocation is labelled as withdrawing its name option. Existing individual routes remain compatible for previously distributed links.
+
+### Product review layout and itemized amounts
+
+Each uploaded image represents one allocated product with a required product name and positive two-decimal amount. Staff enter these fields under each image. Saving products locks the draft, validates an exact unique image-id set, writes product fields and calculates the total in Postgres. Opening itemized drafts rechecks completeness and recomputes the total under the same order lock. Published product fields cannot be edited through the product RPC. Legacy published records retain their original fixed totals and show an explicit legacy caption instead of invented per-product prices.
+
+The public screen follows the reference's numbered progress pills, full-width name selection panel and product/form columns at desktop sizes, stacked on mobile. Project appearance settings supply the colors; prices remain gold. Each product card shows its own name and amount beneath the image.

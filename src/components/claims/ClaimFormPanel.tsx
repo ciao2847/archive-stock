@@ -5,9 +5,9 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   AlertCircle,
   Check,
@@ -38,7 +38,10 @@ import {
   updateClaimSubmissionPaymentStatus,
   uploadClaimFormBanner,
 } from "@/lib/api/claims";
-import { performBundleClaimAction } from "@/lib/api/bundle-claims";
+import {
+  deleteBundleClaimOrder,
+  performBundleClaimAction,
+} from "@/lib/api/bundle-claims";
 import { createClaimFormBannerImage } from "@/lib/claim-form-assets";
 import {
   DEFAULT_CLAIM_FORM_BANNER_POSITION,
@@ -48,10 +51,6 @@ import {
 } from "@/lib/claim-form-theme";
 import {
   groupClaimSubmissionsByCustomer,
-  sanitizeTaiwanMobilePhoneInput,
-  TAIWAN_MOBILE_PHONE_ERROR,
-  TAIWAN_MOBILE_PHONE_HTML_PATTERN,
-  TAIWAN_MOBILE_PHONE_PATTERN,
   type ClaimFormManagement,
   type ClaimPaymentStatus,
   type ClaimSubmission,
@@ -108,8 +107,9 @@ export function ClaimFormPanel({
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneSearchError, setPhoneSearchError] = useState("");
   const [searchingCustomer, setSearchingCustomer] = useState(false);
-  const [headerSearchTarget, setHeaderSearchTarget] =
-    useState<HTMLElement | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchController = useRef<AbortController | null>(null);
+  const loadSequence = useRef(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -170,8 +170,10 @@ export function ClaimFormPanel({
       updateDraft = page === 1,
       formId?: number,
       searchPhone?: string,
+      signal?: AbortSignal,
     ) => {
       if (!ownerId) return;
+      const sequence = ++loadSequence.current;
       if (updateDraft) {
         setData(null);
         setSelectedIds(new Set());
@@ -185,7 +187,9 @@ export function ClaimFormPanel({
           formId,
           page,
           searchPhone,
+          signal,
         );
+        if (signal?.aborted || sequence !== loadSequence.current) return false;
         setData(next);
         if (updateDraft) {
           setCreatingForm(!next.form);
@@ -228,12 +232,13 @@ export function ClaimFormPanel({
         }
         return true;
       } catch (loadError) {
+        if (signal?.aborted || sequence !== loadSequence.current) return false;
         setError(
-          loadError instanceof Error ? loadError.message : "喊單資料載入失敗",
+          loadError instanceof Error ? loadError.message : "訂購資料載入失敗",
         );
         return false;
       } finally {
-        setLoading(false);
+        if (sequence === loadSequence.current) setLoading(false);
       }
     },
     [inventoryName, ownerId],
@@ -244,10 +249,12 @@ export function ClaimFormPanel({
   }, [load]);
 
   useEffect(() => {
-    setHeaderSearchTarget(
-      document.getElementById("claim-customer-search-slot"),
-    );
-  }, []);
+    setSearchingCustomer(false);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+      searchController.current?.abort();
+    };
+  }, [ownerId, data?.form?.id, activeTab]);
 
   const productMap = useMemo(() => {
     const map = new Map<string, Product>();
@@ -313,11 +320,17 @@ export function ClaimFormPanel({
     submissionId: number,
     formId: number,
     source: ClaimSubmission["source"] = "claim",
+    expectedUpdatedAt?: string,
   ) {
     if (source === "bundle") {
-      throw new Error("已確認的單張大禮包喊單不可刪除。");
+      await deleteBundleClaimOrder({
+        ownerId,
+        orderId: submissionId,
+        expectedUpdatedAt,
+      });
+    } else {
+      await removeSubmission(submissionId, formId);
     }
-    await removeSubmission(submissionId, formId);
     if (currentForm) {
       await load(1, false, currentForm.id, customerPhone || undefined);
     }
@@ -381,53 +394,54 @@ export function ClaimFormPanel({
     await deleteClaimSubmissionPayment({ ownerId, paymentId });
   }
 
-  async function searchCustomerByPhone(phone: string) {
+  async function runCustomerSearch(query: string) {
     if (!currentForm) return;
-    const loaded = await load(1, false, currentForm.id, phone || undefined);
-    if (!loaded) throw new Error("顧客紀錄查詢失敗，請稍後再試。");
-    setCustomerPhone(phone);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchController.current?.abort();
+    const controller = new AbortController();
+    searchController.current = controller;
+    setPhoneSearchError("");
+    setSearchingCustomer(true);
+    const normalized = query.trim();
+    try {
+      const loaded = await load(
+        1,
+        false,
+        currentForm.id,
+        normalized || undefined,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      if (!loaded) throw new Error("顧客紀錄查詢失敗，請稍後再試。");
+      setCustomerPhone(normalized);
+    } catch (searchError) {
+      if (!controller.signal.aborted)
+        setPhoneSearchError(
+          searchError instanceof Error
+            ? searchError.message
+            : "顧客紀錄查詢失敗，請稍後再試。",
+        );
+    } finally {
+      if (searchController.current === controller) setSearchingCustomer(false);
+    }
+  }
+
+  function changeCustomerSearch(value: string) {
+    setPhoneInput(value);
+    setPhoneSearchError("");
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchController.current?.abort();
+    searchTimer.current = setTimeout(() => void runCustomerSearch(value), 300);
   }
 
   async function submitCustomerSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!TAIWAN_MOBILE_PHONE_PATTERN.test(phoneInput)) {
-      setPhoneSearchError(TAIWAN_MOBILE_PHONE_ERROR);
-      return;
-    }
-
-    setPhoneSearchError("");
-    setSearchingCustomer(true);
-    try {
-      await searchCustomerByPhone(phoneInput);
-      setActiveTab("submissions");
-    } catch (searchError) {
-      setPhoneSearchError(
-        searchError instanceof Error
-          ? searchError.message
-          : "顧客紀錄查詢失敗，請稍後再試。",
-      );
-    } finally {
-      setSearchingCustomer(false);
-    }
+    await runCustomerSearch(phoneInput);
   }
 
   async function clearCustomerSearch() {
     setPhoneInput("");
-    setPhoneSearchError("");
-    if (!customerPhone || !currentForm) return;
-
-    setSearchingCustomer(true);
-    try {
-      await searchCustomerByPhone("");
-    } catch (searchError) {
-      setPhoneSearchError(
-        searchError instanceof Error
-          ? searchError.message
-          : "顧客紀錄讀取失敗，請稍後再試。",
-      );
-    } finally {
-      setSearchingCustomer(false);
-    }
+    await runCustomerSearch("");
   }
 
   function startNewForm() {
@@ -480,7 +494,7 @@ export function ClaimFormPanel({
     if (!currentForm) return;
     const formTitle = currentForm.title;
     const confirmed = window.confirm(
-      `確定要移除「${formTitle}」IP 喊單頁嗎？\n此 IP 的商品設定、公開連結與全部顧客喊單紀錄都將被刪除，且無法復原。`,
+      `確定要移除「${formTitle}」IP 訂購頁嗎？\n此 IP 的商品設定、公開連結與全部顧客訂購紀錄都將被刪除，且無法復原。`,
     );
     if (!confirmed) return;
 
@@ -504,12 +518,12 @@ export function ClaimFormPanel({
         startNewForm();
         await load(1, true);
       }
-      setSavedMessage(`已成功移除「${formTitle}」IP 喊單頁。`);
+      setSavedMessage(`已成功移除「${formTitle}」IP 訂購頁。`);
     } catch (removeError) {
       setError(
         removeError instanceof Error
           ? removeError.message
-          : "移除 IP 喊單失敗，請稍後再試。",
+          : "移除 IP 訂購失敗，請稍後再試。",
       );
     } finally {
       setDeletingForm(false);
@@ -522,7 +536,7 @@ export function ClaimFormPanel({
   ) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setError("請填寫 IP 名稱／喊單標題。");
+      setError("請填寫 IP 名稱／訂購標題。");
       return;
     }
     if (hasInvalidProductSettings) {
@@ -562,11 +576,11 @@ export function ClaimFormPanel({
       await load(1, true, saved.formId, customerPhone || undefined);
       setSavedMessage(
         isNewForm
-          ? `「${trimmedTitle}」IP 喊單頁已成功建立！`
+          ? `「${trimmedTitle}」IP 訂購頁已成功建立！`
           : savedArea === "appearance"
-            ? "表單外觀已儲存，並套用至此庫藏所有 IP 喊單頁。"
+            ? "表單外觀已儲存，並套用至此庫藏所有 IP 訂購頁。"
             : nextIsOpen
-              ? "設定已儲存，公開頁目前可接受喊單。"
+              ? "設定已儲存，公開頁目前可接受訂購。"
               : "設定已儲存。",
       );
     } catch (saveError) {
@@ -574,7 +588,7 @@ export function ClaimFormPanel({
         await removeClaimFormBanner(uploadedBannerPath).catch(() => undefined);
       }
       setError(
-        saveError instanceof Error ? saveError.message : "喊單設定儲存失敗",
+        saveError instanceof Error ? saveError.message : "訂購設定儲存失敗",
       );
     } finally {
       setSaving(false);
@@ -583,14 +597,13 @@ export function ClaimFormPanel({
 
   async function toggleOpenState() {
     const nextState = !isOpen;
-    setIsOpen(nextState);
     await save(nextState);
   }
 
   function downloadSummary() {
     if (!data) return;
     const rows = [
-      ["商品 ID", "商品名稱", "喊單總數", "喊單人數"],
+      ["商品 ID", "商品名稱", "訂購總數", "訂購人數"],
       ...data.productTotals.map((product) => [
         product.sku,
         product.name,
@@ -604,7 +617,7 @@ export function ClaimFormPanel({
     );
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${currentForm?.title || "喊單"}-採購統計-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `${currentForm?.title || "訂購"}-採購統計-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -614,7 +627,7 @@ export function ClaimFormPanel({
       <div className="grid min-h-[320px] place-items-center rounded-[8px] border border-line bg-white">
         <span className="flex items-center gap-2 text-muted">
           <LoaderCircle className="animate-spin" size={19} />
-          正在讀取喊單資料…
+          正在讀取訂購資料…
         </span>
       </div>
     );
@@ -638,68 +651,6 @@ export function ClaimFormPanel({
 
   return (
     <>
-      {headerSearchTarget &&
-        currentForm &&
-        createPortal(
-          <form
-            className="search"
-            role="search"
-            onSubmit={(event) => void submitCustomerSearch(event)}
-          >
-            <Search className="shrink-0" size={18} aria-hidden="true" />
-            <input
-              type="tel"
-              inputMode="numeric"
-              value={phoneInput}
-              onChange={(event) => {
-                setPhoneInput(
-                  sanitizeTaiwanMobilePhoneInput(event.target.value),
-                );
-                event.currentTarget.setCustomValidity("");
-                setPhoneSearchError("");
-              }}
-              onInvalid={(event) =>
-                event.currentTarget.setCustomValidity(TAIWAN_MOBILE_PHONE_ERROR)
-              }
-              minLength={10}
-              maxLength={10}
-              pattern={TAIWAN_MOBILE_PHONE_HTML_PATTERN}
-              placeholder="輸入電話，查詢顧客的喊單與訂單"
-              aria-label="查詢顧客的喊單與訂單"
-              aria-invalid={Boolean(phoneSearchError)}
-              aria-describedby={
-                phoneSearchError ? "claim-header-phone-error" : undefined
-              }
-              autoComplete="off"
-              required
-            />
-            {phoneInput && (
-              <button
-                type="button"
-                className="search-clear"
-                onClick={() => void clearCustomerSearch()}
-                aria-label="清除電話查詢"
-              >
-                <X size={15} aria-hidden="true" />
-              </button>
-            )}
-            <button
-              type="submit"
-              className="search-submit"
-              disabled={loading || searchingCustomer}
-              aria-label={searchingCustomer ? "查詢中" : "查詢"}
-            >
-              {searchingCustomer ? (
-                <LoaderCircle size={14} className="animate-spin" />
-              ) : (
-                <Search size={14} />
-              )}
-              <span>{searchingCustomer ? "查詢中" : "查詢"}</span>
-            </button>
-          </form>,
-          headerSearchTarget,
-        )}
-
       <div className="claim-management w-full min-w-0 max-w-full space-y-5">
         {phoneSearchError && (
           <div
@@ -710,7 +661,7 @@ export function ClaimFormPanel({
             {phoneSearchError}
           </div>
         )}
-        <div className="flex flex-wrap items-stretch justify-between gap-4 rounded-[8px] border border-line bg-white p-4 shadow-sm md:items-center md:p-5">
+        <div className="grid min-w-0 gap-5 rounded-[14px] border border-line bg-white p-5 md:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-center">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-[8px] bg-primary-soft text-primary">
               <Link2 size={19} />
@@ -718,22 +669,22 @@ export function ClaimFormPanel({
             <div className="min-w-0">
               <span className="eyebrow">一個 IP，一個專屬連結</span>
               <h2 className="mb-0 mt-0.5 text-[18px] font-bold text-dark">
-                IP 喊單連結
+                IP 訂購連結
               </h2>
               <p className="mb-0 mt-1 text-[12px] text-muted">
-                每個 IP 的商品、顧客喊單與分享網址都會分開統計。
+                每個 IP 的商品、顧客訂購與分享網址都會分開統計。
               </p>
             </div>
           </div>
 
-          <div className="flex w-full min-w-0 flex-col items-stretch gap-2 md:w-auto md:min-w-[280px] md:flex-1 md:flex-row md:items-center md:justify-end lg:flex-initial">
+          <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
             <select
-              className="claim-form-selector min-h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 md:min-w-[210px] md:flex-1 md:text-[13px] lg:flex-initial"
-              aria-label="選擇 IP 喊單連結"
+              className="claim-form-selector col-span-2 min-h-11 w-full min-w-0 max-w-full rounded-[8px] border border-line bg-white px-3 text-[14px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 sm:col-span-1"
+              aria-label="選擇 IP 訂購連結"
               title={
                 canSwitchForm
-                  ? "切換 IP 喊單連結"
-                  : "目前沒有其他 IP 喊單可切換"
+                  ? "切換 IP 訂購連結"
+                  : "目前沒有其他 IP 訂購可切換"
               }
               value={
                 creatingForm ? "new" : currentForm ? String(currentForm.id) : ""
@@ -745,7 +696,7 @@ export function ClaimFormPanel({
               disabled={loading || saving || !canSwitchForm}
             >
               {!currentForm && !creatingForm && (
-                <option value="">尚未建立 IP 喊單</option>
+                <option value="">尚未建立 IP 訂購</option>
               )}
               {creatingForm && <option value="new">新增 IP（尚未發佈）</option>}
               {data?.forms.map((form) => (
@@ -759,7 +710,7 @@ export function ClaimFormPanel({
               data.forms.length > 0 && (
                 <button
                   type="button"
-                  className="outline w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
+                  className="outline min-h-11 w-full min-w-0 justify-center whitespace-nowrap text-[13px] sm:w-auto"
                   onClick={cancelNewForm}
                   disabled={saving || loading}
                 >
@@ -770,21 +721,21 @@ export function ClaimFormPanel({
             ) : (
               <button
                 type="button"
-                className="primary w-full justify-center whitespace-nowrap text-[13px] md:w-auto"
+                className="primary min-h-11 w-full min-w-0 justify-center whitespace-nowrap text-[13px] sm:w-auto"
                 onClick={startNewForm}
                 disabled={creatingForm || saving || deletingForm}
               >
                 <Plus size={16} />
-                新增 IP 喊單
+                新增 IP 訂購
               </button>
             )}
             {currentForm && !creatingForm && (
               <button
                 type="button"
-                className="outline w-full justify-center whitespace-nowrap text-[13px] text-danger hover:border-danger hover:bg-danger-soft md:w-auto"
+                className="outline min-h-11 w-full min-w-0 justify-center whitespace-nowrap text-[13px] text-danger hover:border-danger hover:bg-danger-soft sm:w-auto"
                 onClick={() => void removeForm()}
                 disabled={saving || loading || deletingForm}
-                title={`移除「${currentForm.title}」IP 喊單頁`}
+                title={`移除「${currentForm.title}」IP 訂購頁`}
               >
                 {deletingForm ? (
                   <LoaderCircle className="animate-spin" size={16} />
@@ -813,7 +764,7 @@ export function ClaimFormPanel({
               <ClipboardList className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
                 <span className="xl:hidden">表單明細</span>
-                <span className="hidden xl:inline">喊單明細與採購</span>
+                <span className="hidden xl:inline">訂購明細與採購</span>
               </span>
               {currentForm && data?.summary.customerCount ? (
                 <span
@@ -921,6 +872,72 @@ export function ClaimFormPanel({
             onToggleOpen={toggleOpenState}
             onNavigateToSettings={() => setActiveTab("settings")}
             onClearCustomerSearch={clearCustomerSearch}
+            searchControls={
+              <section
+                className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
+                aria-label="訂購搜尋"
+              >
+                <form
+                  role="search"
+                  onSubmit={(event) => void submitCustomerSearch(event)}
+                  className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <label className="relative block min-w-0">
+                    <Search
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                      size={17}
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="search"
+                      value={phoneInput}
+                      onChange={(event) =>
+                        changeCustomerSearch(event.target.value)
+                      }
+                      className="claim-customer-search-input min-h-11 w-full min-w-0 rounded-[8px] border border-line pl-10 pr-11 text-[14px]"
+                      maxLength={100}
+                      placeholder="搜尋顧客暱稱、電話或確認編號"
+                      aria-label="搜尋顧客暱稱、電話或確認編號"
+                      aria-invalid={Boolean(phoneSearchError)}
+                      aria-describedby={
+                        phoneSearchError
+                          ? "claim-header-phone-error"
+                          : undefined
+                      }
+                      autoComplete="off"
+                    />
+                    {phoneInput && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-muted"
+                        onClick={() => void clearCustomerSearch()}
+                        aria-label="清除顧客搜尋"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </label>
+                  <button
+                    type="submit"
+                    className="outline min-h-11"
+                    disabled={searchingCustomer}
+                    aria-label={searchingCustomer ? "查詢中" : "查詢"}
+                  >
+                    {searchingCustomer ? (
+                      <LoaderCircle className="animate-spin" size={16} />
+                    ) : (
+                      <Search size={16} />
+                    )}
+                    {searchingCustomer ? "查詢中" : "查詢"}
+                  </button>
+                </form>
+                <p className="mb-0 mt-2 text-[11px] text-muted" role="status">
+                  {searchingCustomer
+                    ? "正在更新顧客清單…"
+                    : "輸入後自動搜尋，也可以按 Enter 或查詢。"}
+                </p>
+              </section>
+            }
             onReload={async (page) => {
               await load(
                 page ?? 1,
@@ -929,7 +946,7 @@ export function ClaimFormPanel({
                 customerPhone || undefined,
               );
             }}
-            onDeleteSubmission={removeSubmission}
+            onDeleteSubmission={removeCustomerSubmission}
             onUpdatePaymentStatus={updateSubmissionPaymentStatus}
             onDownloadSummary={downloadSummary}
             onNavigateToCustomerCheckout={(phone) => {
@@ -937,6 +954,7 @@ export function ClaimFormPanel({
               setActiveTab("checkout");
               void loadAllSubmissions();
             }}
+            onRecordPayment={recordCustomerPayment}
           />
         )}
 
@@ -1037,7 +1055,7 @@ export function ClaimFormPanel({
             <div className="claim-fixed-actions rounded-[8px] border border-line bg-white lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-white/95 lg:backdrop-blur-md">
               <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-9">
                 <span className="text-[13px] font-semibold text-dark">
-                  此庫藏所有 IP 喊單頁共用這組外觀
+                  此庫藏所有 IP 訂購頁共用這組外觀
                 </span>
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   {publicPath && (
@@ -1068,7 +1086,7 @@ export function ClaimFormPanel({
                       ? "儲存中…"
                       : currentForm
                         ? "儲存表單外觀"
-                        : "發佈喊單頁"}
+                        : "發佈訂購頁"}
                   </button>
                 </div>
               </div>

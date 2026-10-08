@@ -85,10 +85,14 @@ export const adaptProduct = (raw: unknown): Product => {
     size: asString(data.size || data.poster_size) || undefined,
     crafts: asStringArray(data.crafts ?? data.poster_crafts),
     location: asString(data.location, "未指定"),
+    primaryLocationCode:
+      typeof data.primaryLocationCode === "string"
+        ? data.primaryLocationCode
+        : undefined,
+    locationLabel: asString(data.locationLabel) || undefined,
     stock: asNumber(data.stock),
     status: resolveStatus(data.status),
     price: asNumber(data.price),
-    cost: asNumber(data.cost),
     feature: asString(data.feature ?? data.identifying_features) || undefined,
     description: asString(data.description) || undefined,
     accent: asString(data.accent, "#5A87B1"),

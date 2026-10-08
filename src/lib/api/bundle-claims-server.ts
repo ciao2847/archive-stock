@@ -15,6 +15,7 @@ import {
 export const BUNDLE_CLAIM_ORDER_SELECT = `
   id,
   owner_id,
+  campaign_id,
   public_token,
   confirmation_code,
   title,
@@ -39,6 +40,8 @@ export const BUNDLE_CLAIM_ORDER_SELECT = `
     sort_order,
     media_type,
     original_filename,
+    product_name,
+    product_amount,
     byte_size
   ),
   bundle_claim_payments (
@@ -127,6 +130,11 @@ export function mapBundleClaimOrder(
         sortOrder: numberOf(image.sort_order),
         mediaType: String(image.media_type ?? ""),
         originalFilename: String(image.original_filename ?? "圖片"),
+        productName: optionalString(image.product_name),
+        productAmount:
+          image.product_amount == null
+            ? undefined
+            : numberOf(image.product_amount),
         byteSize: numberOf(image.byte_size),
         url: signedUrls.get(path) ?? "",
       };
@@ -155,6 +163,7 @@ export function mapBundleClaimOrder(
   return {
     id: numberOf(row.id),
     ownerId: String(row.owner_id ?? ""),
+    campaignId: row.campaign_id != null ? numberOf(row.campaign_id) : undefined,
     publicToken: String(row.public_token ?? ""),
     confirmationCode: String(row.confirmation_code ?? ""),
     title: String(row.title ?? ""),

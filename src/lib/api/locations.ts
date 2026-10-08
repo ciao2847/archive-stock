@@ -13,3 +13,24 @@ export async function createLocation(input: {
   });
   return readApiResponse<{ id: string; code: string }>(response);
 }
+
+export async function getStorage(ownerId: string, signal?: AbortSignal) {
+  return readApiResponse<import("@/lib/location-storage").StorageData>(
+    await fetch(`/api/locations?${new URLSearchParams({ ownerId })}`, {
+      signal,
+      cache: "no-store",
+    }),
+  );
+}
+export async function manageStorage(
+  ownerId: string,
+  input: import("@/lib/location-storage").StorageAction,
+) {
+  return readApiResponse(
+    await fetch("/api/locations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ownerId, ...input }),
+    }),
+  );
+}

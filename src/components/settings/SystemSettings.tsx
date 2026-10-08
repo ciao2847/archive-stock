@@ -198,9 +198,9 @@ export function SystemSettings({
               <Landmark />
             </div>
             <SettingsCardContent
-              eyebrow="喊單完成聯繫"
-              title={`${activeInventory.name} 的喊單完成設定`}
-              description="設定顧客送出喊單後看到的匯款帳號、結帳提醒與官方 LINE；此設定套用到同一庫藏的所有 IP 喊單頁。"
+              eyebrow="訂購／配單完成聯繫"
+              title={`${activeInventory.name} 的訂購／配單完成設定`}
+              description="設定顧客送出訂購後看到的匯款帳號、結帳提醒與官方 LINE；此設定套用到同一庫藏的訂購頁與配單確認頁。"
             >
               <InventoryClaimCheckoutEditor
                 key={activeInventory.id}
@@ -516,7 +516,7 @@ function InventoryClaimCheckoutEditor({
     }
     const normalizedCompletionMessage = completionMessage.trim();
     if (normalizedCompletionMessage.length > 1000) {
-      setMessage("喊單完成提醒不可超過 1000 個字");
+      setMessage("訂購完成提醒不可超過 1000 個字");
       return;
     }
     const normalizedBankCode = bankCode.replace(/\D/g, "");
@@ -576,7 +576,7 @@ function InventoryClaimCheckoutEditor({
       setBankAccount(normalizedBankAccount);
       setBankAccountName(normalizedBankAccountName);
       await onSaved();
-      setMessage("喊單完成設定已更新");
+      setMessage("訂購／配單完成設定已更新");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "儲存失敗");
     } finally {
@@ -591,7 +591,7 @@ function InventoryClaimCheckoutEditor({
           <span>
             <b className="block text-[13px] text-dark">完成頁顯示匯款帳號</b>
             <small className="mt-1 block font-normal leading-5 text-muted">
-              只有顧客成功送出喊單後才會看到完整帳號。
+              只有顧客成功送出訂購後才會看到完整帳號。
             </small>
           </span>
           <input
@@ -699,15 +699,15 @@ function InventoryClaimCheckoutEditor({
         </span>
       </label>
       <label className="block text-[12px] font-semibold">
-        喊單完成提醒
+        訂購完成提醒
         <textarea
           className="mt-2 block min-h-28 w-full resize-y rounded-lg border border-line bg-white p-3 text-[14px] leading-6 outline-none max-lg:text-[16px]"
           value={completionMessage}
           maxLength={1000}
           placeholder={
             lineId.trim()
-              ? `喊單成功！請至官方 LINE ${lineId.trim().startsWith("@") ? lineId.trim() : `@${lineId.trim()}`} 結帳，完成付款才算訂購完成。`
-              : "喊單成功！請聯繫管理者完成結帳，完成付款才算訂購完成。"
+              ? `訂購成功！請至官方 LINE ${lineId.trim().startsWith("@") ? lineId.trim() : `@${lineId.trim()}`} 結帳，完成付款才算訂購完成。`
+              : "訂購成功！請聯繫管理者完成結帳，完成付款才算訂購完成。"
           }
           onChange={(event) => setCompletionMessage(event.target.value)}
         />
@@ -723,7 +723,7 @@ function InventoryClaimCheckoutEditor({
           disabled={saving}
           onClick={save}
         >
-          {saving ? "儲存中…" : "儲存喊單完成設定"}
+          {saving ? "儲存中…" : "儲存訂購／配單完成設定"}
         </button>
         {message && <span className="text-[12px] text-muted">{message}</span>}
       </div>

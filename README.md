@@ -125,3 +125,17 @@ SUPABASE_PROJECT_ID=your-project-ref npm run db:types
 
 `db:types` 另需已登入 Supabase CLI，或提供 `SUPABASE_ACCESS_TOKEN`。產生後應將
 `src/types/database.types.ts` 納入版本控制，並把型別傳給 browser/server Supabase client。
+
+## 雙月成本與會計結算
+
+每兩個月手動填寫成本總額，系統計算營收與結餘，確認後鎖定結算。操作與部署步驟見 [雙月手動成本與會計結算](docs/calculator-accounting.md)。
+
+## 簡化商品入庫
+
+一般入庫只需名稱、販售金額、國家版本與圖片；庫存預設 1，庫位及其他資訊可在「更多資訊」選填。庫藏列表與詳情顯示商品名稱，新增與編輯不再填寫作品名稱；舊作品關聯保留。預購入庫仍採原本的名稱、尺寸、金額與庫存 0 流程。
+
+部署前請先套用 `supabase/migrations/20261008020858_simplify_product_intake.sql`，允許不填作品名稱及庫位。可用 `npm run test` 與 `node tests/browser/product-intake.browser.mjs` 驗證（瀏覽器測試需先 build）。
+
+## 櫃子格位管理
+
+庫位頁以 A／B／C 分頁切換櫃子，格位依排數與欄數均分寬高；提供格位改名、批次放入／搬移及拆箱快速建檔。一般入庫直接選格位；批次分配不會增加庫存。本次更新包含所有庫藏位置分配的一次性重設，保留海報與庫存。部署與驗證見 [櫃子與格位管理](docs/cabinet-locations.md)。

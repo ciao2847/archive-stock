@@ -13,10 +13,11 @@ export type Product = {
   size?: string;
   crafts?: string[];
   location: string;
+  primaryLocationCode?: string;
+  locationLabel?: string;
   stock: number;
   status: Status;
   price: number;
-  cost: number;
   feature?: string;
   description?: string;
   accent: string;

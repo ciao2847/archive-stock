@@ -7,13 +7,10 @@ import {
   mapBundleClaimOrder,
 } from "@/lib/api/bundle-claims-server";
 import type { PublicBundleClaim } from "@/lib/bundle-claims";
-import { getClaimFormAssetPublicUrl } from "@/lib/claim-form-assets";
 import {
-  DEFAULT_CLAIM_FORM_BANNER_POSITION,
-  getDefaultClaimFormTheme,
-  normalizeClaimFormBannerPosition,
-  normalizeHexColor,
-} from "@/lib/claim-form-theme";
+  BUNDLE_PUBLIC_INVENTORY_SELECT,
+  mapBundlePublicSettings,
+} from "@/lib/api/bundle-public-settings";
 import { createServiceClient } from "@/utils/supabase/service";
 
 function optionalString(value: unknown) {
@@ -41,21 +38,13 @@ export async function fetchPublicBundleClaim(
   const { data: inventory, error: inventoryError } = await supabase
     .from("inventory_databases")
     .select(
-      "name,official_line_id,claim_completion_message,claim_banner_image_path,claim_banner_position_x,claim_banner_position_y,claim_theme_primary_color,claim_theme_background_color,claim_theme_surface_color,claim_theme_header_text_color,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account",
+      `${BUNDLE_PUBLIC_INVENTORY_SELECT},claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account`,
     )
     .eq("id", order.ownerId)
     .maybeSingle();
   if (inventoryError) throw new Error(inventoryError.message);
   if (!inventory) return null;
 
-  const storeName = optionalString(inventory.name) ?? "庫藏 Archive Stock";
-  const officialLineId = optionalString(inventory.official_line_id);
-  const completionMessage =
-    optionalString(inventory.claim_completion_message) ??
-    (officialLineId
-      ? `喊單完畢請加官方 LINE ${officialLineId}，完成匯款才算訂購完成。`
-      : "喊單完畢請聯繫管理者，完成匯款才算訂購完成。");
-  const fallbackTheme = getDefaultClaimFormTheme(storeName);
   const transferAccount =
     order.status === "confirmed" &&
     inventory.claim_transfer_enabled &&
@@ -72,40 +61,7 @@ export async function fetchPublicBundleClaim(
 
   return {
     state: order.status,
-    storeName,
-    officialLineId,
-    completionMessage,
-    bannerImageUrl: getClaimFormAssetPublicUrl(
-      optionalString(inventory.claim_banner_image_path),
-    ),
-    bannerPosition: {
-      x: normalizeClaimFormBannerPosition(
-        Number(inventory.claim_banner_position_x),
-        DEFAULT_CLAIM_FORM_BANNER_POSITION.x,
-      ),
-      y: normalizeClaimFormBannerPosition(
-        Number(inventory.claim_banner_position_y),
-        DEFAULT_CLAIM_FORM_BANNER_POSITION.y,
-      ),
-    },
-    theme: {
-      primaryColor: normalizeHexColor(
-        String(inventory.claim_theme_primary_color ?? ""),
-        fallbackTheme.primaryColor,
-      ),
-      backgroundColor: normalizeHexColor(
-        String(inventory.claim_theme_background_color ?? ""),
-        fallbackTheme.backgroundColor,
-      ),
-      surfaceColor: normalizeHexColor(
-        String(inventory.claim_theme_surface_color ?? ""),
-        fallbackTheme.surfaceColor,
-      ),
-      headerTextColor: normalizeHexColor(
-        String(inventory.claim_theme_header_text_color ?? ""),
-        fallbackTheme.headerTextColor,
-      ),
-    },
+    ...mapBundlePublicSettings(inventory),
     title: order.title,
     description: order.description,
     totalAmount: order.totalAmount,

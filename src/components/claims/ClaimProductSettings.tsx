@@ -311,7 +311,7 @@ export function ClaimProductSettings({
     if (selectedIds.size === 0) return;
     if (
       window.confirm(
-        "確定要清空所有已選入喊單的商品嗎？（既有喊單訂單紀錄不受影響）",
+        "確定要清空所有已選入訂購的商品嗎？（既有訂購訂單紀錄不受影響）",
       )
     ) {
       setSelectedIds(new Set());
@@ -326,7 +326,7 @@ export function ClaimProductSettings({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      window.prompt("複製以下喊單連結", url);
+      window.prompt("複製以下訂購連結", url);
     }
   }
 
@@ -335,12 +335,12 @@ export function ClaimProductSettings({
       {/* Top Banner with Quick Actions */}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
         <div className="min-w-0">
-          <span className="eyebrow">喊單頁專用商品設定 · {inventoryName}</span>
+          <span className="eyebrow">訂購頁專用商品設定 · {inventoryName}</span>
           <h2 className="mb-0 mt-1 break-words text-[20px] font-bold text-dark">
-            {form ? `${form.title}｜公開喊單設定` : "新增 IP 喊單頁"}
+            {form ? `${form.title}｜公開訂購設定` : "新增 IP 訂購頁"}
           </h2>
           <p className="mb-0 mt-1 text-[13px] text-muted">
-            每個 IP 使用獨立連結；喊單只累積需求，不會增加或扣除庫存。
+            每個 IP 使用獨立連結；訂購只累積需求，不會增加或扣除庫存。
           </p>
         </div>
 
@@ -382,7 +382,7 @@ export function ClaimProductSettings({
                 ) : (
                   <Clipboard size={15} />
                 )}
-                {copied ? "已複製連結" : "複製喊單連結"}
+                {copied ? "已複製連結" : "複製訂購連結"}
               </button>
               <a
                 className="outline inline-flex items-center gap-1.5 text-[13px] no-underline"
@@ -401,7 +401,7 @@ export function ClaimProductSettings({
               className="outline text-[13px]"
               onClick={onNavigateToSubmissions}
             >
-              檢視顧客喊單明細
+              檢視顧客訂購明細
             </button>
           )}
           <button
@@ -415,7 +415,7 @@ export function ClaimProductSettings({
             ) : (
               <Send size={16} />
             )}
-            {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈喊單頁"}
+            {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈訂購頁"}
           </button>
         </div>
       </div>
@@ -441,16 +441,16 @@ export function ClaimProductSettings({
           </span>
           <div className="min-w-0">
             <h3 className="mb-0 text-[16px] font-bold text-[#29485f]">
-              預購喊單不用先開庫存
+              預購訂購不用先開庫存
             </h3>
             <p className="mb-0 mt-1 text-[13px] leading-5 text-[#526b80]">
-              顧客送出後只會列入需求統計，不會占用現貨。喊單截止後再依彙總數量向車頭採購，到貨後才辦理入庫。
+              顧客送出後只會列入需求統計，不會占用現貨。訂購截止後再依彙總數量向車頭採購，到貨後才辦理入庫。
             </p>
           </div>
         </div>
         <ol className="mt-4 grid list-none gap-2 p-0 sm:grid-cols-4">
           {[
-            "開放預購喊單",
+            "開放預購訂購",
             "截止並彙總數量",
             "依需求向車頭採購",
             "到貨後再入庫",
@@ -480,7 +480,7 @@ export function ClaimProductSettings({
                 表單資訊與規則
               </h3>
               <p className="mb-0 text-[12px] text-muted">
-                買家進入喊單頁看到的標題、說明與截止狀態
+                買家進入訂購頁看到的標題、說明與截止狀態
               </p>
             </div>
           </div>
@@ -504,7 +504,7 @@ export function ClaimProductSettings({
           <div className="mt-5 grid gap-4 border-t border-line/70 pt-5 md:grid-cols-2">
             <label className="block md:col-span-2">
               <span className="mb-1.5 block text-[13px] font-semibold text-dark">
-                IP 名稱／喊單標題 <span className="text-danger">*</span>
+                IP 名稱／訂購標題 <span className="text-danger">*</span>
               </span>
               <input
                 className="min-h-11 w-full rounded-[8px] border border-line px-3 text-[16px] sm:text-[14px]"
@@ -514,7 +514,7 @@ export function ClaimProductSettings({
                 placeholder="例：蜘蛛人"
               />
               <small className="mt-1 block text-[11px] text-muted">
-                同一個 IP 只會建立一條固定喊單連結，之後可持續更新商品。
+                同一個 IP 只會建立一條固定訂購連結，之後可持續更新商品。
               </small>
             </label>
 
@@ -542,18 +542,18 @@ export function ClaimProductSettings({
                 onChange={(e) => setClosesAt(e.target.value)}
               />
               <small className="mt-1 block text-[11px] text-muted">
-                到達指定時間後前台將自動停止接收喊單。
+                到達指定時間後前台將自動停止接收訂購。
               </small>
             </label>
 
             <div className="flex items-center">
               <label className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[8px] bg-light px-4 py-3.5">
                 <div>
-                  <b className="block text-[13px] text-dark">接受消費者喊單</b>
+                  <b className="block text-[13px] text-dark">接受消費者訂購</b>
                   <small className="mt-1 block text-[12px] text-muted">
                     {isOpen
-                      ? "公開頁目前正常接收喊單。"
-                      : "暫停喊單，前台將顯示截止。"}
+                      ? "公開頁目前正常接收訂購。"
+                      : "暫停訂購，前台將顯示截止。"}
                   </small>
                 </div>
                 <input
@@ -561,7 +561,7 @@ export function ClaimProductSettings({
                   type="checkbox"
                   role="switch"
                   checked={isOpen}
-                  aria-label="接受消費者喊單"
+                  aria-label="接受消費者訂購"
                   onChange={(e) => setIsOpen(e.target.checked)}
                 />
                 <span
@@ -583,10 +583,10 @@ export function ClaimProductSettings({
               <div className="flex flex-col gap-2 rounded-[8px] border border-danger/25 bg-danger-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
                 <div>
                   <h4 className="mb-0 text-[14px] font-bold text-danger">
-                    危險操作：移除此 IP 喊單頁
+                    危險操作：移除此 IP 訂購頁
                   </h4>
                   <p className="mb-0 text-[12px] text-muted">
-                    {`移除後將刪除「${form.title}」的商品設定、公開連結與全部顧客喊單紀錄，且無法復原。`}
+                    {`移除後將刪除「${form.title}」的商品設定、公開連結與全部顧客訂購紀錄，且無法復原。`}
                   </p>
                 </div>
                 <button
@@ -600,7 +600,7 @@ export function ClaimProductSettings({
                   ) : (
                     <Trash2 size={15} />
                   )}
-                  移除此 IP 喊單頁
+                  移除此 IP 訂購頁
                 </button>
               </div>
             )}
@@ -608,13 +608,13 @@ export function ClaimProductSettings({
         )}
       </section>
 
-      {/* Section 2: 喊單專用商品清單 (已選入的商品與專屬設定) */}
+      {/* Section 2: 訂購專用商品清單 (已選入的商品與專屬設定) */}
       <section className="rounded-[8px] border border-line bg-white p-4 shadow-sm md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-3 md:pb-4">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="mb-0 text-[18px] font-bold text-dark">
-                預購喊單商品
+                預購訂購商品
               </h3>
               <span className="rounded-[8px] bg-primary-soft px-3 py-1 text-[12px] font-bold text-primary">
                 已選 {selectedProductList.length} 項
@@ -712,14 +712,14 @@ export function ClaimProductSettings({
                                 : "text-slate-600"
                             }`}
                           >
-                            {draft.isEnabled ? "開放喊單" : "暫停喊單"}
+                            {draft.isEnabled ? "開放訂購" : "暫停訂購"}
                           </span>
                           <input
                             className="peer sr-only"
                             type="checkbox"
                             role="switch"
                             checked={draft.isEnabled}
-                            aria-label={`${product.name}開放喊單`}
+                            aria-label={`${product.name}開放訂購`}
                             onChange={() => toggleProductAvailability(id)}
                           />
                           <span
@@ -756,7 +756,7 @@ export function ClaimProductSettings({
                             </span>
                             <span className="hidden sm:inline">
                               {product.stock > 0
-                                ? `主檔現貨 ${product.stock} 件（喊單不扣）`
+                                ? `主檔現貨 ${product.stock} 件（訂購不扣）`
                                 : "預購｜尚未入庫"}
                             </span>
                           </span>
@@ -780,8 +780,8 @@ export function ClaimProductSettings({
                       <button
                         type="button"
                         className="outline size-9 p-0 text-danger hover:border-danger hover:bg-danger-soft"
-                        title="移出喊單"
-                        aria-label={`將 ${product.name} 移出喊單`}
+                        title="移出訂購"
+                        aria-label={`將 ${product.name} 移出訂購`}
                         onClick={() => removeSelectedProduct(id)}
                       >
                         <Trash2 size={15} />
@@ -808,7 +808,7 @@ export function ClaimProductSettings({
 
                       <label className="block">
                         <span className="mb-1 block text-[11px] font-bold text-dark">
-                          喊單金額 (TWD)
+                          訂購金額 (TWD)
                         </span>
                         <input
                           className="h-10 w-full min-w-0 rounded-[8px] border border-line bg-white px-3 text-[16px] font-medium lg:text-[13px]"
@@ -820,7 +820,7 @@ export function ClaimProductSettings({
                           onChange={(e) =>
                             updateDraft(id, "price", e.target.value)
                           }
-                          aria-label={`${product.name}喊單金額`}
+                          aria-label={`${product.name}訂購金額`}
                         />
                       </label>
 
@@ -850,7 +850,7 @@ export function ClaimProductSettings({
         )}
       </section>
 
-      {/* Section 3: 從既有商品主檔帶入喊單資料 */}
+      {/* Section 3: 從既有商品主檔帶入訂購資料 */}
       <section className="rounded-[8px] border border-line bg-white p-4 shadow-sm md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -992,7 +992,7 @@ export function ClaimProductSettings({
                           }
                         >
                           {product.stock > 0
-                            ? `主檔庫存 ${product.stock}（喊單不扣）`
+                            ? `主檔庫存 ${product.stock}（訂購不扣）`
                             : "尚未入庫（可預購）"}
                         </span>
                       </small>
@@ -1007,7 +1007,7 @@ export function ClaimProductSettings({
                         onClick={() => toggleProduct(id)}
                       >
                         <Check size={14} className="text-primary" />
-                        已在喊單頁
+                        已在訂購頁
                       </button>
                     ) : (
                       <button
@@ -1016,7 +1016,7 @@ export function ClaimProductSettings({
                         onClick={() => toggleProduct(id)}
                       >
                         <Plus size={14} />
-                        加入喊單
+                        加入訂購
                       </button>
                     )}
                   </div>
@@ -1075,7 +1075,7 @@ export function ClaimProductSettings({
               ) : (
                 <Send size={17} />
               )}
-              {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈喊單頁"}
+              {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈訂購頁"}
             </button>
           </div>
         </div>
@@ -1087,7 +1087,7 @@ export function ClaimProductSettings({
           ownerId={ownerId}
           initialStock={0}
           initialLocation=""
-          title="新增喊單預購商品"
+          title="新增訂購預購商品"
           preorderOnly
           onClose={() => setCreatingPreorder(false)}
           onCreated={async (newProductId) => {

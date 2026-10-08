@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/bundle-claims-server";
 import {
   bundleClaimDraftSchema,
+  bundleProductSchema,
   bundleClaimQuerySchema,
   canAccessBundleClaimOwner,
   type BundleClaimFilter,
@@ -22,6 +23,12 @@ import {
 import { createServiceClient } from "@/utils/supabase/service";
 
 const actionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("set_products"),
+    ownerId: z.string().uuid(),
+    orderId: z.number().int().positive(),
+    products: z.array(bundleProductSchema).min(1).max(10),
+  }),
   z.object({
     action: z.literal("open"),
     ownerId: z.string().uuid(),
@@ -70,6 +77,7 @@ const actionSchema = z.discriminatedUnion("action", [
 const deleteSchema = z.object({
   ownerId: z.string().uuid(),
   orderId: z.number().int().positive(),
+  expectedUpdatedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 function matchesFilter(order: BundleClaimOrder, filter: BundleClaimFilter) {
@@ -122,6 +130,8 @@ function matchesSearch(order: BundleClaimOrder, search: string) {
 
 function mutationError(error: { message: string; code?: string }) {
   const known: Record<string, string> = {
+    "invalid bundle claim products": "請確認每張商品的名稱與金額完整且沒有重複",
+    "invalid bundle campaign": "找不到這個庫藏的大禮包活動",
     "bundle claim draft not found": "找不到可編輯的草稿",
     "bundle claim cannot be opened": "請先加入至少一張截圖並確認尚未過期",
     "bundle claim cannot be revoked": "只有等待確認中的連結可以撤銷",
@@ -145,6 +155,7 @@ export async function GET(request: Request) {
     const parsed = bundleClaimQuerySchema.safeParse({
       ownerId: url.searchParams.get("ownerId"),
       orderId: url.searchParams.get("orderId") || undefined,
+      campaignId: url.searchParams.get("campaignId") || undefined,
       search: url.searchParams.get("search") || "",
       filter: url.searchParams.get("filter") || "all",
     });
@@ -168,6 +179,8 @@ export async function GET(request: Request) {
       .order("id", { ascending: false })
       .limit(500);
     if (parsed.data.orderId) query = query.eq("id", parsed.data.orderId);
+    if (parsed.data.campaignId)
+      query = query.eq("campaign_id", parsed.data.campaignId);
 
     const { data, error } = await query;
     if (error) {
@@ -224,7 +237,9 @@ export async function POST(request: Request) {
     }
 
     const { data, error } = await asUntypedSupabase(auth.supabase).rpc(
-      "create_bundle_claim_order",
+      input.campaignId
+        ? "create_campaign_bundle_claim_order"
+        : "create_bundle_claim_order",
       {
         p_owner_id: input.ownerId,
         p_title: input.title,
@@ -232,6 +247,7 @@ export async function POST(request: Request) {
         p_total_amount: input.totalAmount,
         p_customer_hint: input.customerHint,
         p_expires_at: input.expiresAt ?? null,
+        ...(input.campaignId ? { p_campaign_id: input.campaignId } : {}),
       },
     );
     if (error) return mutationError(error);
@@ -274,7 +290,9 @@ export async function PUT(request: Request) {
     }
 
     const { error } = await asUntypedSupabase(auth.supabase).rpc(
-      "update_bundle_claim_order_draft",
+      input.campaignId
+        ? "update_campaign_bundle_claim_order_draft"
+        : "update_bundle_claim_order_draft",
       {
         p_owner_id: input.ownerId,
         p_order_id: input.orderId,
@@ -283,6 +301,7 @@ export async function PUT(request: Request) {
         p_total_amount: input.totalAmount,
         p_customer_hint: input.customerHint,
         p_expires_at: input.expiresAt ?? null,
+        ...(input.campaignId ? { p_campaign_id: input.campaignId } : {}),
       },
     );
     if (error) return mutationError(error);
@@ -317,6 +336,10 @@ export async function PATCH(request: Request) {
       p_order_id: input.orderId,
     };
 
+    if (input.action === "set_products") {
+      rpcName = "set_bundle_claim_products";
+      rpcInput = { ...rpcInput, p_products: input.products };
+    }
     if (input.action === "open") rpcName = "open_bundle_claim_order";
     if (input.action === "revoke") rpcName = "revoke_bundle_claim_order";
     if (input.action === "reverse_payment") {
@@ -376,33 +399,70 @@ export async function DELETE(request: Request) {
         parsed.data.ownerId,
       )
     ) {
-      return apiFailure("無法刪除這個庫藏的喊單", 403);
+      return apiFailure("無法移除這個庫藏的配單", 403);
     }
 
     const supabase = asUntypedSupabase(auth.supabase);
-    const { data: images, error: imageError } = await supabase
-      .from("bundle_claim_order_images")
-      .select("storage_path,bundle_claim_orders!inner(owner_id,status)")
-      .eq("order_id", parsed.data.orderId)
-      .eq("bundle_claim_orders.owner_id", parsed.data.ownerId)
-      .eq("bundle_claim_orders.status", "draft");
-    if (imageError) return apiFailure(imageError.message, 400, imageError.code);
-
-    const { error } = await supabase.rpc("delete_bundle_claim_order_draft", {
-      p_owner_id: parsed.data.ownerId,
-      p_order_id: parsed.data.orderId,
-    });
-    if (error) return mutationError(error);
-
-    const paths = (images ?? []).flatMap((image) =>
-      typeof image.storage_path === "string" ? [image.storage_path] : [],
+    const { data: storagePaths, error } = await supabase.rpc(
+      "delete_bundle_claim_order",
+      {
+        p_owner_id: parsed.data.ownerId,
+        p_order_id: parsed.data.orderId,
+        p_expected_updated_at: parsed.data.expectedUpdatedAt ?? null,
+      },
     );
+    if (error) {
+      const errors: Record<string, { message: string; status: number }> = {
+        "bundle claim order not found": {
+          message: "找不到這筆配單，可能已被移除。",
+          status: 404,
+        },
+        "bundle claim order changed": {
+          message: "這筆配單已更新，請重新整理並確認內容後再移除。",
+          status: 409,
+        },
+        "bundle claim order has payment": {
+          message: "這筆配單有匯款紀錄，請先撤銷付款後再移除。",
+          status: 409,
+        },
+        "bundle claim order has checks": {
+          message: "這筆配單已核對入庫或出貨，請先撤銷核對後再移除。",
+          status: 409,
+        },
+        "owner access required": {
+          message: "無法移除其他庫藏的配單。",
+          status: 403,
+        },
+        "authentication required": {
+          message: "請先登入庫藏帳號。",
+          status: 401,
+        },
+      };
+      if (error.code === "PGRST202")
+        return apiFailure(
+          "配單移除功能尚未安裝，請先執行最新 migration。",
+          503,
+        );
+      const mapped = errors[error.message];
+      return apiFailure(
+        mapped?.message ?? "配單移除失敗，請重新整理後再試。",
+        mapped?.status ?? 400,
+        error.code,
+      );
+    }
+    const paths = Array.isArray(storagePaths)
+      ? storagePaths.filter(
+          (path: unknown): path is string =>
+            typeof path === "string" &&
+            path.startsWith(`${parsed.data.ownerId}/${parsed.data.orderId}/`),
+        )
+      : [];
     if (paths.length > 0) {
       const removal = await createServiceClient()
         .storage.from("bundle-claim-screenshots")
         .remove(paths);
       if (removal.error) {
-        console.error("Bundle claim draft object cleanup failed", {
+        console.error("Bundle claim object cleanup failed", {
           orderId: parsed.data.orderId,
           code: removal.error.name,
         });

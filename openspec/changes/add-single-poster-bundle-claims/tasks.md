@@ -42,3 +42,28 @@
 - [x] 7.1 Add end-to-end coverage for create/upload/open/confirm/pay/receive/outbound/reopen/revoke flows plus mobile and cross-tenant regressions; verify the targeted test suite passes consistently
 - [x] 7.2 Run formatting, lint, type checking, production build, and the existing claim/LINE regression suites; verify all commands pass without introducing warnings treated as release blockers
 - [x] 7.3 Apply the reviewed Supabase migration, deploy to Vercel Production, and perform production smoke tests for authenticated admin, private images, Turnstile confirmation, completion settings, LINE lookup, and 375-pixel responsiveness; verify `archive-stock.vercel.app` serves the released workflow end to end
+
+## 8. Public Shared Menu (2026-10-06)
+
+- [x] 8.1 Add an inventory-scoped random shared-menu token and enable/disable control, retaining existing orders and private screenshots.
+- [x] 8.2 Add public menu DTO/API containing published labels, screenshots, descriptions and totals, excluding contact/payment data and individual tokens.
+- [x] 8.3 Add atomic menu confirmation with ownership/availability checks, duplicate rejection and original-request retries.
+- [x] 8.4 Add admin shared-link copy/preview and publishing guidance, clearing state when switching inventories.
+- [x] 8.5 Build selection, evidence/total review, prefilled nickname, final contact form, Turnstile, completion and disabled confirmed options.
+- [x] 8.6 Verify SQL isolation/lifecycle, DTO privacy, UI/mobile behavior, lint, types and build; document external checks still required.
+- [x] 8.7 Apply the additive migration and deploy the shared-menu workflow, verifying public routes and documenting live confirmation checks.
+
+## 9. Direct Name Selection
+
+- [x] 9.1 Replace the public dropdown with visible name buttons, keep selection highlighting and disabled confirmed options, and clarify the admin add-option label.
+- [x] 9.2 Verify direct button selection, multiple names, contact prefill/reset and confirmation at 375/768/1440 pixels, then deploy the updated UI.
+
+## 10. Shared Link Admin Workflow
+
+- [x] 10.1 Remove individual link actions from the admin panel and clarify allocation details, availability and shared-link guidance; validate and deploy.
+
+## 11. Product Review Layout
+
+- [x] 11.1 Store per-image product names and amounts, atomically sum draft products and freeze published details.
+- [x] 11.2 Add admin per-product inputs and computed total, public product captions and responsive reference layout using project colors.
+- [x] 11.3 Verify SQL authorization/precision/lifecycle, product cards on mobile/desktop, build and deploy.

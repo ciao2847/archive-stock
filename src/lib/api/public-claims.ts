@@ -108,8 +108,8 @@ export async function fetchPublicClaimForm(
   const completionMessage =
     asOptionalString(row.completion_message) ??
     (officialLineId
-      ? `喊單成功！請至官方 LINE ${officialLineId} 結帳，完成付款才算訂購完成。`
-      : "喊單成功！請聯繫管理者完成結帳，完成付款才算訂購完成。");
+      ? `訂購成功！請至官方 LINE ${officialLineId} 結帳，完成付款才算訂購完成。`
+      : "訂購成功！請聯繫管理者完成結帳，完成付款才算訂購完成。");
 
   return {
     storeName: row.store_name,

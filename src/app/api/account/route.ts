@@ -1,4 +1,5 @@
-import { FINANCIAL_ORDER_STATUSES, toNumber } from "@/constants";
+import { toNumber } from "@/constants";
+import { buildFinanceOverview } from "@/lib/accounting";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 import type { AccountData } from "@/lib/types";
 
@@ -69,21 +70,27 @@ export async function GET() {
     { data: costs, error: costError },
     { data: sales, error: salesError },
     { data: owners, error: ownersError },
-    { data: productOwners, error: productOwnersError },
+    { data: snapshots, error: snapshotError },
     { data: inventories, error: inventoriesError },
     { data: memberships, error: membershipsError },
   ] = await Promise.all([
-    auth.supabase.rpc("get_admin_product_costs"),
+    auth.supabase
+      .from("financial_period_costs")
+      .select("owner_id,period_start,period_end,amount"),
     auth.supabase
       .from("orders")
       .select(
-        "owner_id,status,discount,shipping_income,platform_fee,seller_shipping_cost,order_items(quantity,unit_price)",
-      ),
+        "owner_id,status,packed_at,created_at,discount,shipping_income,order_items(quantity,unit_price),settlement_orders(order_id)",
+      )
+      .is("deleted_at", null),
     auth.supabase
       .from("profiles")
       .select("id,display_name,inventory_owner_id")
       .order("display_name"),
-    auth.supabase.from("products").select("id,owner_id"),
+    auth.supabase
+      .from("settlements")
+      .select("owner_id,period_start,revenue,cost,profit")
+      .eq("cost_source", "period_total"),
     auth.supabase
       .from("inventory_databases")
       .select(
@@ -98,7 +105,7 @@ export async function GET() {
     costError ||
     salesError ||
     ownersError ||
-    productOwnersError ||
+    snapshotError ||
     inventoriesError ||
     membershipsError
   ) {
@@ -106,7 +113,7 @@ export async function GET() {
       costError?.message ||
         salesError?.message ||
         ownersError?.message ||
-        productOwnersError?.message ||
+        snapshotError?.message ||
         inventoriesError?.message ||
         membershipsError?.message ||
         "帳號資料載入失敗",
@@ -114,47 +121,26 @@ export async function GET() {
     );
   }
 
-  const productOwnerMap = new Map(
-    (productOwners ?? []).map((product) => [product.id, product.owner_id]),
-  );
   const canonicalOwners = inventories ?? [];
-  const financeByOwner: AccountData["financeByOwner"] = {};
-  for (const owner of canonicalOwners) {
-    financeByOwner[owner.id] = { revenue: 0, cost: 0, profit: 0 };
-  }
-  for (const row of costs ?? []) {
-    const ownerId = productOwnerMap.get(String(row.product_id));
-    if (ownerId && financeByOwner[ownerId]) {
-      financeByOwner[ownerId].cost += toNumber(row.cost);
-    }
-  }
-  const rows = (sales ?? []) as unknown as Array<{
-    status: string;
-    owner_id: string;
-    discount: unknown;
-    shipping_income: unknown;
-    platform_fee: unknown;
-    seller_shipping_cost: unknown;
-    order_items: Array<{ quantity: number; unit_price: unknown }> | null;
-  }>;
-  for (const row of rows.filter((item) =>
-    FINANCIAL_ORDER_STATUSES.has(item.status),
-  )) {
-    const finance = financeByOwner[row.owner_id];
-    if (!finance) continue;
-    finance.revenue +=
-      (row.order_items ?? []).reduce(
-        (sum, item) => sum + toNumber(item.unit_price) * item.quantity,
-        0,
-      ) +
-      toNumber(row.shipping_income) -
-      toNumber(row.discount) -
-      toNumber(row.platform_fee) -
-      toNumber(row.seller_shipping_cost);
-  }
-  for (const value of Object.values(financeByOwner)) {
-    value.profit = value.revenue - value.cost;
-  }
+  const financeByOwner = buildFinanceOverview(
+    canonicalOwners.map((owner) => owner.id),
+    costs ?? [],
+    (snapshots ?? []).map((row) => ({ ...row, profit: toNumber(row.profit) })),
+    (sales ?? []).map((row) => ({
+      ...row,
+      discount: toNumber(row.discount),
+      shipping_income: toNumber(row.shipping_income),
+      order_items: (row.order_items ?? []).map((item) => ({
+        ...item,
+        unit_price: toNumber(item.unit_price),
+      })),
+      settlement_orders: row.settlement_orders
+        ? Array.isArray(row.settlement_orders)
+          ? row.settlement_orders
+          : [row.settlement_orders]
+        : [],
+    })),
+  );
   const finance = Object.values(financeByOwner).reduce(
     (sum, value) => ({
       revenue: sum.revenue + value.revenue,

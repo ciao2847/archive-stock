@@ -12,7 +12,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.mts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:types": "npx supabase@2.116.0 gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.types.ts"
+    "db:types": "npx supabase@2.116.0 gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.types.ts",
+    "test:bundle-ui": "node tests/browser/bundle-menu.browser.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -45,8 +46,10 @@
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@types/sweetalert": "^1.1.28",
+    "esbuild": "0.28.2",
     "eslint": "9.39.3",
     "eslint-config-next": "16.3.2",
+    "playwright": "1.63.0",
     "prettier": "3.6.2",
     "sass": "^1.80.0",
     "tailwindcss": "^4.1.13",

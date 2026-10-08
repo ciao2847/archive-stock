@@ -4,6 +4,8 @@ Single-poster bundle sales currently happen through image-heavy discussion threa
 
 ## What Changes
 
+- Add an opt-in public shared menu of preallocated customer bundles. Anyone with its link may view all published bundles and select their own before confirming contact details. Confirmed bundles remain visible but disabled; submitted contact details remain admin-only.
+
 - Add a dedicated admin page named "單張大禮包喊單系統" for creating fixed-total, screenshot-backed claim orders.
 - Let staff upload one or more private reference screenshots, enter the customer-facing description and final total, and generate an unguessable customer link.
 - Add a customer confirmation page that reuses the inventory's existing claim banner, theme, official LINE, completion message, and transfer-account settings.

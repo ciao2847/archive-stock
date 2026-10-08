@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  bundleClaimCampaignSchema,
   bundleClaimConfirmationSchema,
+  bundleProductSchema,
+  sumBundleProductAmounts,
+  bundleMenuConfirmationSchema,
+  toPublicBundleMenuOption,
+  type BundleClaimOrder,
   bundleClaimDraftSchema,
   bundleClaimQuerySchema,
   canAccessBundleClaimOwner,
@@ -33,6 +39,7 @@ test("bundle draft requires a positive two-decimal fixed total", () => {
       bundleClaimDraftSchema.safeParse({
         ownerId: OWNER_ID,
         title: "測試",
+        customerHint: "james",
         totalAmount,
       }).success,
       false,
@@ -187,4 +194,205 @@ test("end-to-end lifecycle helpers guarantee ordered operational transitions", (
   assert.equal(canEditBundleClaimEvidence(status), false);
   assert.equal(canDeleteBundleClaim(status), false);
   assert.equal(canRecordBundleClaimPayment(status, false), false);
+});
+
+test("shared menu publishes only open non-expired and confirmed allocations", () => {
+  const order = menuOrderFixture();
+  assert.equal(toPublicBundleMenuOption(order)?.state, "open");
+  assert.equal(
+    toPublicBundleMenuOption({ ...order, status: "confirmed" })?.state,
+    "confirmed",
+  );
+  for (const status of ["draft", "cancelled", "expired"] as const) {
+    assert.equal(toPublicBundleMenuOption({ ...order, status }), null);
+  }
+  assert.equal(
+    toPublicBundleMenuOption({ ...order, expiresAt: "2000-01-01T00:00:00Z" }),
+    null,
+  );
+  assert.equal(
+    toPublicBundleMenuOption({
+      ...order,
+      status: "confirmed",
+      expiresAt: "2000-01-01T00:00:00Z",
+    })?.state,
+    "confirmed",
+  );
+});
+
+test("shared menu never includes submitted contacts, private tokens, receipts or payments", () => {
+  const option = toPublicBundleMenuOption(menuOrderFixture());
+  assert.ok(option);
+  assert.deepEqual(
+    Object.keys(option).sort(),
+    [
+      "id",
+      "label",
+      "state",
+      "title",
+      "description",
+      "totalAmount",
+      "expiresAt",
+      "images",
+    ].sort(),
+  );
+  const serialized = JSON.stringify(option);
+  for (const secret of [
+    "secret-order-token",
+    "secret-receipt",
+    "0912345678",
+    "private-customer-notes",
+    "private-payment-note",
+    "private-contact.jpg",
+  ]) {
+    assert.equal(serialized.includes(secret), false, secret);
+  }
+  assert.equal(option.images[0].originalFilename, "核對截圖 1");
+});
+
+test("shared menu labels use the preassigned hint rather than submitted nickname", () => {
+  const order = menuOrderFixture();
+  assert.equal(toPublicBundleMenuOption(order)?.label, "james");
+  assert.equal(
+    toPublicBundleMenuOption({ ...order, customerHint: "  " })?.label,
+    order.title,
+  );
+});
+
+test("shared menu confirmation requires a valid allocation and strips price overrides", () => {
+  const input = {
+    orderId: 1,
+    nickname: "james",
+    phone: "0912345678",
+    consent: true,
+    requestId: "00000000-0000-4000-8000-000000000002",
+    turnstileToken: "verified-token",
+    totalAmount: 1,
+  };
+  const valid = bundleMenuConfirmationSchema.safeParse(input);
+  assert.equal(valid.success, true);
+  if (valid.success) assert.equal("totalAmount" in valid.data, false);
+  for (const orderId of [0, -1, 1.5, "1", undefined]) {
+    assert.equal(
+      bundleMenuConfirmationSchema.safeParse({ ...input, orderId }).success,
+      false,
+    );
+  }
+  assert.equal(
+    bundleMenuConfirmationSchema.safeParse({ ...input, website: "bot" })
+      .success,
+    false,
+  );
+});
+
+function menuOrderFixture(): BundleClaimOrder {
+  return {
+    id: 1,
+    ownerId: OWNER_ID,
+    publicToken: "secret-order-token",
+    confirmationCode: "secret-receipt",
+    title: "已配好的大禮包",
+    customerHint: "james",
+    description: "依截圖為準",
+    totalAmount: 1200,
+    status: "open",
+    customerNickname: "different-submitted-name",
+    customerPhone: "0912345678",
+    customerNotes: "private-customer-notes",
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+    images: [
+      {
+        id: 1,
+        sortOrder: 0,
+        mediaType: "image/jpeg",
+        originalFilename: "private-contact.jpg",
+        byteSize: 1024,
+        url: "https://example.invalid/signed-image",
+      },
+    ],
+    payment: {
+      id: 1,
+      amount: 1200,
+      transferredAt: "2026-10-05T00:00:00Z",
+      note: "private-payment-note",
+      createdAt: "2026-10-05T00:00:00Z",
+    },
+  };
+}
+
+test("product names and prices are required and summed in integer cents", () => {
+  assert.equal(sumBundleProductAmounts([0.1, 0.2, 450.25, 749.75]), 1200.3);
+  assert.equal(
+    bundleProductSchema.safeParse({ id: 1, name: "海報", amount: 450.25 })
+      .success,
+    true,
+  );
+  for (const amount of [0, -1, 0.001, Infinity]) {
+    assert.equal(
+      bundleProductSchema.safeParse({ id: 1, name: "海報", amount }).success,
+      false,
+    );
+  }
+  assert.equal(
+    bundleProductSchema.safeParse({ id: 1, name: " ", amount: 1 }).success,
+    false,
+  );
+});
+
+test("campaign metadata validates names and defaults to unpublished", () => {
+  const result = bundleClaimCampaignSchema.parse({
+    ownerId: OWNER_ID,
+    title: " 第一批 ",
+    description: "說明",
+  });
+  assert.equal(result.title, "第一批");
+  assert.equal(result.enabled, false);
+  assert.equal(
+    bundleClaimCampaignSchema.safeParse({ ownerId: OWNER_ID, title: " " })
+      .success,
+    false,
+  );
+  const draft = bundleClaimDraftSchema.parse({
+    ownerId: OWNER_ID,
+    campaignId: 12,
+    title: "品項",
+    customerHint: "james",
+    totalAmount: 1888.25,
+  });
+  assert.equal(draft.campaignId, 12);
+  assert.equal(draft.totalAmount, 1888.25);
+  assert.equal(
+    bundleClaimQuerySchema.parse({ ownerId: OWNER_ID, campaignId: "12" })
+      .campaignId,
+    12,
+  );
+  assert.equal(
+    bundleClaimDraftSchema.safeParse({
+      ownerId: OWNER_ID,
+      campaignId: -1,
+      title: "品項",
+      customerHint: "james",
+      totalAmount: 1,
+    }).success,
+    false,
+  );
+});
+
+test("bundle draft requires a nonblank customer option name", () => {
+  const input = {
+    ownerId: OWNER_ID,
+    title: "十月大禮包第一彈",
+    totalAmount: 1399,
+  };
+  for (const customerHint of [undefined, "", "   "])
+    assert.equal(
+      bundleClaimDraftSchema.safeParse({ ...input, customerHint }).success,
+      false,
+    );
+  const result = bundleClaimDraftSchema.parse({
+    ...input,
+    customerHint: " james ",
+  });
+  assert.equal(result.customerHint, "james");
 });

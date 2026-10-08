@@ -226,7 +226,7 @@ export function ClaimFormAppearanceSettings({
           <h3 className="mb-0 text-[17px] font-bold text-dark">表單外觀</h3>
           <p className="mb-0 mt-0.5 text-[12px] text-muted">
             設定頂部橫幅背景圖與整頁色系，此庫藏所有 IP
-            喊單頁共用同一組外觀風格。
+            訂購頁共用同一組外觀風格。
           </p>
         </div>
       </div>
@@ -463,7 +463,7 @@ export function ClaimFormAppearanceSettings({
                   className="mb-0 mt-3 text-[17px] leading-tight"
                   style={{ color: safeTheme.headerTextColor }}
                 >
-                  {title.trim() || "喊單標題預覽"}
+                  {title.trim() || "訂購標題預覽"}
                 </h4>
                 {description.trim() && (
                   <p

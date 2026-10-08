@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { RemoveRecordButton } from "@/components/order-management/RemoveRecordButton";
+import { PaymentRecordEditor } from "@/components/order-management/PaymentRecordEditor";
 import {
   Banknote,
   Check,
@@ -14,7 +16,6 @@ import {
   Search,
   Trash2,
   Users,
-  X,
 } from "lucide-react";
 
 import {
@@ -52,6 +53,7 @@ export interface ClaimCustomersViewProps {
     submissionId: number,
     formId: number,
     source: ClaimSubmission["source"],
+    expectedUpdatedAt?: string,
   ) => Promise<void>;
   onReload: () => Promise<void>;
   initialSearchQuery?: string;
@@ -174,7 +176,7 @@ export function ClaimCustomersView({
     try {
       await navigator.clipboard.writeText(text);
       setCopiedKey(group.customerKey);
-      setActionMessage(`已複製「${group.nickname}」的 LINE 喊單對帳單！`);
+      setActionMessage(`已複製「${group.nickname}」的 LINE 訂購對帳單！`);
       window.setTimeout(() => setCopiedKey(null), 2000);
     } catch {
       window.prompt("請複製以下對帳文字：", text);
@@ -197,9 +199,7 @@ export function ClaimCustomersView({
       submission.source === "bundle" &&
       Math.abs(amount - outstanding) > 0.001
     ) {
-      setActionError(
-        `單張大禮包只能登記全額 $${outstanding.toLocaleString()}。`,
-      );
+      setActionError(`配單只能登記全額 $${outstanding.toLocaleString()}。`);
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) {
@@ -268,8 +268,18 @@ export function ClaimCustomersView({
   }
 
   async function handleDeleteSubmission(submission: ClaimSubmission) {
+    if (
+      loading ||
+      savingPayment ||
+      deletingSubmissionKey !== null ||
+      deletingPaymentId !== null ||
+      submission.payments.length > 0 ||
+      submission.receivingCheckedAt ||
+      submission.outboundCheckedAt
+    )
+      return;
     const confirmed = window.confirm(
-      `確定要刪除「${submission.nickname}」在「${submission.formTitle}」的這筆喊單嗎？\n\n確認編號：${submission.confirmationCode}\n刪除後無法復原，商品統計與採購數量也會同步扣除。`,
+      `確定要刪除「${submission.nickname}」在「${submission.formTitle}」的這筆${submission.source === "bundle" ? "配單" : "訂購"}嗎？\n\n確認編號：${submission.confirmationCode}\n總額：$${getClaimSubmissionTotal(submission).toLocaleString()}\n刪除後無法復原，商品統計與對帳資料也會同步更新。`,
     );
     if (!confirmed) return;
 
@@ -281,14 +291,15 @@ export function ClaimCustomersView({
         submission.id,
         submission.formId,
         submission.source,
+        submission.updatedAt,
       );
       await onReload();
       setActionMessage(
-        `已刪除「${submission.nickname}」在「${submission.formTitle}」的喊單明細。`,
+        `已刪除「${submission.nickname}」在「${submission.formTitle}」的訂購明細。`,
       );
     } catch (err) {
       setActionError(
-        err instanceof Error ? err.message : "喊單明細刪除失敗，請稍後再試。",
+        err instanceof Error ? err.message : "訂購明細刪除失敗，請稍後再試。",
       );
     } finally {
       setDeletingSubmissionKey(null);
@@ -310,7 +321,7 @@ export function ClaimCustomersView({
             </h3>
             <p className="mb-0 mt-1 text-[13px] leading-5 text-muted">
               自動彙整相同顧客在各 IP
-              喊單頁的全部商品；直接查看誰尚未結帳、買了哪些、總金額多少，告別跨記事本手動找人的繁瑣！
+              訂購頁的全部商品；直接查看誰尚未結帳、買了哪些、總金額多少，告別跨記事本手動找人的繁瑣！
             </p>
           </div>
 
@@ -481,7 +492,7 @@ export function ClaimCustomersView({
                   {/* Summary figures */}
                   <div className="flex flex-wrap items-center gap-3 text-[13px]">
                     <span className="text-muted">
-                      共 {group.submissions.length} 筆喊單 ·{" "}
+                      共 {group.submissions.length} 筆訂購 ·{" "}
                       {group.totalQuantity} 件
                     </span>
                     <div className="flex items-baseline gap-1">
@@ -527,9 +538,7 @@ export function ClaimCustomersView({
                                 {sub.formTitle}
                               </span>
                               <span className="rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-bold text-muted">
-                                {sub.source === "bundle"
-                                  ? "單張大禮包"
-                                  : "商品喊單"}
+                                {sub.source === "bundle" ? "配單" : "商品訂購"}
                               </span>
                               <span className="font-mono text-[10px] text-muted">
                                 #{sub.confirmationCode}
@@ -575,33 +584,30 @@ export function ClaimCustomersView({
                                   登記匯款
                                 </button>
                               )}
-                              {sub.source === "claim" && (
-                                <button
-                                  type="button"
-                                  className="ml-1 inline-flex min-h-7 items-center gap-1 rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-danger transition hover:border-danger hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
-                                  disabled={
-                                    loading ||
-                                    savingPayment ||
-                                    deletingPaymentId !== null ||
-                                    deletingSubmissionKey !== null
-                                  }
-                                  onClick={() =>
-                                    void handleDeleteSubmission(sub)
-                                  }
-                                  aria-label={`刪除 ${sub.nickname} 在 ${sub.formTitle} 的喊單明細`}
-                                >
-                                  {isSubDeleting ? (
-                                    <LoaderCircle
-                                      size={11}
-                                      className="animate-spin"
-                                      aria-hidden="true"
-                                    />
-                                  ) : (
-                                    <Trash2 size={11} aria-hidden="true" />
-                                  )}
-                                  {isSubDeleting ? "刪除中" : "刪除"}
-                                </button>
-                              )}
+                              <RemoveRecordButton
+                                ariaLabel={`移除 ${sub.nickname} 的${sub.source === "bundle" ? "配單" : "訂購明細"}`}
+                                busy={isSubDeleting}
+                                disabled={
+                                  loading ||
+                                  savingPayment ||
+                                  deletingPaymentId !== null ||
+                                  deletingSubmissionKey !== null ||
+                                  sub.payments.length > 0 ||
+                                  Boolean(
+                                    sub.receivingCheckedAt ||
+                                      sub.outboundCheckedAt,
+                                  )
+                                }
+                                reason={
+                                  sub.payments.length > 0
+                                    ? "請先撤銷匯款紀錄再移除。"
+                                    : sub.receivingCheckedAt ||
+                                        sub.outboundCheckedAt
+                                      ? "請先至配單管理撤銷入出庫核對，再移除。"
+                                      : undefined
+                                }
+                                onClick={() => void handleDeleteSubmission(sub)}
+                              />
                             </div>
                           </div>
 
@@ -728,143 +734,41 @@ export function ClaimCustomersView({
                           )}
 
                           {isPaymentEditorOpen && (
-                            <div className="mt-3 rounded-[8px] border border-primary/25 bg-primary-soft/40 p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <h5 className="m-0 inline-flex items-center gap-1.5 text-[12px] font-bold text-dark">
-                                  <Banknote size={14} aria-hidden="true" />
-                                  新增匯款紀錄
-                                </h5>
-                                <button
-                                  type="button"
-                                  className="icon-btn size-7"
-                                  onClick={() =>
-                                    setPaymentEditorSubmissionKey(null)
-                                  }
-                                  aria-label="關閉匯款紀錄表單"
-                                >
-                                  <X size={13} />
-                                </button>
-                              </div>
-                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                <label className="text-[11px] font-semibold text-dark">
-                                  匯款金額
-                                  <input
-                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[16px] outline-none focus:border-primary"
-                                    type="number"
-                                    min="0.01"
-                                    max={subOutstanding}
-                                    step="0.01"
-                                    value={paymentAmount}
-                                    readOnly={sub.source === "bundle"}
-                                    onChange={(event) =>
-                                      setPaymentAmount(event.target.value)
-                                    }
-                                  />
-                                  <span className="mt-1.5 flex flex-wrap gap-1.5">
-                                    <button
-                                      type="button"
-                                      className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
-                                      onClick={() =>
-                                        setPaymentAmount(String(subOutstanding))
-                                      }
-                                    >
-                                      剩餘全額
-                                    </button>
-                                    {sub.source === "claim" && (
-                                      <button
-                                        type="button"
-                                        className="rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-medium text-primary"
-                                        onClick={() =>
-                                          setPaymentAmount(
-                                            String(
-                                              Math.round(subOutstanding * 50) /
-                                                100,
-                                            ),
-                                          )
-                                        }
-                                      >
-                                        剩餘一半
-                                      </button>
-                                    )}
-                                  </span>
-                                </label>
-                                <label className="text-[11px] font-semibold text-dark">
-                                  匯款日期時間
-                                  <input
-                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[14px] outline-none focus:border-primary"
-                                    type="datetime-local"
-                                    value={paymentTransferredAt}
-                                    onChange={(event) =>
-                                      setPaymentTransferredAt(
-                                        event.target.value,
-                                      )
-                                    }
-                                  />
-                                </label>
-                                <label className="text-[11px] font-semibold text-dark">
-                                  匯款帳號末五碼（選填）
-                                  <input
-                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 font-mono text-[16px] outline-none focus:border-primary"
-                                    inputMode="numeric"
-                                    maxLength={5}
-                                    value={paymentLastFive}
-                                    placeholder="12345"
-                                    onChange={(event) =>
-                                      setPaymentLastFive(
-                                        event.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 5),
-                                      )
-                                    }
-                                  />
-                                </label>
-                                <label className="text-[11px] font-semibold text-dark">
-                                  備註（選填）
-                                  <input
-                                    className="mt-1.5 block min-h-10 w-full rounded-[7px] border border-line bg-white px-3 text-[14px] outline-none focus:border-primary"
-                                    maxLength={1000}
-                                    value={paymentNote}
-                                    placeholder={
-                                      sub.source === "bundle"
-                                        ? "例如：已核對全額"
-                                        : "例如：先付一半"
-                                    }
-                                    onChange={(event) =>
-                                      setPaymentNote(event.target.value)
-                                    }
-                                  />
-                                </label>
-                              </div>
-                              <div className="mt-3 flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  className="outline min-h-9 text-[11px]"
-                                  disabled={savingPayment}
-                                  onClick={() =>
-                                    setPaymentEditorSubmissionKey(null)
-                                  }
-                                >
-                                  取消
-                                </button>
-                                <button
-                                  type="button"
-                                  className="primary min-h-9 text-[11px]"
-                                  disabled={
-                                    savingPayment ||
-                                    !paymentAmount ||
-                                    !paymentTransferredAt
-                                  }
-                                  onClick={() => void handleRecordPayment(sub)}
-                                >
-                                  {savingPayment && (
-                                    <LoaderCircle
-                                      size={13}
-                                      className="animate-spin"
-                                    />
-                                  )}
-                                  {savingPayment ? "儲存中…" : "儲存匯款紀錄"}
-                                </button>
-                              </div>
+                            <div className="mt-3">
+                              <PaymentRecordEditor
+                                values={{
+                                  amount: paymentAmount,
+                                  transferredAt: paymentTransferredAt,
+                                  lastFive: paymentLastFive,
+                                  note: paymentNote,
+                                }}
+                                onChange={(values) => {
+                                  setPaymentAmount(values.amount);
+                                  setPaymentTransferredAt(values.transferredAt);
+                                  setPaymentLastFive(values.lastFive);
+                                  setPaymentNote(values.note);
+                                }}
+                                amountReadOnly={sub.source === "bundle"}
+                                maximumAmount={subOutstanding}
+                                presets={[
+                                  { label: "剩餘全額", amount: subOutstanding },
+                                  ...(sub.source === "claim"
+                                    ? [
+                                        {
+                                          label: "剩餘一半",
+                                          amount:
+                                            Math.round(subOutstanding * 50) /
+                                            100,
+                                        },
+                                      ]
+                                    : []),
+                                ]}
+                                saving={savingPayment}
+                                onSubmit={() => void handleRecordPayment(sub)}
+                                onCancel={() =>
+                                  setPaymentEditorSubmissionKey(null)
+                                }
+                              />
                             </div>
                           )}
                         </div>
@@ -883,7 +787,7 @@ export function ClaimCustomersView({
                     {isCollapsed ? (
                       <>
                         <ChevronDown size={14} />
-                        展開喊單明細 ({group.submissions.length})
+                        展開訂購明細 ({group.submissions.length})
                       </>
                     ) : (
                       <>
@@ -927,14 +831,14 @@ export function ClaimCustomersView({
               ? "查無符合條件的顧客"
               : statusFilter === "unsettled"
                 ? "所有顧客款項皆已結清！"
-                : "目前尚無任何顧客喊單紀錄"}
+                : "目前尚無任何顧客訂購紀錄"}
           </h4>
           <p className="mx-auto mb-0 mt-1 max-w-[360px] text-[12px] text-muted">
             {searchQuery
               ? "請嘗試更換電話、暱稱或商品名稱再次搜尋。"
               : statusFilter === "unsettled"
                 ? "太棒了！目前庫藏中沒有待處理的匯款與欠款。"
-                : "買家在任何公開喊單頁登記後，將自動在此處以顧客為單位歸戶。"}
+                : "買家在任何公開訂購頁登記後，將自動在此處以顧客為單位歸戶。"}
           </p>
           {searchQuery && (
             <button

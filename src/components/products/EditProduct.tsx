@@ -27,14 +27,14 @@ export function EditProduct({
 }) {
   const [form, setForm] = useState({
     name: product.name,
-    work: product.work,
     category: product.category,
     country: product.country === "—" ? "" : product.country,
     source: product.source === "—" ? "" : product.source,
-    location: product.location === "未指定" ? "" : product.location,
+    location:
+      product.primaryLocationCode ??
+      (product.location === "未指定" ? "" : product.location),
     stock: String(product.stock),
     price: String(product.price),
-    cost: String(product.cost),
     format: product.format || "",
     size: product.size || "",
     description: product.description || "",
@@ -82,7 +82,6 @@ export function EditProduct({
         ).paths;
       }
       await updateProduct(product.dbId, {
-        work: form.work.trim(),
         crafts: form.category === POSTER_CATEGORY ? crafts : [],
         imagePaths,
         name: form.name.trim(),
@@ -92,7 +91,6 @@ export function EditProduct({
         location: form.location.toUpperCase(),
         stock: nextStock,
         price: toNumber(form.price),
-        cost: toNumber(form.cost) !== product.cost ? toNumber(form.cost) : null,
         format: form.category === POSTER_CATEGORY ? form.format : "",
         size: form.category === POSTER_CATEGORY ? form.size : "",
         feature: form.feature,
@@ -126,13 +124,6 @@ export function EditProduct({
                 required
                 value={form.name}
                 onChange={(e) => change("name", e.target.value)}
-              />
-            </Field>
-            <Field label="作品名稱">
-              <input
-                required
-                value={form.work}
-                onChange={(e) => change("work", e.target.value)}
               />
             </Field>
             <Field label="商品圖片" wide>
@@ -233,14 +224,6 @@ export function EditProduct({
                 min="0"
                 value={form.price}
                 onChange={(e) => change("price", e.target.value)}
-              />
-            </Field>
-            <Field label="本批成本總額">
-              <input
-                type="number"
-                min="0"
-                value={form.cost}
-                onChange={(e) => change("cost", e.target.value)}
               />
             </Field>
             {form.category === POSTER_CATEGORY && (

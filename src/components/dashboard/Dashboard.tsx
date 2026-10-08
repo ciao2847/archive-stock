@@ -305,8 +305,8 @@ export function Dashboard({ authScope }: { authScope: string }) {
   const nav = [
     { id: "dashboard", label: "總覽", icon: LayoutDashboard },
     { id: "products", label: "商品庫存", icon: Boxes },
-    { id: "claims", label: "喊單管理", icon: Megaphone },
-    { id: "bundle-claims", label: "單張大禮包喊單系統", icon: Images },
+    { id: "claims", label: "訂購管理", icon: Megaphone },
+    { id: "bundle-claims", label: "配單管理", icon: Images },
     { id: "orders", label: "訂單管理", icon: ClipboardList },
     { id: "packing", label: "掃碼出貨", icon: QrCode },
   ] as const;
@@ -402,11 +402,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
             <Menu />
           </button>
           {view === "claims" ? (
-            <div
-              id="claim-customer-search-slot"
-              className="min-w-0 flex-1"
-              aria-live="polite"
-            />
+            <div className="min-w-0 flex-1" />
           ) : searchConfig ? (
             <form
               className="search"
@@ -489,9 +485,9 @@ export function Dashboard({ authScope }: { authScope: string }) {
                     {view === "products"
                       ? "商品庫存"
                       : view === "claims"
-                        ? "喊單管理"
+                        ? "訂購管理"
                         : view === "bundle-claims"
-                          ? "單張大禮包喊單系統"
+                          ? "配單管理"
                           : view === "orders"
                             ? "訂單管理"
                             : view === "locations"
@@ -506,13 +502,13 @@ export function Dashboard({ authScope }: { authScope: string }) {
                     {view === "dashboard"
                       ? activeInventoryName
                       : view === "claims"
-                        ? "管理公開商品、顧客喊單與採購數量。"
+                        ? "管理預購與現貨商品、顧客訂購紀錄與採購數量。"
                         : view === "bundle-claims"
-                          ? "將討論串確認好的截圖與固定總額整理成顧客確認連結。"
+                          ? "整理每位客人的商品與金額，分享共同連結讓客人確認配單。"
                           : view === "locations"
                             ? "建立並查看收藏品的實際存放位置。"
                             : view === "settlement"
-                              ? "彙整銷售收入、批次成本與目前淨利。"
+                              ? "確認雙月成本總額、保存購買佐證並結算本期收支。"
                               : view === "settings"
                                 ? "管理帳號與系統連線資訊。"
                                 : "快速找到每一件收藏品，減少人工核對。"}

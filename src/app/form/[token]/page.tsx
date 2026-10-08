@@ -33,8 +33,8 @@ export async function generateMetadata({
   return {
     title: {
       absolute: communityName
-        ? `商品喊單｜${communityName}`
-        : "商品喊單｜庫藏 Archive Stock",
+        ? `預購／現貨訂購｜${communityName}`
+        : "預購／現貨訂購｜庫藏 Archive Stock",
     },
     description: "選擇想要的商品並留下聯絡資料。",
     robots: { index: false, follow: false },
@@ -49,7 +49,7 @@ function Unavailable({ loadFailed = false }: { loadFailed?: boolean }) {
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-danger-soft text-danger">
             <AlertCircle size={29} aria-hidden="true" />
           </span>
-          <h1 className="mb-0 mt-5 text-[24px]">目前無法開啟喊單頁</h1>
+          <h1 className="mb-0 mt-5 text-[24px]">目前無法開啟訂購頁</h1>
           <p className="mx-auto mb-0 mt-3 max-w-[440px] text-[15px] leading-7 text-muted">
             {loadFailed
               ? "系統暫時無法讀取商品，請稍後重新整理；若持續發生，請聯絡表單管理者。"

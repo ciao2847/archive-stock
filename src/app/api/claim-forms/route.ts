@@ -27,6 +27,8 @@ import {
   TAIWAN_MOBILE_PHONE_PATTERN,
 } from "@/lib/claims";
 
+import { claimCustomerSearchFilter } from "@/lib/claim-search";
+
 const PAGE_SIZE = 50;
 const CLAIM_FORM_BANNER_PATH_PATTERN =
   /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.webp$/;
@@ -36,6 +38,7 @@ const querySchema = z.object({
   formId: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   customerPhone: z.string().regex(TAIWAN_MOBILE_PHONE_PATTERN).optional(),
+  customerSearch: z.string().trim().min(1).max(100).optional(),
   scope: z.enum(["form", "all"]).optional(),
 });
 
@@ -60,7 +63,7 @@ const saveSchema = z.object({
     .nullish()
     .transform((v) => v || undefined),
   ownerId: z.string().uuid(),
-  title: z.string().trim().min(1, "請填寫 IP 名稱／喊單標題").max(120),
+  title: z.string().trim().min(1, "請填寫 IP 名稱／訂購標題").max(120),
   description: z
     .string()
     .trim()
@@ -119,7 +122,7 @@ const paymentStatusSchema = z
     (data) =>
       data.submissionId !== undefined ||
       (data.submissionIds !== undefined && data.submissionIds.length > 0),
-    { message: "請指定要更新的喊單編號" },
+    { message: "請指定要更新的訂購編號" },
   );
 
 function canAccessOwner(
@@ -207,13 +210,15 @@ export async function GET(request: Request) {
       formId: url.searchParams.get("formId") || undefined,
       page: url.searchParams.get("page") || 1,
       customerPhone: url.searchParams.get("customerPhone") || undefined,
+      customerSearch: url.searchParams.get("customerSearch") || undefined,
       scope: url.searchParams.get("scope") || undefined,
     });
-    if (!parsed.success) return apiFailure("喊單查詢參數格式錯誤", 400);
+    if (!parsed.success) return apiFailure("訂購查詢參數格式錯誤", 400);
 
-    const { ownerId, formId, page, customerPhone, scope } = parsed.data;
+    const { ownerId, formId, page, customerPhone, customerSearch, scope } =
+      parsed.data;
     if (!canAccessOwner(auth.role, auth.inventoryOwnerId, ownerId)) {
-      return apiFailure("無法查看這個庫藏的喊單", 403);
+      return apiFailure("無法查看這個庫藏的訂購", 403);
     }
 
     const [{ data: forms, error: formError }, { data: inventoryData }] =
@@ -239,7 +244,7 @@ export async function GET(request: Request) {
     const form = formId
       ? forms?.find((candidate) => candidate.id === formId)
       : forms?.[0];
-    if (formId && !form) return apiFailure("找不到這個 IP 喊單連結", 404);
+    if (formId && !form) return apiFailure("找不到這個 IP 訂購連結", 404);
 
     const defaultTheme = getDefaultClaimFormTheme(inventoryData?.name || "");
     const unifiedBannerPath =
@@ -319,7 +324,7 @@ export async function GET(request: Request) {
       const bundlePromise = asUntypedSupabase(auth.supabase)
         .from("bundle_claim_orders")
         .select(
-          "id,confirmation_code,title,total_amount,customer_nickname,customer_phone,customer_notes,confirmed_at,bundle_claim_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
+          "id,confirmation_code,title,total_amount,customer_nickname,customer_phone,customer_notes,confirmed_at,updated_at,receiving_checked_at,outbound_checked_at,bundle_claim_payments(id,amount,transferred_at,payer_account_last_five,note,created_at)",
         )
         .eq("owner_id", ownerId)
         .eq("status", "confirmed")
@@ -349,7 +354,7 @@ export async function GET(request: Request) {
           source: "claim",
           id: submission.id,
           formId: submission.form_id,
-          formTitle: formTitleById.get(submission.form_id) || "未命名喊單頁",
+          formTitle: formTitleById.get(submission.form_id) || "未命名訂購頁",
           confirmationCode: submission.confirmation_code,
           nickname: submission.nickname,
           phone: submission.phone,
@@ -382,9 +387,21 @@ export async function GET(request: Request) {
         );
         return {
           source: "bundle",
+          updatedAt:
+            typeof submission.updated_at === "string"
+              ? submission.updated_at
+              : undefined,
+          receivingCheckedAt:
+            typeof submission.receiving_checked_at === "string"
+              ? submission.receiving_checked_at
+              : undefined,
+          outboundCheckedAt:
+            typeof submission.outbound_checked_at === "string"
+              ? submission.outbound_checked_at
+              : undefined,
           id: numberOf(submission.id),
           formId: 0,
-          formTitle: "單張大禮包喊單",
+          formTitle: "配單確認",
           confirmationCode: String(submission.confirmation_code ?? ""),
           nickname: String(submission.customer_nickname ?? ""),
           phone: String(submission.customer_phone ?? ""),
@@ -398,7 +415,7 @@ export async function GET(request: Request) {
             {
               id: numberOf(submission.id),
               sku: "BUNDLE",
-              name: String(submission.title ?? "單張大禮包"),
+              name: String(submission.title ?? "配單"),
               quantity: 1,
               unitPrice: numberOf(submission.total_amount),
             },
@@ -464,14 +481,17 @@ export async function GET(request: Request) {
       )
       .order("created_at", { ascending: false });
 
-    submissionsQuery = customerPhone
-      ? submissionsQuery
-          .in(
-            "form_id",
-            mappedForms.map((candidate) => candidate.id),
-          )
-          .eq("phone_normalized", customerPhone)
-      : submissionsQuery.eq("form_id", form.id);
+    if (customerSearch || customerPhone) {
+      submissionsQuery = submissionsQuery.in(
+        "form_id",
+        mappedForms.map((candidate) => candidate.id),
+      );
+      submissionsQuery = customerSearch
+        ? submissionsQuery.or(claimCustomerSearchFilter(customerSearch))
+        : submissionsQuery.eq("phone_normalized", customerPhone!);
+    } else {
+      submissionsQuery = submissionsQuery.eq("form_id", form.id);
+    }
 
     const {
       data: submissions,
@@ -491,7 +511,7 @@ export async function GET(request: Request) {
         source: "claim",
         id: submission.id,
         formId: submission.form_id,
-        formTitle: formTitleById.get(submission.form_id) || "未命名喊單頁",
+        formTitle: formTitleById.get(submission.form_id) || "未命名訂購頁",
         confirmationCode: submission.confirmation_code,
         nickname: submission.nickname,
         phone: submission.phone,
@@ -555,11 +575,11 @@ export async function PUT(request: Request) {
     if (!auth.ok) return auth.response;
 
     const parsed = saveSchema.safeParse(await request.json().catch(() => null));
-    if (!parsed.success) return apiFailure("喊單設定格式錯誤", 400);
+    if (!parsed.success) return apiFailure("訂購設定格式錯誤", 400);
 
     const input = parsed.data;
     if (!canAccessOwner(auth.role, auth.inventoryOwnerId, input.ownerId)) {
-      return apiFailure("無法管理這個庫藏的喊單", 403);
+      return apiFailure("無法管理這個庫藏的訂購", 403);
     }
     if (
       input.bannerImagePath &&
@@ -594,18 +614,18 @@ export async function PUT(request: Request) {
     });
     if (error) {
       if (error.code === "PGRST202") {
-        return apiFailure("喊單功能尚未安裝，請先執行最新 migration。", 503);
+        return apiFailure("訂購功能尚未安裝，請先執行最新 migration。", 503);
       }
       const messages: Record<string, string> = {
-        "claim form title already exists": "這個 IP 已經有喊單連結。",
-        "claim form not found": "找不到這個 IP 喊單連結。",
+        "claim form title already exists": "這個 IP 已經有訂購連結。",
+        "claim form not found": "找不到這個 IP 訂購連結。",
         "claim form product is not available": "部分商品不屬於目前庫藏。",
         "invalid claim form product": "請確認商品名稱、金額與數量上限。",
-        "invalid claim form products": "喊單商品設定格式錯誤。",
+        "invalid claim form products": "訂購商品設定格式錯誤。",
         "invalid claim form banner image": "請重新選擇橫幅背景圖片。",
         "invalid claim form banner position": "請重新調整橫幅圖片位置。",
         "invalid claim form theme": "請確認表單色系設定。",
-        "owner access required": "無法管理這個庫藏的喊單。",
+        "owner access required": "無法管理這個庫藏的訂購。",
       };
       return apiFailure(
         messages[error.message] || error.message,
@@ -615,7 +635,7 @@ export async function PUT(request: Request) {
     }
 
     const row = data?.[0];
-    if (!row) return apiFailure("喊單設定未儲存，請稍後再試", 409);
+    if (!row) return apiFailure("訂購設定未儲存，請稍後再試", 409);
     return apiSuccess({
       formId: row.form_id,
       publicToken: row.public_token,
@@ -655,14 +675,14 @@ export async function PATCH(request: Request) {
     if (error) {
       return apiFailure(
         error.code === "42501"
-          ? "你沒有修改這筆喊單付款狀態的權限。"
+          ? "你沒有修改這筆訂購付款狀態的權限。"
           : error.message,
         error.code === "42501" ? 403 : 400,
         error.code,
       );
     }
     if (!data || !data.length) {
-      return apiFailure("找不到這筆喊單，請重新整理後再試。", 404);
+      return apiFailure("找不到這筆訂購，請重新整理後再試。", 404);
     }
 
     return apiSuccess({
@@ -680,11 +700,11 @@ export async function DELETE(request: Request) {
     const parsed = deleteSchema.safeParse(
       await request.json().catch(() => null),
     );
-    if (!parsed.success) return apiFailure("喊單明細刪除格式錯誤", 400);
+    if (!parsed.success) return apiFailure("訂購明細刪除格式錯誤", 400);
 
     const input = parsed.data;
     if (!canAccessOwner(auth.role, auth.inventoryOwnerId, input.ownerId)) {
-      return apiFailure("無法管理這個庫藏的喊單", 403);
+      return apiFailure("無法管理這個庫藏的訂購", 403);
     }
 
     if (input.submissionId) {
@@ -702,14 +722,14 @@ export async function DELETE(request: Request) {
         }
         if (error.code === "23503") {
           return apiFailure(
-            "這筆喊單已有匯款紀錄，請先刪除匯款紀錄後再刪除喊單。",
+            "這筆訂購已有匯款紀錄，請先刪除匯款紀錄後再刪除訂購。",
             409,
             error.code,
           );
         }
         const messages: Record<string, { message: string; status: number }> = {
           "admin access required": {
-            message: "無法移除這個庫藏的顧客喊單明細。",
+            message: "無法移除這個庫藏的顧客訂購明細。",
             status: 403,
           },
           "employee access required": {
@@ -717,28 +737,28 @@ export async function DELETE(request: Request) {
             status: 403,
           },
           "owner access required": {
-            message: "無法移除其他庫藏的顧客喊單明細。",
+            message: "無法移除其他庫藏的顧客訂購明細。",
             status: 403,
           },
           "claim submission not found": {
-            message: "找不到這筆喊單明細，可能已被其他使用者移除。",
+            message: "找不到這筆訂購明細，可能已被其他使用者移除。",
             status: 404,
           },
           "invalid claim submission target": {
-            message: "喊單明細刪除目標格式錯誤。",
+            message: "訂購明細刪除目標格式錯誤。",
             status: 400,
           },
         };
         const mapped = messages[error.message];
         return apiFailure(
-          mapped?.message || "喊單明細移除失敗，請重新整理後再試。",
+          mapped?.message || "訂購明細移除失敗，請重新整理後再試。",
           mapped?.status || 400,
           error.code,
         );
       }
 
       if (data !== true) {
-        return apiFailure("喊單明細未移除，請重新整理後再試。", 409);
+        return apiFailure("訂購明細未移除，請重新整理後再試。", 409);
       }
 
       return apiSuccess({ deleted: true, submissionId: input.submissionId });
@@ -762,7 +782,7 @@ export async function DELETE(request: Request) {
       }
       const messages: Record<string, { message: string; status: number }> = {
         "admin access required": {
-          message: "無法移除這個庫藏的 IP 喊單頁。",
+          message: "無法移除這個庫藏的 IP 訂購頁。",
           status: 403,
         },
         "employee access required": {
@@ -770,28 +790,28 @@ export async function DELETE(request: Request) {
           status: 403,
         },
         "owner access required": {
-          message: "無法移除其他庫藏的 IP 喊單頁。",
+          message: "無法移除其他庫藏的 IP 訂購頁。",
           status: 403,
         },
         "claim form not found": {
-          message: "找不到這個 IP 喊單頁，可能已被移除。",
+          message: "找不到這個 IP 訂購頁，可能已被移除。",
           status: 404,
         },
         "invalid claim form target": {
-          message: "喊單頁刪除目標格式錯誤。",
+          message: "訂購頁刪除目標格式錯誤。",
           status: 400,
         },
       };
       const mapped = messages[error.message];
       return apiFailure(
-        mapped?.message || "IP 喊單頁移除失敗，請重新整理後再試。",
+        mapped?.message || "IP 訂購頁移除失敗，請重新整理後再試。",
         mapped?.status || 400,
         error.code,
       );
     }
 
     if (data !== true) {
-      return apiFailure("IP 喊單頁未移除，請重新整理後再試。", 409);
+      return apiFailure("IP 訂購頁未移除，請重新整理後再試。", 409);
     }
 
     return apiSuccess({

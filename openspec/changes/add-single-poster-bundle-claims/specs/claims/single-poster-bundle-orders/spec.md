@@ -27,7 +27,7 @@ The system SHALL let an authorized inventory member create an order with a custo
 - **THEN** the system does not open the order and identifies the fields or files that must be corrected
 
 ### Requirement: Reference screenshots remain private and usable for verification
-The system SHALL store bundle claim screenshots privately and SHALL reveal an order's screenshots only to authorized members of its inventory or to a visitor presenting that order's valid customer token. Supported uploads SHALL be JPEG, PNG, or WebP, with a maximum of 10 images and 8 MB per original file.
+The system SHALL store bundle claim screenshots privately and SHALL reveal an order's screenshots only to authorized members of its inventory or to a visitor presenting that order's valid customer token or its inventory's enabled shared-menu token for a published allocation. Supported uploads SHALL be JPEG, PNG, or WebP, with a maximum of 10 images and 8 MB per original file.
 
 #### Scenario: Customer views their screenshots
 - **WHEN** a visitor opens a valid customer link
@@ -105,15 +105,19 @@ The admin workspace SHALL keep the original screenshots visible beside the confi
 - **THEN** the system records who performed the outbound check and when
 
 ### Requirement: Staff can manage and find bundle claim orders
-The admin workspace SHALL list the order's customer, confirmation number, fixed total, payment state, fulfillment checks, link state, and creation or confirmation time. It SHALL provide search and filters for operational states and SHALL permit deletion only while an order is an unconfirmed draft.
+The admin workspace SHALL list the order's customer, confirmation number, fixed total, payment state, fulfillment checks, link state, and creation or confirmation time. It SHALL provide search and filters for operational states. The legacy draft-only RPC SHALL remain restricted to unconfirmed drafts. The guarded removal RPC SHALL allow authorized removal in every link state only after payment and fulfillment checks have been reversed, with a customer/code/amount confirmation and stale-record protection.
 
 #### Scenario: Staff filters unpaid confirmations
 - **WHEN** staff select the confirmed-unpaid filter
 - **THEN** the list contains only confirmed unpaid bundle claims in the current inventory
 
-#### Scenario: Staff tries to delete a confirmed order
-- **WHEN** staff attempt to delete an order that is open, confirmed, cancelled, or expired
-- **THEN** the system preserves the record and offers only lifecycle actions appropriate to its state
+#### Scenario: Legacy draft-only deletion rejects a confirmed order
+- **WHEN** staff call the legacy draft-only deletion RPC for an order that is open, confirmed, cancelled, or expired
+- **THEN** that RPC preserves the record
+
+#### Scenario: Guarded removal protects financial and fulfillment records
+- **WHEN** staff attempt guarded removal while the order still has a payment or receiving/outbound check
+- **THEN** removal is rejected until the related records are reversed
 
 ### Requirement: Confirmed orders participate in customer settlement lookup
 Confirmed bundle claims SHALL appear with existing claim records in authorized customer settlement views and inventory-scoped LINE phone lookup. Draft, open, cancelled, and expired bundle claims SHALL be excluded from customer payment totals.
@@ -127,7 +131,7 @@ Confirmed bundle claims SHALL appear with existing claim records in authorized c
 - **THEN** a lookup returns only records belonging to the inventory configured for that request
 
 ### Requirement: Tenant and role boundaries are enforced server-side
-All administrative reads and writes SHALL require an authenticated user with access to the target inventory. Public operations SHALL be limited to narrowly scoped token-based viewing and one-time confirmation and SHALL not permit enumeration of orders, customers, or inventories.
+All administrative reads and writes SHALL require an authenticated user with access to the target inventory. Public operations SHALL be limited to narrowly scoped token-based viewing and one-time confirmation and SHALL not permit enumeration of customers, inventories, or orders outside the published allocations of an enabled shared menu.
 
 #### Scenario: Unauthorized inventory access is attempted
 - **WHEN** a user supplies an order identifier belonging to an inventory they do not own or manage
@@ -144,3 +148,35 @@ The admin workspace and public confirmation page SHALL remain readable and opera
 - **WHEN** the public page is rendered at a 375-pixel viewport
 - **THEN** screenshots, fixed total, form controls, and completion actions fit the viewport and remain touch accessible
 
+
+### Requirement: Public shared menu of preallocated bundles
+Authorized staff SHALL enable, disable, copy and preview one random shared-menu link per inventory. Anyone with an enabled link SHALL see all published open/non-expired and confirmed allocations, with preassigned nickname, evidence, description and fixed total. Draft, cancelled, expired and other-inventory orders SHALL be excluded. Submitted contact details, payment metadata, receipts and individual tokens SHALL never appear in shared-menu reads.
+
+#### Scenario: Customer selects their allocation
+- **WHEN** a customer clicks their name button among multiple visible name options
+- **THEN** the page highlights that name, shows its screenshots and fixed total before the final contact form, prefills the nickname, and requires phone, consent and Turnstile before submission; no dropdown is required
+
+#### Scenario: Allocation is already confirmed
+- **WHEN** a menu contains a confirmed allocation
+- **THEN** it remains visible with an explicit confirmed status and cannot be selected or confirmed by a new request
+
+#### Scenario: Menu confirmation races or retries
+- **WHEN** multiple requests confirm one allocation
+- **THEN** only the first request records customer data and receives a receipt; another request is rejected, while an identical request ID retry returns the original receipt
+
+#### Scenario: Menu is disabled or a foreign order is submitted
+- **WHEN** a disabled or unknown token is used, or an order belongs to another inventory
+- **THEN** the request fails without returning customer or order metadata or changing an order
+
+### Requirement: Itemized allocated product review
+
+The system SHALL let staff enter a name and amount for each product image in a draft and calculate the bundle total from those amounts. Public product cards SHALL display the name and amount below each image using the project colors and gold prices.
+
+#### Scenario: Save and publish allocated products
+- **WHEN** staff save all product names and positive two-decimal amounts and open the allocation
+- **THEN** the stored total equals the sum of the product amounts and the customer sees matching product cards and fixed total
+- **AND** the published product details cannot be edited
+
+#### Scenario: Review on narrow and wide screens
+- **WHEN** the customer selects their name
+- **THEN** desktop shows products beside the contact form and mobile stacks them without horizontal overflow

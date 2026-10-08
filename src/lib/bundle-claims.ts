@@ -33,9 +33,30 @@ export const BUNDLE_CLAIM_IMAGE = {
   signedUrlTtlSeconds: 10 * 60,
 } as const;
 
+export const bundleClaimCampaignSchema = z.object({
+  id: z.number().int().positive().optional(),
+  ownerId: z.string().uuid(),
+  title: z.string().trim().min(1, "請填寫活動名稱").max(120),
+  description: z.string().trim().max(2000).default(""),
+  enabled: z.boolean().default(false),
+});
+
+export type BundleClaimCampaign = {
+  id: number;
+  ownerId: string;
+  title: string;
+  description?: string;
+  publicToken: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  orderCount?: number;
+};
+
 export const bundleClaimDraftSchema = z.object({
   ownerId: z.string().uuid(),
   orderId: z.number().int().positive().optional(),
+  campaignId: z.number().int().positive().nullable().optional(),
   title: z.string().trim().min(1, "請填寫訂單名稱").max(120),
   description: z.string().trim().max(2000).default(""),
   totalAmount: z
@@ -47,7 +68,11 @@ export const bundleClaimDraftSchema = z.object({
       (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7,
       "總金額最多只能有兩位小數",
     ),
-  customerHint: z.string().trim().max(100).default(""),
+  customerHint: z
+    .string({ error: "請填寫顧客群組暱稱／選項名稱" })
+    .trim()
+    .min(1, "請填寫顧客群組暱稱／選項名稱")
+    .max(100),
   expiresAt: z
     .string()
     .datetime({ offset: true })
@@ -69,6 +94,7 @@ export const bundleClaimConfirmationSchema = z.object({
 export const bundleClaimQuerySchema = z.object({
   ownerId: z.string().uuid(),
   orderId: z.coerce.number().int().positive().optional(),
+  campaignId: z.coerce.number().int().positive().optional(),
   search: z.string().trim().max(120).default(""),
   filter: z
     .enum([
@@ -94,6 +120,8 @@ export type BundleClaimImage = {
   sortOrder: number;
   mediaType: string;
   originalFilename: string;
+  productName?: string;
+  productAmount?: number;
   byteSize: number;
   url: string;
 };
@@ -110,6 +138,7 @@ export type BundleClaimPayment = {
 export type BundleClaimOrder = {
   id: number;
   ownerId: string;
+  campaignId?: number | null;
   publicToken: string;
   confirmationCode: string;
   title: string;
@@ -238,4 +267,68 @@ export function canSetBundleClaimOutbound(
   receivingCheckedAt?: string,
 ) {
   return status === "confirmed" && Boolean(receivingCheckedAt);
+}
+
+export type PublicBundleMenuOption = {
+  id: number;
+  label: string;
+  state: "open" | "confirmed";
+  title: string;
+  description?: string;
+  totalAmount: number;
+  expiresAt?: string;
+  images: BundleClaimImage[];
+};
+
+export type PublicBundleMenu = Pick<
+  PublicBundleClaim,
+  | "storeName"
+  | "officialLineId"
+  | "completionMessage"
+  | "bannerImageUrl"
+  | "bannerPosition"
+  | "theme"
+> & {
+  campaignTitle?: string;
+  campaignDescription?: string;
+  options: PublicBundleMenuOption[];
+};
+
+export type BundleMenuSettings = { token: string; enabled: boolean };
+
+export const bundleMenuConfirmationSchema =
+  bundleClaimConfirmationSchema.extend({
+    orderId: z.number().int().positive(),
+  });
+
+export function toPublicBundleMenuOption(
+  order: BundleClaimOrder,
+): PublicBundleMenuOption | null {
+  const state = deriveBundleClaimStatus(order.status, order.expiresAt);
+  if (state !== "open" && state !== "confirmed") return null;
+  return {
+    id: order.id,
+    label: order.customerHint?.trim() || order.title,
+    state,
+    title: order.title,
+    description: order.description,
+    totalAmount: order.totalAmount,
+    expiresAt: order.expiresAt,
+    images: order.images.map((image, index) => ({
+      ...image,
+      originalFilename: `核對截圖 ${index + 1}`,
+    })),
+  };
+}
+
+export const bundleProductSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().trim().min(1, "請填寫每項商品名稱").max(120),
+  amount: bundleClaimDraftSchema.shape.totalAmount,
+});
+
+export function sumBundleProductAmounts(amounts: readonly number[]) {
+  return (
+    amounts.reduce((sum, amount) => sum + Math.round(amount * 100), 0) / 100
+  );
 }

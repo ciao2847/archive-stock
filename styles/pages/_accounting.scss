@@ -1,0 +1,188 @@
+// Only the accounting controls use these styles; the history table stays unchanged.
+.accounting-period,
+.accounting-cost,
+.accounting-settle {
+  padding: 24px;
+  border-radius: 20px;
+}
+
+.accounting-period-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.accounting-period,
+.accounting-cost {
+  .field {
+    min-width: 0;
+
+    > span {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    input,
+    select,
+    textarea {
+      padding: 13px 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    input,
+    select {
+      min-height: 48px;
+    }
+
+    textarea {
+      min-height: 96px;
+    }
+
+    small {
+      display: block;
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+  }
+}
+
+.accounting-reload {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+}
+
+.accounting-period-description {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.accounting-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.accounting-summary {
+  min-width: 0;
+  padding: 16px 12px;
+  border-radius: 16px;
+
+  small {
+    display: block;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+}
+
+.accounting-summary-value {
+  display: block;
+  margin-top: 12px;
+  font-size: clamp(16px, 2.5vw, 24px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.accounting-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.accounting-description {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.accounting-cost-fields {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.accounting-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+
+  input {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    accent-color: var(--color-primary);
+  }
+}
+
+.accounting-action {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.accounting-settle {
+  display: grid;
+  gap: 20px;
+}
+
+.accounting-breakdown {
+  display: grid;
+  gap: 16px;
+  font-size: 15px;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  dd {
+    text-align: right;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  dt {
+    flex-shrink: 0;
+  }
+
+  .accounting-balance {
+    padding-top: 16px;
+    border-top: 1px solid var(--color-line);
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
+
+@media (min-width: 640px) {
+  .accounting-summary {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .accounting-period,
+  .accounting-cost,
+  .accounting-settle {
+    padding: 20px;
+  }
+
+  .accounting-summary-grid {
+    gap: 8px;
+  }
+
+  .accounting-summary {
+    padding: 14px 10px;
+  }
+}
