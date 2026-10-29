@@ -1,0 +1,42 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobileLabel {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    width: 100%;
+    gap: 6px;
+  }
+
+  .actions > button.action {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 4px;
+    gap: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+  }
+
+  .desktopLabel {
+    display: none;
+  }
+
+  .mobileLabel {
+    display: inline;
+  }
+}

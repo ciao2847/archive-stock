@@ -62,6 +62,7 @@ import { downloadPrintLabels } from "@/lib/api/print-labels";
 import { ClaimFormPanel } from "@/components/claims/ClaimFormPanel";
 import { BundleClaimPanel } from "@/components/bundle-claims/BundleClaimPanel";
 import type { ClaimTab } from "@/components/claims/ClaimFormPanel";
+import styles from "../../../styles/components/dashboard/ProductActions.module.scss";
 
 type View = DashboardView;
 
@@ -556,10 +557,13 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                       新增訂單
                     </button>
                   ) : view === "products" ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className={styles.actions}>
                       <button
                         type="button"
-                        className={`${printSelectionMode ? "outline" : "primary"} page-title-action`}
+                        className={`${printSelectionMode ? "outline" : "primary"} ${styles.action}`}
+                        aria-label={
+                          printSelectionMode ? "取消批量列印" : "批量列印"
+                        }
                         onClick={() => {
                           setPrintResetInventoryId(null);
                           setPrintSelectionMode((current) => !current);
@@ -567,21 +571,46 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                         }}
                       >
                         <Printer size={18} />
-                        {printSelectionMode ? "取消批量列印" : "批量列印"}
+                        <span
+                          className={styles.desktopLabel}
+                          aria-hidden="true"
+                        >
+                          {printSelectionMode ? "取消批量列印" : "批量列印"}
+                        </span>
+                        <span className={styles.mobileLabel} aria-hidden="true">
+                          {printSelectionMode ? "取消" : "列印"}
+                        </span>
                       </button>
                       {!printSelectionMode && (
-                        <div className="flex flex-wrap gap-2">
+                        <>
                           <button
-                            className="primary"
+                            className={`primary ${styles.action}`}
+                            aria-label="新增商品"
                             onClick={() => setCreating(true)}
                           >
                             <Plus size={18} />
-                            新增商品
+                            <span
+                              className={styles.desktopLabel}
+                              aria-hidden="true"
+                            >
+                              新增商品
+                            </span>
+                            <span
+                              className={styles.mobileLabel}
+                              aria-hidden="true"
+                            >
+                              新增
+                            </span>
                           </button>
                           {isAdmin && (
                             <button
                               type="button"
-                              className="outline page-title-action"
+                              className={`outline ${styles.action}`}
+                              aria-label={
+                                showPrintReset
+                                  ? "取消還原已列印標籤"
+                                  : "還原已列印標籤"
+                              }
                               aria-pressed={showPrintReset}
                               aria-controls="product-print-reset"
                               disabled={!selectedOwnerId}
@@ -596,14 +625,28 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                               }}
                             >
                               <RotateCcw size={18} />
-                              {showPrintReset
-                                ? "取消還原已列印標籤"
-                                : "還原已列印標籤"}
+                              <span
+                                className={styles.desktopLabel}
+                                aria-hidden="true"
+                              >
+                                {showPrintReset
+                                  ? "取消還原已列印標籤"
+                                  : "還原已列印標籤"}
+                              </span>
+                              <span
+                                className={styles.mobileLabel}
+                                aria-hidden="true"
+                              >
+                                {showPrintReset ? "取消" : "還原"}
+                              </span>
                             </button>
                           )}
                           <button
                             type="button"
-                            className="outline page-title-action"
+                            className={`outline ${styles.action}`}
+                            aria-label={
+                              deleteSelectionMode ? "取消批量刪除" : "批量刪除"
+                            }
                             onClick={() => {
                               setPrintResetInventoryId(null);
                               setDeleteSelection({
@@ -613,9 +656,22 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                             }}
                           >
                             <Trash2 size={18} />
-                            {deleteSelectionMode ? "取消批量刪除" : "批量刪除"}
+                            <span
+                              className={styles.desktopLabel}
+                              aria-hidden="true"
+                            >
+                              {deleteSelectionMode
+                                ? "取消批量刪除"
+                                : "批量刪除"}
+                            </span>
+                            <span
+                              className={styles.mobileLabel}
+                              aria-hidden="true"
+                            >
+                              {deleteSelectionMode ? "取消" : "刪除"}
+                            </span>
                           </button>
-                        </div>
+                        </>
                       )}
                     </div>
                   ) : (
