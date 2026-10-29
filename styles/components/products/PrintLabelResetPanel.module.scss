@@ -1,0 +1,19 @@
+.resetButton {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  .mobileHidden {
+    display: none;
+  }
+
+  .selectionSummary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

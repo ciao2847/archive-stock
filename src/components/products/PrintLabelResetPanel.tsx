@@ -6,6 +6,7 @@ import type { Product } from "@/lib/types";
 import { resetPrintLabels } from "@/lib/api/print-labels";
 import { Pagination } from "@/components/ui/Pagination";
 import { ProductTable } from "./ProductTable";
+import styles from "../../../styles/components/products/PrintLabelResetPanel.module.scss";
 
 const PAGE_SIZE = 20;
 const MAX_PRODUCTS = 500;
@@ -59,13 +60,17 @@ export function PrintLabelResetPanel({
                 ? "選取前 500 項"
                 : "全選目前結果"}
           </button>
-          <span className="text-[12px] text-muted" role="status">
+          <span
+            className={`${styles.selectionSummary} text-[12px] text-muted`}
+            role="status"
+          >
             已選擇 {chosen.length} 項／每批最多 {MAX_PRODUCTS} 項
           </span>
         </div>
         <button
           type="button"
-          className="primary"
+          className={`primary ${styles.resetButton}`}
+          aria-label={busy ? "還原中…" : `還原所選 ${chosen.length} 項商品標籤`}
           disabled={busy || !inventoryId || !chosen.length}
           onClick={async () => {
             if (pending.current || !chosen.length) return;
@@ -90,10 +95,12 @@ export function PrintLabelResetPanel({
           }}
         >
           <RotateCcw size={17} />
-          {busy ? "還原中…" : `還原所選 ${chosen.length} 項商品標籤`}
+          <span className={styles.mobileHidden}>
+            {busy ? "還原中…" : `還原所選 ${chosen.length} 項商品標籤`}
+          </span>
         </button>
       </div>
-      <p className="mb-3 text-[12px] text-muted">
+      <p className={`${styles.mobileHidden} mb-3 text-[12px] text-muted`}>
         勾選商品後一次還原已列印標籤。已使用或失效的標籤不會還原。
       </p>
       {message && (
