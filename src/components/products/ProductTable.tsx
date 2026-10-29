@@ -27,6 +27,7 @@ export function ProductTable({
   onToggle,
   selectionLabel = "批量列印",
   selectionLimit,
+  selectionDisabled = false,
 }: {
   items: Product[];
   onSelect?: (product: Product) => void;
@@ -36,6 +37,7 @@ export function ProductTable({
   onToggle?: (productId: string) => void;
   selectionLabel?: string;
   selectionLimit?: number;
+  selectionDisabled?: boolean;
 }) {
   return (
     <ResponsiveTable
@@ -75,11 +77,14 @@ export function ProductTable({
                   type="checkbox"
                   className="h-5 w-5 shrink-0 cursor-pointer accent-primary"
                   checked={selectedIds?.has(product.dbId) ?? false}
-                  disabled={Boolean(
-                    selectionLimit &&
-                      (selectedIds?.size ?? 0) >= selectionLimit &&
-                      !selectedIds?.has(product.dbId),
-                  )}
+                  disabled={
+                    selectionDisabled ||
+                    Boolean(
+                      selectionLimit &&
+                        (selectedIds?.size ?? 0) >= selectionLimit &&
+                        !selectedIds?.has(product.dbId),
+                    )
+                  }
                   aria-label={`選擇 ${product.id} ${selectionLabel}`}
                   onClick={(event) => event.stopPropagation()}
                   onChange={() => onToggle?.(product.dbId!)}

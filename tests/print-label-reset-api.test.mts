@@ -9,9 +9,10 @@ const state = globalThis as typeof globalThis & {
       table: string;
       select?: string;
       eq?: [string, unknown];
+      in?: [string, string[]];
       update?: Record<string, unknown>;
     }>;
-    product: { id: string; sku: string; name: string } | null;
+    products: Array<{ id: string; owner_id: string }>;
     productError: unknown;
     updateError: unknown;
     labels: Array<{
@@ -24,6 +25,8 @@ const state = globalThis as typeof globalThis & {
   };
 };
 const productId = "00000000-0000-4000-8000-000000000001";
+const secondProductId = "00000000-0000-4000-8000-000000000003";
+const foreignProductId = "00000000-0000-4000-8000-000000000004";
 const inventoryId = "00000000-0000-4000-8000-000000000002";
 const bundle = await build({
   entryPoints: ["src/app/api/print-labels/reset/route.ts"],
@@ -54,10 +57,11 @@ export async function requireApiUser(roles){
     eq(key,value){filters.push([key,value]);s.calls.push({table,eq:[key,value]});return this},
     is(key,value){filters.push([key,value]);s.calls.push({table,is:[key,value]});return this},
     update(values,options){patch=values;s.calls.push({table,update:values,options});return this},
-    async maybeSingle(){return{data:s.product,error:s.productError}},
+    in(key,values){filters.push([key,values]);s.calls.push({table,in:[key,values]});return this},
+    then(resolve){return Promise.resolve({data:s.products.filter(product=>filters.every(([key,value])=>Array.isArray(value)?value.includes(product[key]):product[key]===value)),error:s.productError}).then(resolve)},
     async not(key,operator,value){s.calls.push({table,not:[key,operator,value]});
       if(s.updateError)return{count:null,error:s.updateError};
-      const labels=s.labels.filter(label=>filters.every(([key,value])=>label[key]===value)&&label[key]!==value);
+      const labels=s.labels.filter(label=>filters.every(([key,value])=>Array.isArray(value)?value.includes(label[key]):label[key]===value)&&label[key]!==value);
       for(const label of labels)Object.assign(label,patch);
       return{count:labels.length,error:null};
     }};return query;
@@ -82,7 +86,11 @@ function fixture() {
   state.printReset = {
     role: "admin",
     calls: [],
-    product: { id: productId, sku: "A000038", name: "測試海報" },
+    products: [
+      { id: productId, owner_id: inventoryId },
+      { id: secondProductId, owner_id: inventoryId },
+      { id: foreignProductId, owner_id: "other-inventory" },
+    ],
     productError: null,
     updateError: null,
     labels: [
@@ -92,11 +100,12 @@ function fixture() {
       { ...label, product_id: "other-product" },
       { ...label, printed_at: null },
       { ...label, used_order_id: "order" },
+      { ...label, product_id: secondProductId },
     ],
   };
 }
 const request = (
-  body: unknown = { inventoryId, sku: "A000038" },
+  body: unknown = { inventoryId, productIds: [productId, secondProductId] },
   headers = {},
 ) =>
   new Request("https://example.com/api/print-labels/reset", {
@@ -117,8 +126,11 @@ test("only admins can reset labels; rejects invalid and cross-site requests befo
   }
   fixture();
   for (const body of [
-    { inventoryId, sku: " " },
-    { inventoryId: "bad", sku: "A000038" },
+    { inventoryId, productIds: [] },
+    { inventoryId: "bad", productIds: [productId] },
+    { inventoryId, productIds: [productId, productId] },
+    { inventoryId, productIds: ["A000038"] },
+    { inventoryId, productIds: Array(501).fill(productId) },
     {},
   ])
     assert.equal((await POST(request(body))).status, 400);
@@ -136,12 +148,11 @@ test("only admins can reset labels; rejects invalid and cross-site requests befo
 test("reset is scoped to inventory and product, preserves used/void/other labels, and is repeatable", async () => {
   fixture();
   const before = structuredClone(state.printReset.labels);
-  const response = await POST(request({ inventoryId, sku: " A000038 " }));
+  const response = await POST(request());
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).data, {
-    resetCount: 1,
-    sku: "A000038",
-    productName: "測試海報",
+    resetCount: 2,
+    productCount: 2,
   });
   assert.ok(
     state.printReset.calls.some(
@@ -154,18 +165,21 @@ test("reset is scoped to inventory and product, preserves used/void/other labels
     state.printReset.calls.some(
       (call) =>
         call.table === "products" &&
-        JSON.stringify(call.eq) === JSON.stringify(["sku", "A000038"]),
+        JSON.stringify(call.in) ===
+          JSON.stringify(["id", [productId, secondProductId]]),
     ),
   );
   assert.equal(state.printReset.labels[0].printed_at, null);
   assert.equal(state.printReset.labels[0].printed_by, null);
-  assert.deepEqual(state.printReset.labels.slice(1), before.slice(1));
+  assert.deepEqual(state.printReset.labels.slice(1, 6), before.slice(1, 6));
+  assert.equal(state.printReset.labels[6].printed_at, null);
+  assert.equal(state.printReset.calls.filter((call) => call.update).length, 1);
   assert.equal((await (await POST(request())).json()).data.resetCount, 0);
 });
 
 test("missing products and database errors are reported without a false success", async () => {
   fixture();
-  state.printReset.product = null;
+  state.printReset.products = [];
   assert.equal((await POST(request())).status, 404);
   assert.equal(
     state.printReset.calls.some((call) => call.update),
@@ -181,4 +195,21 @@ test("missing products and database errors are reported without a false success"
   fixture();
   state.printReset.updateError = { message: "denied" };
   assert.equal((await POST(request())).status, 503);
+});
+
+test("a mixed batch containing another inventory or a missing product performs no writes", async () => {
+  for (const id of [foreignProductId, "00000000-0000-4000-8000-000000000099"]) {
+    fixture();
+    const before = structuredClone(state.printReset.labels);
+    assert.equal(
+      (await POST(request({ inventoryId, productIds: [productId, id] })))
+        .status,
+      404,
+    );
+    assert.equal(
+      state.printReset.calls.some((call) => call.update),
+      false,
+    );
+    assert.deepEqual(state.printReset.labels, before);
+  }
 });

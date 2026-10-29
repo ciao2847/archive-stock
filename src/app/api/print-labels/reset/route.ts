@@ -8,7 +8,11 @@ import {
 
 const requestSchema = z.object({
   inventoryId: z.string().uuid(),
-  sku: z.string().trim().min(1).max(100),
+  productIds: z
+    .array(z.string().uuid())
+    .min(1)
+    .max(500)
+    .refine((ids) => new Set(ids).size === ids.length),
 });
 
 export async function POST(request: Request) {
@@ -25,21 +29,26 @@ export async function POST(request: Request) {
     const parsed = requestSchema.safeParse(
       await request.json().catch(() => null),
     );
-    if (!parsed.success) return apiFailure("請選擇庫藏並填寫商品 ID", 400);
+    if (!parsed.success)
+      return apiFailure("請選擇庫藏及 1 至 500 項不重複的商品", 400);
 
-    const { data: product, error: productError } = await auth.supabase
+    const { data: products, error: productError } = await auth.supabase
       .from("products")
-      .select("id,sku,name")
+      .select("id")
       .eq("owner_id", parsed.data.inventoryId)
-      .eq("sku", parsed.data.sku)
-      .maybeSingle();
+      .in("id", parsed.data.productIds);
     if (productError) return apiFailure("商品資料讀取失敗，請稍後再試", 503);
-    if (!product) return apiFailure("這個庫藏找不到指定商品", 404);
+    const foundIds = new Set((products ?? []).map((product) => product.id));
+    if (parsed.data.productIds.some((id) => !foundIds.has(id)))
+      return apiFailure(
+        "部分商品不存在或不屬於目前庫藏，尚未還原任何標籤",
+        404,
+      );
 
     const { count, error } = await auth.supabase
       .from("product_qr_labels")
       .update({ printed_at: null, printed_by: null }, { count: "exact" })
-      .eq("product_id", product.id)
+      .in("product_id", parsed.data.productIds)
       .eq("status", "active")
       .is("used_order_id", null)
       .not("printed_at", "is", null);
@@ -48,8 +57,7 @@ export async function POST(request: Request) {
 
     return apiSuccess({
       resetCount: count,
-      sku: product.sku,
-      productName: product.name,
+      productCount: parsed.data.productIds.length,
     });
   });
 }

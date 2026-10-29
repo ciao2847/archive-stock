@@ -561,6 +561,7 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                         type="button"
                         className={`${printSelectionMode ? "outline" : "primary"} page-title-action`}
                         onClick={() => {
+                          setPrintResetInventoryId(null);
                           setPrintSelectionMode((current) => !current);
                           setPrintProductIds(new Set());
                         }}
@@ -581,28 +582,35 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                             <button
                               type="button"
                               className="outline page-title-action"
-                              aria-expanded={showPrintReset}
+                              aria-pressed={showPrintReset}
                               aria-controls="product-print-reset"
                               disabled={!selectedOwnerId}
-                              onClick={() =>
+                              onClick={() => {
                                 setPrintResetInventoryId(
                                   showPrintReset ? null : selectedOwnerId,
-                                )
-                              }
+                                );
+                                setDeleteSelection({
+                                  scope: productSelectionScope,
+                                  active: false,
+                                });
+                              }}
                             >
                               <RotateCcw size={18} />
-                              還原已列印標籤
+                              {showPrintReset
+                                ? "取消還原已列印標籤"
+                                : "還原已列印標籤"}
                             </button>
                           )}
                           <button
                             type="button"
                             className="outline page-title-action"
-                            onClick={() =>
+                            onClick={() => {
+                              setPrintResetInventoryId(null);
                               setDeleteSelection({
                                 scope: productSelectionScope,
                                 active: !deleteSelectionMode,
-                              })
-                            }
+                              });
+                            }}
                           >
                             <Trash2 size={18} />
                             {deleteSelectionMode ? "取消批量刪除" : "批量刪除"}
@@ -655,15 +663,6 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                     onSelectProduct={setSelected}
                   />
                 </DataState>
-              )}
-              {view === "products" && !printSelectionMode && showPrintReset && (
-                <div id="product-print-reset" className="mb-5">
-                  <PrintLabelResetPanel
-                    key={selectedOwnerId}
-                    inventoryId={selectedOwnerId}
-                    inventoryName={activeInventoryName}
-                  />
-                </div>
               )}
               {view === "products" && productDeleteMessage && (
                 <p
@@ -731,46 +730,53 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                         }}
                       >
                         <Printer size={17} />
-                        {preparingPrint
-                          ? "產生中…"
-                          : "下載批量列印檔"}
+                        {preparingPrint ? "產生中…" : "下載批量列印檔"}
                       </button>
                     </div>
                   )}
-                  <ProductInventoryTable
-                    key={`${productSelectionScope}:${deleteSelectionMode}`}
-                    items={filteredProducts}
-                    selecting={deleteSelectionMode}
-                    onSelectingChange={(active) =>
-                      setDeleteSelection({
-                        scope: productSelectionScope,
-                        active,
-                      })
-                    }
-                    onSelect={setSelected}
-                    onChanged={loadAllData}
-                    onDeleted={(result, refreshError) =>
-                      setProductDeleteMessage(
-                        [
-                          `${activeInventoryName}：已刪除 ${result.deletedProductIds.length} 項商品。`,
-                          result.imageCleanupWarning,
-                          refreshError,
-                        ]
-                          .filter(Boolean)
-                          .join(" "),
-                      )
-                    }
-                    printSelectionMode={printSelectionMode}
-                    printSelectedIds={printProductIds}
-                    onPrintToggle={(productId) =>
-                      setPrintProductIds((current) => {
-                        const next = new Set(current);
-                        if (next.has(productId)) next.delete(productId);
-                        else next.add(productId);
-                        return next;
-                      })
-                    }
-                  />
+                  {showPrintReset && !printSelectionMode ? (
+                    <PrintLabelResetPanel
+                      key={productSelectionScope}
+                      items={filteredProducts}
+                      inventoryId={selectedOwnerId}
+                      inventoryName={activeInventoryName}
+                    />
+                  ) : (
+                    <ProductInventoryTable
+                      key={`${productSelectionScope}:${deleteSelectionMode}`}
+                      items={filteredProducts}
+                      selecting={deleteSelectionMode}
+                      onSelectingChange={(active) =>
+                        setDeleteSelection({
+                          scope: productSelectionScope,
+                          active,
+                        })
+                      }
+                      onSelect={setSelected}
+                      onChanged={loadAllData}
+                      onDeleted={(result, refreshError) =>
+                        setProductDeleteMessage(
+                          [
+                            `${activeInventoryName}：已刪除 ${result.deletedProductIds.length} 項商品。`,
+                            result.imageCleanupWarning,
+                            refreshError,
+                          ]
+                            .filter(Boolean)
+                            .join(" "),
+                        )
+                      }
+                      printSelectionMode={printSelectionMode}
+                      printSelectedIds={printProductIds}
+                      onPrintToggle={(productId) =>
+                        setPrintProductIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(productId)) next.delete(productId);
+                          else next.add(productId);
+                          return next;
+                        })
+                      }
+                    />
+                  )}
                 </DataState>
               )}
               {view === "stall-sales" && selectedOwnerId && (
