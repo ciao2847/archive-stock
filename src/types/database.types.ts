@@ -14,6 +14,16 @@ export type Database = {
   }
   public: {
     Tables: {
+      bundle_fulfillment_items: {
+        Row: { bundle_order_id: number; product_id: string; quantity: number; unit_price: number }
+        Insert: { bundle_order_id: number; product_id: string; quantity: number; unit_price: number }
+        Update: { bundle_order_id?: number; product_id?: string; quantity?: number; unit_price?: number }
+        Relationships: [
+          { foreignKeyName: "bundle_fulfillment_items_bundle_order_id_fkey"; columns: ["bundle_order_id"]; isOneToOne: false; referencedRelation: "bundle_claim_orders"; referencedColumns: ["id"] },
+          { foreignKeyName: "bundle_fulfillment_items_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }
+        ]
+      }
+
       bundle_claim_campaigns: {
         Row: {
           created_at: string
@@ -870,6 +880,8 @@ export type Database = {
       }
       orders: {
         Row: {
+          claim_submission_id: number | null
+          bundle_claim_order_id: number | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -878,6 +890,8 @@ export type Database = {
           discount: number
           id: string
           notes: string | null
+          stall_revision: number
+          stall_note: string
           order_no: string
           owner_id: string
           packed_at: string | null
@@ -892,6 +906,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          claim_submission_id?: number | null
+          bundle_claim_order_id?: number | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -900,6 +916,8 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          stall_revision?: number
+          stall_note?: string
           order_no?: string
           owner_id?: string
           packed_at?: string | null
@@ -914,6 +932,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          claim_submission_id?: number | null
+          bundle_claim_order_id?: number | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -922,6 +942,8 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          stall_revision?: number
+          stall_note?: string
           order_no?: string
           owner_id?: string
           packed_at?: string | null
@@ -1258,6 +1280,7 @@ export type Database = {
           is_art_set: boolean | null
           location_id: string | null
           name: string
+          preorder_item_name: string | null
           notes: string | null
           owner_id: string
           poster_crafts: string[] | null
@@ -1288,6 +1311,7 @@ export type Database = {
           is_art_set?: boolean | null
           location_id?: string | null
           name: string
+          preorder_item_name?: string | null
           notes?: string | null
           owner_id?: string
           poster_crafts?: string[] | null
@@ -1318,6 +1342,7 @@ export type Database = {
           is_art_set?: boolean | null
           location_id?: string | null
           name?: string
+          preorder_item_name?: string | null
           notes?: string | null
           owner_id?: string
           poster_crafts?: string[] | null
@@ -1520,15 +1545,15 @@ export type Database = {
         ]
       }
       financial_period_costs: {
-        Row: { id: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; revision: number; created_by: string; updated_by: string; created_at: string; updated_at: string }
-        Insert: { id?: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; revision?: number; created_by: string; updated_by: string; created_at?: string; updated_at?: string }
-        Update: { amount?: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; updated_by?: string }
+        Row: { cost_entries: Json; share_rules: Json; id: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; revision: number; created_by: string; updated_by: string; created_at: string; updated_at: string }
+        Insert: { cost_entries?: Json; share_rules?: Json; id?: string; owner_id: string; period_start: string; period_end: string; amount: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; revision?: number; created_by: string; updated_by: string; created_at?: string; updated_at?: string }
+        Update: { cost_entries?: Json; share_rules?: Json; amount?: number; calculator_path?: string | null; evidence_paths?: string[]; notes?: string; updated_by?: string }
         Relationships: []
       }
       financial_period_cost_revisions: {
-        Row: { cost_id: string; revision: number; owner_id: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at: string }
-        Insert: { cost_id: string; revision: number; owner_id: string; amount: number; calculator_path?: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at?: string }
-        Update: { notes?: string }
+        Row: { cost_entries: Json; share_rules: Json; cost_id: string; revision: number; owner_id: string; amount: number; calculator_path: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at: string }
+        Insert: { cost_entries?: Json; share_rules?: Json; cost_id: string; revision: number; owner_id: string; amount: number; calculator_path?: string | null; evidence_paths: string[]; notes: string; changed_by: string; changed_at?: string }
+        Update: { cost_entries?: Json; share_rules?: Json; notes?: string }
         Relationships: []
       }
       works: {
@@ -1572,6 +1597,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      map_bundle_fulfillment: {
+        Args: { p_owner_id: string; p_order_id: number; p_items: Json }
+        Returns: string
+      }
+
+      find_stall_orders: {
+        Args: { p_owner_id: string; p_query?: string; p_start?: string; p_end?: string; p_status?: string; p_page?: number }
+        Returns: Json
+      }
+      manage_stall_order: {
+        Args: { p_owner_id: string; p_order_id: string; p_expected_revision: number; p_action: string; p_items?: Json; p_note?: string }
+        Returns: Json
+      }
+
+      checkout_stall_labels: {
+        Args: { p_owner_id: string; p_tokens: string[]; p_expected_total: number }
+        Returns: Json
+      }
       add_bundle_claim_order_image: {
         Args: {
           p_byte_size: number
@@ -1798,6 +1841,18 @@ export type Database = {
           public_token: string
         }[]
       }
+      save_financial_period_details: {
+        Args: { p_owner_id: string; p_start: string; p_end: string; p_entries: Json; p_shares: Json; p_notes: string; p_expected_revision: number }
+        Returns: Database["public"]["Tables"]["financial_period_costs"]["Row"]
+      }
+      get_financial_report_periods: {
+        Args: { p_owner_id: string }
+        Returns: Json
+      }
+      get_financial_period_report: {
+        Args: { p_owner_id: string; p_start: string; p_end: string }
+        Returns: Json
+      }
       confirm_financial_period_cost: {
         Args: { p_owner_id: string; p_start: string; p_end: string; p_amount: number; p_calculator_path: string; p_evidence_paths: string[]; p_notes: string; p_expected_revision: number }
         Returns: Database["public"]["Tables"]["financial_period_costs"]["Row"]
@@ -1827,6 +1882,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_preorder_product_batch: {
+        Args: {p_owner_id: string; p_batch_id: string; p_items: Json}
+        Returns: string[]
+      }
+      save_named_inventory_product: {
+        Args: {p_input: Json; p_owner_id?: string; p_product_id?: string}
+        Returns: string
       }
       create_inventory_product: {
         Args: {
@@ -1905,6 +1968,10 @@ export type Database = {
           submission_id: number
           total_paid: number
         }[]
+      }
+      delete_inventory_products: {
+        Args: {p_product_ids: string[]}
+        Returns: Json
       }
       delete_inventory_product: {
         Args: { p_product_id: string }

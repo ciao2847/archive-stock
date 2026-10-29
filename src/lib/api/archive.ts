@@ -22,6 +22,10 @@ export type OrderRow = {
   payment_status: string;
   status: string;
   created_at: string;
+  notes?: string | null;
+  source?: "general" | "stall" | "claim" | "bundle";
+  claim_submission_id?: number | null;
+  bundle_claim_order_id?: number | null;
   customers:
     | {
         name: string | null;

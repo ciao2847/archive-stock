@@ -1,7 +1,8 @@
 "use client";
 
+import { Spinner } from "@/components/ui/Spinner";
+
 import { useId } from "react";
-import { LoaderCircle } from "lucide-react";
 
 export function AvailabilitySwitch({
   label,
@@ -40,7 +41,7 @@ export function AvailabilitySwitch({
             className={`grid size-5 place-items-center rounded-full bg-white shadow-sm transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`}
           >
             {busy && (
-              <LoaderCircle size={13} className="animate-spin text-primary" />
+              <Spinner size={13} className="animate-spin text-primary" />
             )}
           </span>
         </button>

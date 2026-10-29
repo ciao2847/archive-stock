@@ -19,7 +19,12 @@ export function groupOrdersByCustomer(orders: Order[]): PackingCustomer[] {
   const groups = new Map<string, PackingCustomer>();
 
   orders
-    .filter((order) => isOrderPackable(order.status))
+    .filter(
+      (order) =>
+        isOrderPackable(order.status) &&
+        (!(order.claimSubmissionId || order.bundleClaimOrderId) ||
+          order.items.length > 0),
+    )
     .forEach((order) => {
       const key = order.customerKey || `order:${order.dbId}`;
       const existing = groups.get(key);
@@ -98,7 +103,6 @@ export function PackingQueue({
           <div>
             <span className="eyebrow">掃碼出貨</span>
             <h1>依客人選擇包貨</h1>
-            <p>同一位客人的多筆訂單可以合併，先到貨的商品可先寄出。</p>
           </div>
         </div>
       </div>

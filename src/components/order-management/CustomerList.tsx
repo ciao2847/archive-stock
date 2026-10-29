@@ -1,5 +1,7 @@
 "use client";
 
+import { useOpenCustomerDetails } from "./CustomerDetailsLayout";
+
 export type CustomerListRow = {
   key: string;
   name: string;
@@ -20,6 +22,7 @@ export function CustomerList({
   onSelect: (key: string) => void;
   disabled?: boolean;
 }) {
+  const openDetails = useOpenCustomerDetails();
   return (
     <div className="grid min-w-0 gap-3" role="group" aria-label="顧客清單">
       {rows.map((row) => (
@@ -29,7 +32,10 @@ export function CustomerList({
           disabled={disabled}
           aria-pressed={selectedKey === row.key}
           aria-label={`查看 ${row.name} 的明細`}
-          onClick={() => onSelect(row.key)}
+          onClick={() => {
+            onSelect(row.key);
+            openDetails(row.key);
+          }}
           className={`min-w-0 rounded-[10px] border p-4 text-left transition ${selectedKey === row.key ? "border-primary bg-primary-soft/55" : "border-line bg-white hover:border-primary/50"}`}
         >
           <div className="flex min-w-0 items-center justify-between gap-3">
@@ -40,14 +46,14 @@ export function CustomerList({
               {row.amount}
             </strong>
           </div>
-          <div className="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
             {row.description && (
-              <span className="min-w-0 break-words text-[11px] text-muted">
+              <span className="min-w-0 text-[11px] text-muted [overflow-wrap:anywhere]">
                 {row.description}
               </span>
             )}
             <span
-              className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${row.statusClassName || "bg-light text-muted"}`}
+              className={`col-start-2 whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold ${row.statusClassName || "bg-light text-muted"}`}
             >
               {row.status}
             </span>

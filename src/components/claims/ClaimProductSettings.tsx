@@ -1,5 +1,8 @@
 "use client";
 
+import { Spinner } from "@/components/ui/Spinner";
+
+import { SearchField } from "@/components/ui/SearchField";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -10,15 +13,18 @@ import {
   Filter,
   ImageIcon,
   Link2,
-  LoaderCircle,
   PackagePlus,
+  Pencil,
   Plus,
   RotateCcw,
-  Search,
   Send,
+  ScanText,
   Trash2,
 } from "lucide-react";
 
+import { PreorderTextImport } from "./preorder-import/PreorderTextImport";
+import { EditProduct } from "@/components/products/EditProduct";
+import { suggestPreorderWorkName } from "@/lib/preorder-product-name";
 import { NewProduct } from "@/components/products/NewProduct";
 import type { ClaimFormSettings } from "@/lib/claims";
 import type { Product } from "@/lib/types";
@@ -112,6 +118,9 @@ export function ClaimProductSettings({
     "all" | "selected" | "unselected"
   >("all");
   const [creatingPreorder, setCreatingPreorder] = useState(false);
+  const [importingPreorders, setImportingPreorders] = useState(false);
+  const [batchMessage, setBatchMessage] = useState("");
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Map products by their dbId for quick lookup
@@ -172,6 +181,10 @@ export function ClaimProductSettings({
   const invalidProducts = useMemo(() => {
     const invalid: string[] = [];
     for (const { product, draft } of selectedProductList) {
+      const missingItem =
+        selectedProductList.length > 1 &&
+        product.preorderItemName !== undefined &&
+        !product.preorderItemName.trim();
       const nameValid =
         draft.name.trim().length > 0 && draft.name.length <= 300;
       const priceNum =
@@ -187,7 +200,7 @@ export function ClaimProductSettings({
           : Number(draft.maxQuantity);
       const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= 99;
 
-      if (!nameValid || !priceValid || !qtyValid) {
+      if (missingItem || !nameValid || !priceValid || !qtyValid) {
         invalid.push(product.name);
       }
     }
@@ -339,9 +352,6 @@ export function ClaimProductSettings({
           <h2 className="mb-0 mt-1 break-words text-[20px] font-bold text-dark">
             {form ? `${form.title}｜公開訂購設定` : "新增 IP 訂購頁"}
           </h2>
-          <p className="mb-0 mt-1 text-[13px] text-muted">
-            每個 IP 使用獨立連結；訂購只累積需求，不會增加或扣除庫存。
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -362,11 +372,7 @@ export function ClaimProductSettings({
               onClick={onDeleteForm}
               disabled={saving || deletingForm}
             >
-              {deletingForm ? (
-                <LoaderCircle className="animate-spin" size={15} />
-              ) : (
-                <Trash2 size={15} />
-              )}
+              {deletingForm ? <Spinner size={15} /> : <Trash2 size={15} />}
               移除此 IP
             </button>
           )}
@@ -410,11 +416,7 @@ export function ClaimProductSettings({
             disabled={saving || !title.trim() || hasInvalidProductSettings}
             onClick={() => void onSave()}
           >
-            {saving ? (
-              <LoaderCircle className="animate-spin" size={16} />
-            ) : (
-              <Send size={16} />
-            )}
+            {saving ? <Spinner size={16} /> : <Send size={16} />}
             {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈訂購頁"}
           </button>
         </div>
@@ -443,9 +445,6 @@ export function ClaimProductSettings({
             <h3 className="mb-0 text-[16px] font-bold text-[#29485f]">
               預購訂購不用先開庫存
             </h3>
-            <p className="mb-0 mt-1 text-[13px] leading-5 text-[#526b80]">
-              顧客送出後只會列入需求統計，不會占用現貨。訂購截止後再依彙總數量向車頭採購，到貨後才辦理入庫。
-            </p>
           </div>
         </div>
         <ol className="mt-4 grid list-none gap-2 p-0 sm:grid-cols-4">
@@ -513,9 +512,6 @@ export function ClaimProductSettings({
                 maxLength={120}
                 placeholder="例：蜘蛛人"
               />
-              <small className="mt-1 block text-[11px] text-muted">
-                同一個 IP 只會建立一條固定訂購連結，之後可持續更新商品。
-              </small>
             </label>
 
             <label className="block md:col-span-2">
@@ -595,11 +591,7 @@ export function ClaimProductSettings({
                   onClick={onDeleteForm}
                   disabled={saving || deletingForm}
                 >
-                  {deletingForm ? (
-                    <LoaderCircle className="animate-spin" size={15} />
-                  ) : (
-                    <Trash2 size={15} />
-                  )}
+                  {deletingForm ? <Spinner size={15} /> : <Trash2 size={15} />}
                   移除此 IP 訂購頁
                 </button>
               </div>
@@ -620,12 +612,20 @@ export function ClaimProductSettings({
                 已選 {selectedProductList.length} 項
               </span>
             </div>
-            <p className="mb-0 mt-1 text-[12px] text-muted">
-              在此調整公開名稱、預購金額與每次送出的數量上限；這些數量不會先寫入庫存。
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onReloadProducts && (
+              <button
+                type="button"
+                className="outline text-[13px]"
+                onClick={() => setImportingPreorders(true)}
+                disabled={saving}
+              >
+                <ScanText size={16} />
+                文字批量上架
+              </button>
+            )}
             <button
               type="button"
               className="outline text-[13px]"
@@ -650,14 +650,16 @@ export function ClaimProductSettings({
           </div>
         </div>
 
+        {batchMessage && (
+          <p role="status" className="mt-3 text-[13px] text-primary">
+            {batchMessage}
+          </p>
+        )}
         {/* Selected Products Table / Cards */}
         {selectedProductList.length === 0 ? (
           <div className="rounded-[8px] bg-light p-8 text-center text-muted">
             <PackagePlus size={36} className="mx-auto mb-2 text-muted/60" />
             <p className="mb-1 font-semibold text-dark">目前尚未加入公開商品</p>
-            <p className="text-[13px]">
-              可直接新增尚未進貨的預購商品，或從下方帶入既有商品資料；都不需要先增加庫存。
-            </p>
           </div>
         ) : (
           <div className="mt-3 space-y-2 md:mt-4 md:space-y-3">
@@ -766,6 +768,18 @@ export function ClaimProductSettings({
 
                     {/* Actions stay beside the product summary on narrow screens. */}
                     <div className="flex shrink-0 items-center gap-1.5 lg:order-3 lg:gap-2">
+                      {product.preorderItemName !== undefined &&
+                        onReloadProducts && (
+                          <button
+                            type="button"
+                            className="outline size-9 p-0"
+                            aria-label={`編輯 ${product.name} 的品項與國家`}
+                            title="編輯品項與國家"
+                            onClick={() => setEditingProduct(product)}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        )}
                       {isModified && (
                         <button
                           type="button"
@@ -804,6 +818,13 @@ export function ClaimProductSettings({
                           placeholder="前台顯示名稱"
                           aria-label={`${product.name}公開商品名稱`}
                         />
+
+                        {selectedProductList.length > 1 &&
+                          product.preorderItemName === "" && (
+                            <small className="mt-1 block text-[11px] text-danger">
+                              缺少品項名稱
+                            </small>
+                          )}
                       </label>
 
                       <label className="block">
@@ -857,9 +878,6 @@ export function ClaimProductSettings({
             <h3 className="mb-0 text-[18px] font-bold text-dark">
               帶入既有商品資料
             </h3>
-            <p className="mb-0 text-[12px] text-muted">
-              可沿用圖片與品名快速建立預購項目；帶入後只統計需求，不會保留或扣除主檔現貨。
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -879,15 +897,14 @@ export function ClaimProductSettings({
 
         {/* Filters Toolbar */}
         <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-3">
-          <label className="flex h-11 min-w-0 items-center gap-2 rounded-[8px] border border-line px-3">
-            <Search size={16} className="shrink-0 text-muted" />
-            <input
-              className="h-full min-w-0 flex-1 border-0 bg-transparent text-[16px] outline-none sm:text-[13px]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋品名、作品、SKU 或類別…"
-            />
-          </label>
+          <SearchField
+            className="w-full"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            label="搜尋品名、作品、SKU 或類別"
+            placeholder="搜尋品名、作品、SKU 或類別…"
+            shortcut
+          />
 
           <div className="flex h-11 min-w-0 items-center gap-1 overflow-hidden rounded-[8px] border border-line p-1">
             <button
@@ -1037,7 +1054,7 @@ export function ClaimProductSettings({
             {hasInvalidProductSettings && (
               <span className="flex items-center gap-1 text-[12px] font-semibold text-danger">
                 <AlertCircle size={15} className="shrink-0" />
-                請確認商品名稱、金額與數量上限
+                請確認商品名稱、品項名稱、金額與數量上限
               </span>
             )}
           </div>
@@ -1070,17 +1087,44 @@ export function ClaimProductSettings({
               disabled={saving || !title.trim() || hasInvalidProductSettings}
               onClick={() => void onSave()}
             >
-              {saving ? (
-                <LoaderCircle className="animate-spin" size={17} />
-              ) : (
-                <Send size={17} />
-              )}
+              {saving ? <Spinner size={17} /> : <Send size={17} />}
               {saving ? "儲存中…" : form ? "儲存商品設定" : "發佈訂購頁"}
             </button>
           </div>
         </div>
       </div>
 
+      {editingProduct && (
+        <EditProduct
+          preorderOnly
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onUpdated={async () => {
+            await onReloadProducts?.();
+            setEditingProduct(null);
+          }}
+        />
+      )}
+      {importingPreorders && (
+        <PreorderTextImport
+          ownerId={ownerId}
+          contextKey={form ? String(form.id) : `draft:${title}`}
+          initialWorkName={
+            selectedProductList.find(
+              ({ product }) => product.preorderItemName !== undefined,
+            )?.product.work || suggestPreorderWorkName(title)
+          }
+          existingItemCount={selectedProductList.length}
+          onClose={() => setImportingPreorders(false)}
+          onCreated={async (ids) => {
+            await onReloadProducts?.();
+            setSelectedIds((current) => new Set([...current, ...ids]));
+            setBatchMessage(
+              `已建立並加入 ${ids.length} 項預購商品，請儲存商品設定或發佈訂購頁。`,
+            );
+          }}
+        />
+      )}
       {/* New Preorder Product Drawer */}
       {creatingPreorder && (
         <NewProduct
@@ -1089,6 +1133,12 @@ export function ClaimProductSettings({
           initialLocation=""
           title="新增訂購預購商品"
           preorderOnly
+          initialWorkName={
+            selectedProductList.find(
+              ({ product }) => product.preorderItemName !== undefined,
+            )?.product.work || suggestPreorderWorkName(title)
+          }
+          requireItemName={selectedProductList.length > 0}
           onClose={() => setCreatingPreorder(false)}
           onCreated={async (newProductId) => {
             if (onReloadProducts) {

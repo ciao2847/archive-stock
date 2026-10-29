@@ -15,6 +15,7 @@ type ProductRow = {
   owner_id: string;
   sku: string;
   name: string;
+  preorder_item_name: string | null;
   category: string;
   country: string | null;
   source: string | null;
@@ -46,7 +47,7 @@ export async function GET() {
   const { data, error } = await auth.supabase
     .from("products")
     .select(
-      "id,owner_id,sku,name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations!products_location_id_fkey(code),owner:profiles!products_owner_id_fkey(display_name)",
+      "id,owner_id,sku,name,preorder_item_name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations!products_location_id_fkey(code),owner:profiles!products_owner_id_fkey(display_name)",
     )
     .order("created_at", { ascending: false });
   if (error) return apiFailure(error.message, 400, error.code);
@@ -86,6 +87,10 @@ export async function GET() {
       id: row.sku,
       dbId: row.id,
       name: row.name,
+      ...(row.preorder_item_name === null ||
+      row.preorder_item_name === undefined
+        ? {}
+        : { preorderItemName: row.preorder_item_name }),
       ownerId: row.owner_id,
       ownerName: firstRelation(row.owner)?.display_name || "未命名使用者",
       work: firstRelation(row.works)?.title_zh || "未指定作品",
@@ -132,6 +137,17 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
+    if (input.preorderItemName !== undefined) {
+      const { data, error } = await auth.supabase.rpc(
+        "save_named_inventory_product",
+        {
+          p_owner_id: parsedOwner.data,
+          p_input: input,
+        },
+      );
+      if (error) return apiFailure(error.message, 400, error.code);
+      return apiSuccess({ productId: String(data) }, 201);
+    }
     const { data, error } = await auth.supabase.rpc(
       "create_inventory_product",
       {

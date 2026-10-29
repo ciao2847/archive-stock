@@ -1,15 +1,13 @@
 "use client";
 
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { useBackAction } from "@/components/navigation/BackNavigation";
 import { useCallback, useEffect, useState } from "react";
-import {
-  X,
-  MapPin,
-  Printer,
-  Pencil,
-  ZoomIn,
-  Trash2,
-  LoaderCircle,
-} from "lucide-react";
+import { MapPin, Printer, Pencil, ZoomIn, Trash2 } from "lucide-react";
+import { getListPrice } from "@/lib/pricing";
+import { productNameWithCountryFlag } from "@/lib/preorder-product-name";
 import { QRCodeSVG } from "qrcode.react";
 import { Product } from "@/lib/types";
 import { deleteProduct as deleteProductApi } from "@/lib/api/products";
@@ -31,24 +29,15 @@ export function ProductPanel({
 }) {
   const [preview, setPreview] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  useEffect(() => {
-    void (async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsAdmin(data?.role === "admin");
-    })();
-  }, []);
 
+  useBackAction({
+    enabled: !editing && !preview,
+    disabled: deleting,
+    priority: 20,
+    onBack: onClose,
+    hideButton: true,
+  });
   async function deleteProduct() {
     if (!p.dbId || deleting) return;
     if (
@@ -79,9 +68,7 @@ export function ProductPanel({
             <span className="eyebrow">商品資料</span>
             <h2>{p.id}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose}>
-            <X />
-          </button>
+          <CloseButton aria-label="關閉商品資料" onClick={onClose} />
         </div>
         <button
           type="button"
@@ -106,7 +93,9 @@ export function ProductPanel({
         <div className="flex items-start justify-between px-7">
           <div>
             <span className="pill green">{p.status}</span>
-            <h2 className="mb-1 mt-3 text-[24px]">{p.name}</h2>
+            <h2 className="mb-1 mt-3 text-[24px]">
+              {productNameWithCountryFlag(p.name, p.country)}
+            </h2>
           </div>
           <button
             className="icon-btn"
@@ -164,19 +153,17 @@ export function ProductPanel({
             移動庫位
           </button>
         </div>
-        {p.dbId && <QrLabels productId={p.dbId} sku={p.id} />}
-        {isAdmin && (
+        {p.dbId && (
+          <QrLabels productId={p.dbId} sku={p.id} memberPrice={p.price} />
+        )}
+        {p.dbId && (
           <button
             type="button"
             className="outline danger mx-6 mt-3 flex w-[calc(100%-48px)] items-center justify-center gap-2"
             onClick={() => void deleteProduct()}
             disabled={deleting}
           >
-            {deleting ? (
-              <LoaderCircle className="spin" />
-            ) : (
-              <Trash2 size={17} />
-            )}
+            {deleting ? <Spinner /> : <Trash2 size={17} />}
             {deleting ? "刪除中…" : "刪除商品"}
           </button>
         )}
@@ -203,7 +190,15 @@ export function ProductPanel({
   );
 }
 
-function QrLabels({ productId, sku }: { productId: string; sku: string }) {
+function QrLabels({
+  productId,
+  sku,
+  memberPrice,
+}: {
+  productId: string;
+  sku: string;
+  memberPrice: number;
+}) {
   const [labels, setLabels] = useState<
     {
       id: string;
@@ -288,7 +283,7 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
               尚無可用標籤
             </strong>
             <p className="mb-3 mt-1 text-[11px] text-muted">
-              請先新增商品，或確認 QR token migration 已安裝。
+              目前沒有商品標籤。
             </p>
           </div>
         </div>
@@ -299,7 +294,8 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
           <div>
             <strong className="block">精臣批量列印</strong>
             <small className="mt-1 block text-[11px] text-muted">
-              匯出含可掃描 QR 圖片的最新入庫批次，共 {latestBatchCount} 張
+              匯出最新入庫批次的商品網址，匯入精臣後轉為 QR Code，共{" "}
+              {latestBatchCount} 張
             </small>
           </div>
           <button
@@ -355,6 +351,12 @@ function QrLabels({ productId, sku }: { productId: string; sku: string }) {
               <strong className="block font-mono text-[18px] font-medium">
                 {sku}
               </strong>
+              <p className="my-1 text-[14px] font-medium">
+                定價 NT$ {getListPrice(memberPrice).toLocaleString()}
+              </p>
+              <p className="my-1 text-[12px]">
+                會員價 NT$ {memberPrice.toLocaleString()}
+              </p>
               <p className="mb-3 mt-1 text-[11px] text-muted">
                 批次 {label.batch_code || "未指定"} ·{" "}
                 {label.printed_at ? "已列印，不可再次列印" : "尚未列印"}

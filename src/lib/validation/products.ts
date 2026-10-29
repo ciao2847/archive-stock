@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-import { LOCATION_CODE_PATTERN } from "@/constants";
+import { buildPreorderProductName } from "@/lib/preorder-product-name";
+import { COUNTRIES, LOCATION_CODE_PATTERN } from "@/constants";
 
 const productBaseSchema = z.object({
   name: z.string().trim().min(1).max(300),
+  preorderItemName: z.string().trim().max(200).optional(),
   category: z.string().trim().min(1).max(100),
   country: z.string().max(100),
   source: z.string().max(300),
@@ -22,6 +24,7 @@ const productBaseSchema = z.object({
 
 export const createProductSchema = productBaseSchema
   .extend({
+    work: z.string().trim().min(1).max(200).optional(),
     preorderOnly: z.boolean().optional().default(false),
     stock: z.number().int().min(0).max(1000),
     location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
@@ -29,6 +32,7 @@ export const createProductSchema = productBaseSchema
     crafts: z.array(z.string().max(100)).max(30),
   })
   .superRefine((product, context) => {
+    validatePreorderNaming(product, context);
     if (!product.preorderOnly && !product.country.trim()) {
       context.addIssue({
         code: "custom",
@@ -52,12 +56,45 @@ export const createProductSchema = productBaseSchema
     }
   });
 
-export const updateProductSchema = productBaseSchema.extend({
-  work: z.string().trim().min(1).max(300).optional(),
-  crafts: z.array(z.string().max(100)).max(30).optional(),
-  imagePaths: z.array(z.string().min(1).max(1000)).max(2).optional(),
-  location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
-});
+export const updateProductSchema = productBaseSchema
+  .extend({
+    work: z.string().trim().min(1).max(300).optional(),
+    crafts: z.array(z.string().max(100)).max(30).optional(),
+    imagePaths: z.array(z.string().min(1).max(1000)).max(2).optional(),
+    location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
+  })
+  .superRefine(validatePreorderNaming);
+
+function validatePreorderNaming(
+  product: { work?: string; country: string; preorderItemName?: string },
+  context: z.RefinementCtx,
+) {
+  if (product.preorderItemName === undefined) return;
+  if (!product.work?.trim())
+    context.addIssue({
+      code: "custom",
+      path: ["work"],
+      message: "請填寫作品名稱",
+    });
+  if (!(COUNTRIES as readonly string[]).includes(product.country))
+    context.addIssue({
+      code: "custom",
+      path: ["country"],
+      message: "請選擇國家版本",
+    });
+  if (
+    buildPreorderProductName(
+      product.country,
+      product.work ?? "",
+      product.preorderItemName,
+    ).length > 300
+  )
+    context.addIssue({
+      code: "custom",
+      path: ["name"],
+      message: "組合後的商品名稱最多 300 字元",
+    });
+}
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;

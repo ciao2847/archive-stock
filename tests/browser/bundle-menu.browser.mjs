@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { compile } from "sass";
 
 const { chromium } = await import(
   process.env.POSTER_PLAYWRIGHT_MODULE
@@ -193,13 +194,28 @@ function SharedAdminFixture() {
 }
 `;
 const token = "00000000-0000-4000-8000-000000000001";
+const suiteFilter = process.env.POSTER_BROWSER_SUITE;
+function suiteWidths(name, widths) {
+  return !suiteFilter || suiteFilter === name ? widths : [];
+}
 const result = await build({
+  outfile: "/tmp/poster-bundle-browser-fixture.js",
   write: false,
   bundle: true,
   format: "iife",
   jsx: "automatic",
   alias: { "@": resolve("src") },
   plugins: [
+    {
+      name: "component-scss-modules",
+      setup(build) {
+        build.onLoad({ filter: /\.module\.scss$/ }, (args) => ({
+          contents: compile(args.path).css,
+          loader: "local-css",
+          resolveDir: resolve(args.path, ".."),
+        }));
+      },
+    },
     {
       name: "mock-browser-storage",
       setup(build) {
@@ -217,7 +233,7 @@ const result = await build({
   ],
   define: { "process.env.NODE_ENV": '"development"' },
   stdin: {
-    contents: `import React from 'react'; ${adminFixtureCode} import {createRoot} from 'react-dom/client'; import {PublicBundleMenuView} from './src/components/bundle-claims/PublicBundleMenuView'; import {BundleClaimPanel} from './src/components/bundle-claims/BundleClaimPanel'; import {ClaimFormPanel} from './src/components/claims/ClaimFormPanel'; import {PublicClaimFormView} from './src/components/claims/PublicClaimFormView'; createRoot(document.getElementById('root')).render(['/management','/settlement'].includes(location.pathname) ? <SharedAdminFixture/> : location.pathname === '/search-management' ? <ClaimFormPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' products={[]} orders={[]}/> : location.pathname === '/admin' ? <BundleClaimPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' onOpenAppearance={() => {}}/> : location.pathname.startsWith('/order') ? <PublicClaimFormView form={{...${JSON.stringify(orderForm)}, isOpen: location.pathname !== '/order-closed'}} token='${token}' turnstileSiteKey='test-site-key'/> : <PublicBundleMenuView menu={${JSON.stringify(menu)}} token='${token}' turnstileSiteKey='test-site-key'/>);`,
+    contents: `import React from 'react'; ${adminFixtureCode} import {createRoot} from 'react-dom/client'; import {PublicBundleMenuView} from './src/components/bundle-claims/PublicBundleMenuView'; import {BundleClaimPanel} from './src/components/bundle-claims/BundleClaimPanel'; import {ClaimFormPanel} from './src/components/claims/ClaimFormPanel'; import {PublicClaimFormView} from './src/components/claims/PublicClaimFormView'; createRoot(document.getElementById('root')).render(['/management','/settlement'].includes(location.pathname) ? <SharedAdminFixture/> : location.pathname === '/search-management' ? <ClaimFormPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' products={[]} orders={[]}/> : location.pathname === '/admin' ? <BundleClaimPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' onOpenAppearance={() => {}}/> : location.pathname.startsWith('/order') ? <PublicClaimFormView form={{...${JSON.stringify(orderForm)}, isOpen: location.pathname !== '/order-closed', ...(location.search.includes('catalogChanged') ? {products: [], title: '已修改的活動'} : {})}} token='${token}' turnstileSiteKey='test-site-key'/> : <PublicBundleMenuView menu={${JSON.stringify(menu)}} token='${token}' turnstileSiteKey='test-site-key'/>);`,
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -225,15 +241,23 @@ const result = await build({
 const cssFiles = (await readdir(".next/static/chunks")).filter((file) =>
   file.endsWith(".css"),
 );
-const css = (
-  await Promise.all(
-    cssFiles.map((file) => readFile(`.next/static/chunks/${file}`, "utf8")),
-  )
-).join("\n");
+const css =
+  (
+    await Promise.all(
+      cssFiles.map((file) => readFile(`.next/static/chunks/${file}`, "utf8")),
+    )
+  ).join("\n") +
+  "\n" +
+  result.outputFiles
+    .filter((file) => file.path.endsWith(".css"))
+    .map((file) => file.text)
+    .join("\n");
 const server = createServer((request, response) => {
   if (request.url === "/app.js") {
     response.setHeader("Content-Type", "text/javascript");
-    response.end(result.outputFiles[0].text);
+    response.end(
+      result.outputFiles.find((file) => file.path.endsWith(".js")).text,
+    );
   } else if (request.url === "/app.css") {
     response.setHeader("Content-Type", "text/css");
     response.end(css);
@@ -255,7 +279,7 @@ const browser = await chromium.launch(
   chromePath ? { executablePath: chromePath } : {},
 );
 try {
-  for (const width of [375, 768, 1024, 1440]) {
+  for (const width of suiteWidths("search", [375, 768, 1024, 1440])) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const calls = [];
     let rejectSearch = false;
@@ -446,7 +470,7 @@ try {
       `PASS ordering search ${width}px: inline automatic nickname/partial phone/code, Enter/button, error retry, clear, rapid typing/stale response and empty results`,
     );
   }
-  for (const width of [375, 768, 1440]) {
+  for (const width of suiteWidths("management", [375, 768, 1440])) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -736,7 +760,7 @@ try {
     );
     await page.close();
   }
-  for (const width of [375, 768, 1440]) {
+  for (const width of suiteWidths("ordering", [375, 768, 1440])) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     const submissions = [];
@@ -777,6 +801,12 @@ try {
           data: {
             confirmationCode: "HD-ORDER-TEST",
             submittedAt: "2026-10-07T00:00:00Z",
+            transferAccount: {
+              bankCode: "700",
+              bankName: "測試銀行",
+              account: "12345678901234",
+              accountName: "測試戶名",
+            },
           },
         },
       });
@@ -867,18 +897,59 @@ try {
       0,
     );
     assert.equal(await page.getByRole("spinbutton").count(), 0);
+    await page.reload();
+    await page.getByText("HD-ORDER-TEST", { exact: true }).waitFor();
+    await page.getByText("12345678901234", { exact: true }).waitFor();
+    await page.goto(`${origin}/order?catalogChanged=1`);
+    await page.getByText("HD-ORDER-TEST", { exact: true }).waitFor();
+    assert.equal(await page.getByText("天空之城", { exact: true }).count(), 1);
+    await page.getByText("12345678901234", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("spinbutton").count(), 0);
+    assert.match(
+      await page.getByText("本次訂購").locator("..").locator("..").innerText(),
+      /共 2 件商品[\s\S]*\$949/,
+    );
+    const receiptLink = await page
+      .getByRole("link", { name: "前往官方 LINE 查看明細與結帳" })
+      .getAttribute("href");
+    assert.match(
+      decodeURIComponent(receiptLink),
+      /HD-ORDER-TEST[\s\S]*0912345678[\s\S]*我的末五碼/,
+    );
+    assert.equal(
+      submissions.length,
+      2,
+      "Restoring a receipt must not submit the order again",
+    );
     await page.goto(`${origin}/order-closed`);
+    await page.getByText("HD-ORDER-TEST", { exact: true }).waitFor();
+    await page.evaluate(() => {
+      window.testAcceptConfirmation = false;
+    });
+    await page
+      .getByRole("button", { name: "再填一筆訂購", exact: true })
+      .click();
+    assert.equal(
+      await page.getByText("HD-ORDER-TEST", { exact: true }).count(),
+      1,
+    );
+    await page.evaluate(() => {
+      window.testAcceptConfirmation = true;
+    });
+    await page
+      .getByRole("button", { name: "再填一筆訂購", exact: true })
+      .click();
     await page.getByText("這次訂購已經截止", { exact: true }).waitFor();
     assert.equal(await page.getByRole("textbox").count(), 0);
     for (const control of await page.getByRole("spinbutton").all())
       assert.equal(await control.isDisabled(), true);
     assert.deepEqual(errors, []);
     console.log(
-      `PASS ordering ${width}px: same-page contact, limits, totals, phone validation, retained retry/idempotency and independent receipt`,
+      `PASS ordering ${width}px: contact, limits, validation, retry/idempotency, receipt/payment restored after reload and closed form without resubmitting`,
     );
     await page.close();
   }
-  for (const width of [375, 768, 1440]) {
+  for (const width of suiteWidths("bundle", [375, 768, 1440])) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -1061,7 +1132,7 @@ try {
     assert.equal(submitted.phone, "0912345678");
     assert.equal("totalAmount" in submitted, false);
     const contactMessage =
-      "您好，我已完成「james 專屬大禮包」配單確認，確認編號：HD-TEST，請協助核對，謝謝。";
+      "您好，我已完成「james 專屬大禮包」配單確認，確認編號：HD-TEST，請協助核對，謝謝。\n\n我的末五碼：";
     assert.equal(
       await page
         .getByRole("link", { name: "前往官方 LINE 查看明細與結帳" })
@@ -1161,7 +1232,7 @@ try {
     );
     await page.close();
   }
-  for (const width of [375, 1440]) {
+  for (const width of suiteWidths("admin", [375, 1440])) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     await page.addInitScript(() => {
       window.confirm = (message) => {

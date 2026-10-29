@@ -74,6 +74,12 @@ export const adaptProduct = (raw: unknown): Product => {
   return {
     id,
     dbId: typeof data.dbId === "string" ? data.dbId : undefined,
+    ...(typeof (data.preorderItemName ?? data.preorder_item_name) === "string"
+      ? {
+          preorderItemName: (data.preorderItemName ??
+            data.preorder_item_name) as string,
+        }
+      : {}),
     name: asString(data.name ?? data.title, "未命名商品"),
     ownerName: asString(data.ownerName, "未命名使用者"),
     ownerId: asString(data.ownerId ?? data.owner_id),

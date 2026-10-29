@@ -39,7 +39,11 @@ export default function LoginPage() {
     }
     queryClient.clear();
     window.localStorage.removeItem("archive-stock-owner-id");
-    router.replace("/");
+    const returnTo =
+      new URLSearchParams(window.location.search).get("returnTo") || "";
+    router.replace(
+      /^\/notifications\/[0-9a-f-]{36}$/.test(returnTo) ? returnTo : "/",
+    );
     router.refresh();
   }
 

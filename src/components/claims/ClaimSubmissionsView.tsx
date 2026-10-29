@@ -1,16 +1,18 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+
+import { RefreshButton } from "@/components/ui/RefreshButton";
+
+import { useBackAction } from "@/components/navigation/BackNavigation";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   Check,
-  ChevronLeft,
-  ChevronRight,
   Clipboard,
   Download,
   ExternalLink,
   Info,
   Phone,
-  RefreshCw,
   Settings2,
   ShoppingCart,
   Users,
@@ -29,6 +31,8 @@ import {
 } from "@/lib/claims";
 import { AvailabilitySwitch } from "@/components/order-management/AvailabilitySwitch";
 import { RemoveRecordButton } from "@/components/order-management/RemoveRecordButton";
+import { CustomerDetailsLayout } from "@/components/order-management/CustomerDetailsLayout";
+import { Pagination } from "@/components/ui/Pagination";
 import { CustomerList } from "@/components/order-management/CustomerList";
 import { OrderContactDetails } from "@/components/order-management/OrderContactDetails";
 import { OrderItems } from "@/components/order-management/OrderItems";
@@ -38,12 +42,15 @@ import {
   PaymentRecordEditor,
   type PaymentEditorValues,
 } from "@/components/order-management/PaymentRecordEditor";
-import type { Order } from "@/lib/types";
+import type { Order, Product } from "@/lib/types";
 
 export interface ClaimSubmissionsViewProps {
+  fixedView?: "customers" | "procurement";
+  renderFulfillment?: (submission: ClaimSubmission) => ReactNode;
   data: ClaimFormManagement;
   loading: boolean;
   orders: Order[];
+  products?: Product[];
   customerPhone: string;
   publicPath: string;
   isOpen: boolean;
@@ -83,8 +90,11 @@ const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
 
 export function ClaimSubmissionsView({
   data,
+  fixedView,
+  renderFulfillment,
   loading,
   orders,
+  products = [],
   customerPhone,
   publicPath,
   isOpen,
@@ -99,7 +109,10 @@ export function ClaimSubmissionsView({
   onRecordPayment,
   onNavigateToCustomerCheckout,
 }: ClaimSubmissionsViewProps) {
-  const [view, setView] = useState<"customers" | "procurement">("customers");
+  const [selectedView, setView] = useState<"customers" | "procurement">(
+    "customers",
+  );
+  const view = fixedView ?? selectedView;
   const [selection, setSelection] = useState<{
     scope: string;
     key: string;
@@ -108,17 +121,52 @@ export function ClaimSubmissionsView({
   const recordKey = (record: ClaimSubmission) =>
     `${record.source}:${record.id}`;
   const selected =
-    data.submissions.find(
-      (record) =>
-        selection?.scope === selectionScope &&
-        recordKey(record) === selection.key,
-    ) ?? data.submissions[0];
+    selection?.scope === selectionScope && selection.key === ""
+      ? undefined
+      : (data.submissions.find(
+          (record) =>
+            selection?.scope === selectionScope &&
+            recordKey(record) === selection.key,
+        ) ?? data.submissions[0]);
+  const fulfillmentOrder =
+    selected &&
+    orders.find((order) =>
+      selected.source === "claim"
+        ? order.claimSubmissionId === selected.id
+        : order.bundleClaimOrderId === selected.id,
+    );
+  function productImages(productId?: string, sku?: string) {
+    const product = productId
+      ? products.find((product) => product.dbId === productId)
+      : sku && sku !== "BUNDLE"
+        ? products.find((product) => product.id === sku)
+        : undefined;
+    return {
+      imageUrl: product?.thumbnail || product?.image,
+      previewImageUrl: product?.image || product?.thumbnail,
+    };
+  }
+  const fulfillmentStarted = Boolean(
+    fulfillmentOrder?.items.some(
+      (item) => item.packedQuantity > 0 || item.scannedQuantity > 0,
+    ),
+  );
   const [paymentEditor, setPaymentEditor] = useState<{
     key: string;
     scope: string;
     values: PaymentEditorValues;
   } | null>(null);
   const [savingPayment, setSavingPayment] = useState(false);
+  useBackAction({
+    enabled: view === "customers" && Boolean(selected),
+    priority: 40,
+    onBack: () => setSelection({ scope: selectionScope, key: "" }),
+  });
+  useBackAction({
+    enabled: !fixedView && view === "procurement",
+    priority: 40,
+    onBack: () => setView("customers"),
+  });
   const money = (value: number) =>
     `$${value.toLocaleString("zh-TW", { maximumFractionDigits: 2 })}`;
   async function saveSelectedPayment() {
@@ -235,7 +283,16 @@ export function ClaimSubmissionsView({
       updatingPaymentId !== null ||
       submission.payments.length > 0 ||
       submission.receivingCheckedAt ||
-      submission.outboundCheckedAt
+      submission.outboundCheckedAt ||
+      orders.some(
+        (order) =>
+          (submission.source === "claim"
+            ? order.claimSubmissionId === submission.id
+            : order.bundleClaimOrderId === submission.id) &&
+          order.items.some(
+            (item) => item.packedQuantity > 0 || item.scannedQuantity > 0,
+          ),
+      )
     )
       return;
     const confirmed = window.confirm(
@@ -303,86 +360,90 @@ export function ClaimSubmissionsView({
   return (
     <div className="min-w-0 space-y-6">
       {/* Share and Quick Action Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
-        <div className="min-w-0">
-          <span className="eyebrow">前台連結與狀態</span>
-          <h3 className="mb-0 mt-0.5 text-[17px] font-bold text-dark">
-            {data.form?.title || "未命名訂購頁"}
-          </h3>
-          {publicPath && (
-            <p className="mb-0 mt-1 truncate font-mono text-[12px] text-muted">
-              {publicPath}
-            </p>
-          )}
+      {fixedView !== "customers" && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[8px] border border-line bg-white p-5 shadow-sm">
+          <div className="min-w-0">
+            <span className="eyebrow">前台連結與狀態</span>
+            <h3 className="mb-0 mt-0.5 text-[17px] font-bold text-dark">
+              {data.form?.title || "未命名訂購頁"}
+            </h3>
+            {publicPath && (
+              <p className="mb-0 mt-1 truncate font-mono text-[12px] text-muted">
+                {publicPath}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {publicPath && (
+              <>
+                <button
+                  type="button"
+                  className="outline text-[13px]"
+                  onClick={() => void copyLink()}
+                >
+                  {copied ? (
+                    <Check size={15} className="text-success" />
+                  ) : (
+                    <Clipboard size={15} />
+                  )}
+                  {copied ? "已複製連結" : "複製連結"}
+                </button>
+                <a
+                  className="outline inline-flex items-center gap-1.5 text-[13px] no-underline"
+                  href={publicPath}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink size={15} />
+                  預覽頁面
+                </a>
+              </>
+            )}
+
+            <AvailabilitySwitch
+              label="接收訂購"
+              enabled={isOpen}
+              busy={toggling}
+              disabled={loading}
+              enabledText="接收中"
+              description="暫停後不接受新訂購，既有訂購紀錄會保留。"
+              onToggle={() => void handleToggle()}
+            />
+
+            <button
+              type="button"
+              className="primary text-[13px]"
+              onClick={onNavigateToSettings}
+            >
+              <Settings2 size={16} />
+              商品設定
+            </button>
+          </div>
         </div>
+      )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          {publicPath && (
-            <>
-              <button
-                type="button"
-                className="outline text-[13px]"
-                onClick={() => void copyLink()}
-              >
-                {copied ? (
-                  <Check size={15} className="text-success" />
-                ) : (
-                  <Clipboard size={15} />
-                )}
-                {copied ? "已複製連結" : "複製連結"}
-              </button>
-              <a
-                className="outline inline-flex items-center gap-1.5 text-[13px] no-underline"
-                href={publicPath}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink size={15} />
-                預覽頁面
-              </a>
-            </>
-          )}
-
-          <AvailabilitySwitch
-            label="接收訂購"
-            enabled={isOpen}
-            busy={toggling}
-            disabled={loading}
-            enabledText="接收中"
-            description="暫停後不接受新訂購，既有訂購紀錄會保留。"
-            onToggle={() => void handleToggle()}
-          />
-
-          <button
-            type="button"
-            className="primary text-[13px]"
-            onClick={onNavigateToSettings}
-          >
-            <Settings2 size={16} />
-            商品設定
-          </button>
+      {!fixedView && (
+        <div role="tablist" aria-label="訂購紀錄檢視" className="flex gap-2">
+          {(
+            [
+              { key: "customers", label: "顧客清單" },
+              { key: "procurement", label: "採購統計" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={view === tab.key}
+              type="button"
+              className={view === tab.key ? "primary" : "outline"}
+              onClick={() => setView(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      <div role="tablist" aria-label="訂購紀錄檢視" className="flex gap-2">
-        {(
-          [
-            { key: "customers", label: "顧客清單" },
-            { key: "procurement", label: "採購統計" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            role="tab"
-            aria-selected={view === tab.key}
-            type="button"
-            className={view === tab.key ? "primary" : "outline"}
-            onClick={() => setView(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      )}
       {view === "customers" && searchControls}
 
       {customerPhone && (
@@ -399,7 +460,7 @@ export function ClaimSubmissionsView({
                 </h3>
                 <p className="mb-0 mt-1 text-[12px] leading-5 text-muted">
                   找到 {data.pagination.total} 筆訂購、{matchingOrders.length}{" "}
-                  筆正式訂單；訂購支援暱稱、電話與確認編號。
+                  筆正式訂單
                 </p>
               </div>
             </div>
@@ -497,10 +558,6 @@ export function ClaimSubmissionsView({
               className="mt-0.5 shrink-0 text-primary"
               aria-hidden="true"
             />
-            <p className="m-0">
-              <b>訂購階段不會變動庫存。</b>
-              下方「建議叫貨數量」就是目前顧客需求；若要多買備品，請在實際採購時另外加量，到貨後再辦理入庫。
-            </p>
           </div>
 
           {data.productTotals.length ? (
@@ -542,97 +599,95 @@ export function ClaimSubmissionsView({
             </div>
           ) : (
             <div className="mb-0 mt-5 rounded-[8px] bg-light px-4 py-10 text-center text-[13px] text-muted">
-              目前尚未收到任何預購訂購，買家送單後此處將自動彙整採購數量。
+              目前尚無預購訂購。
             </div>
           )}
         </section>
       ) : (
-        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] lg:items-start">
-          <section aria-label="訂購顧客清單" className="min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="m-0 text-[16px] text-dark">
-                顧客清單 · {data.pagination.total} 筆
-              </h3>
-              <button
-                type="button"
-                className="icon-btn size-9"
-                disabled={loading || savingPayment}
-                onClick={() => void onReload(data.pagination.page)}
-                aria-label="重新整理訂購紀錄"
-              >
-                <RefreshCw
-                  size={16}
-                  className={loading ? "animate-spin" : ""}
+        <CustomerDetailsLayout
+          selectedKey={selected && recordKey(selected)}
+          disabled={
+            loading ||
+            savingPayment ||
+            updatingPaymentId !== null ||
+            deletingId !== null
+          }
+          list={
+            <section aria-label="訂購顧客清單" className="min-w-0">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="m-0 text-[16px] text-dark">
+                  {fixedView === "customers" ? "訂購清單" : "顧客清單"} ·{" "}
+                  {data.pagination.total} 筆
+                </h3>
+                <RefreshButton
+                  label="重新整理訂購紀錄"
+                  loading={loading}
+                  onClick={() => void onReload(data.pagination.page)}
+                  disabled={loading || savingPayment}
                 />
-              </button>
-            </div>
-            <CustomerList
-              rows={data.submissions.map((record) => ({
-                key: recordKey(record),
-                name: record.nickname,
-                amount: money(getClaimSubmissionTotal(record)),
-                status:
-                  record.payments.length > 0 &&
-                  getClaimSubmissionOutstandingAmount(record) > 0
-                    ? "部分付款"
-                    : CLAIM_PAYMENT_STATUS_LABELS[record.paymentStatus],
-                statusClassName:
-                  PAYMENT_STATUS_ACTIVE_STYLES[record.paymentStatus],
-                description: customerPhone ? record.formTitle : undefined,
-              }))}
-              selectedKey={selected && recordKey(selected)}
-              disabled={
-                loading ||
-                savingPayment ||
-                updatingPaymentId !== null ||
-                deletingId !== null
-              }
-              onSelect={(key) => {
-                setSelection({ scope: selectionScope, key });
-                setPaymentEditor(null);
-                setPaymentError("");
-                setPaymentMessage("");
-              }}
-            />
-            {!data.submissions.length && (
-              <p className="py-8 text-center text-[13px] text-muted">
-                目前沒有符合條件的訂購紀錄。
-              </p>
-            )}
-            {data.pagination.totalPages > 1 && (
-              <div className="mt-5 flex items-center justify-between gap-2 border-t border-line pt-4">
-                <button
-                  type="button"
-                  className="outline shrink-0 text-[12px]"
-                  disabled={loading || data.pagination.page <= 1}
-                  onClick={() => void onReload(data.pagination.page - 1)}
-                >
-                  <ChevronLeft size={15} /> 上一頁
-                </button>
-                <span className="text-center text-[12px] text-muted">
-                  第 {data.pagination.page} / {data.pagination.totalPages} 頁
-                </span>
-                <button
-                  type="button"
-                  className="outline shrink-0 text-[12px]"
+              </div>
+              <CustomerList
+                rows={data.submissions.map((record) => ({
+                  key: recordKey(record),
+                  name: record.nickname,
+                  amount: money(getClaimSubmissionTotal(record)),
+                  status:
+                    record.payments.length > 0 &&
+                    getClaimSubmissionOutstandingAmount(record) > 0
+                      ? "部分付款"
+                      : CLAIM_PAYMENT_STATUS_LABELS[record.paymentStatus],
+                  statusClassName:
+                    PAYMENT_STATUS_ACTIVE_STYLES[record.paymentStatus],
+                  description:
+                    fixedView === "customers"
+                      ? `${record.source === "bundle" ? "配單" : "預售訂購"} · ${record.confirmationCode} · ${record.formTitle}`
+                      : customerPhone
+                        ? record.formTitle
+                        : undefined,
+                }))}
+                selectedKey={selected && recordKey(selected)}
+                disabled={
+                  loading ||
+                  savingPayment ||
+                  updatingPaymentId !== null ||
+                  deletingId !== null
+                }
+                onSelect={(key) => {
+                  setSelection({ scope: selectionScope, key });
+                  setPaymentEditor(null);
+                  setPaymentError("");
+                  setPaymentMessage("");
+                }}
+              />
+              {!data.submissions.length && (
+                <p className="py-8 text-center text-[13px] text-muted">
+                  目前沒有符合條件的訂購紀錄。
+                </p>
+              )}
+              {data.pagination.totalPages > 1 && (
+                <Pagination
+                  page={data.pagination.page}
+                  pageSize={data.pagination.pageSize}
+                  total={data.pagination.total}
                   disabled={
                     loading ||
-                    data.pagination.page >= data.pagination.totalPages
+                    savingPayment ||
+                    updatingPaymentId !== null ||
+                    deletingId !== null
                   }
-                  onClick={() => void onReload(data.pagination.page + 1)}
-                >
-                  下一頁 <ChevronRight size={15} />
-                </button>
-              </div>
-            )}
-          </section>
+                  onPageChange={onReload}
+                />
+              )}
+            </section>
+          }
+        >
           <section
             aria-label="訂購明細"
             className="min-w-0 rounded-[14px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6"
           >
             {!selected ? (
               <p className="py-12 text-center text-[13px] text-muted">
-                選擇顧客查看商品與付款資料
+                尚未選擇顧客
               </p>
             ) : (
               <>
@@ -674,13 +729,26 @@ export function ClaimSubmissionsView({
                     )
                   }
                 />
+                {renderFulfillment?.(selected)}
                 <OrderItems
-                  items={selected.items.map((item) => ({
-                    key: String(item.id),
-                    name: item.name,
-                    quantity: item.quantity,
-                    amount: money(item.unitPrice * item.quantity),
-                  }))}
+                  items={
+                    fulfillmentOrder?.items.length
+                      ? fulfillmentOrder.items.map((item) => ({
+                          ...productImages(item.productId, item.sku),
+                          key: item.orderItemId,
+                          name: item.name,
+                          quantity: item.quantity,
+                          amount: money(item.unitPrice * item.quantity),
+                          description: `已包 ${item.packedQuantity}／${item.quantity} 件`,
+                        }))
+                      : selected.items.map((item) => ({
+                          ...productImages(item.productId, item.sku),
+                          key: String(item.id),
+                          name: item.name,
+                          quantity: item.quantity,
+                          amount: money(item.unitPrice * item.quantity),
+                        }))
+                  }
                   total={money(getClaimSubmissionTotal(selected))}
                 />
                 <PaymentSection
@@ -825,18 +893,21 @@ export function ClaimSubmissionsView({
                       deletingId !== null ||
                       updatingPaymentId !== null ||
                       selected.payments.length > 0 ||
+                      fulfillmentStarted ||
                       Boolean(
                         selected.receivingCheckedAt ||
                           selected.outboundCheckedAt,
                       )
                     }
                     reason={
-                      selected.payments.length > 0
-                        ? "請先至跨表單對帳撤銷匯款紀錄，再移除這筆紀錄。"
-                        : selected.receivingCheckedAt ||
-                            selected.outboundCheckedAt
-                          ? "請先至配單管理撤銷入出庫核對，再移除。"
-                          : undefined
+                      fulfillmentStarted
+                        ? "這筆訂購已開始掃描或包貨，不能移除。"
+                        : selected.payments.length > 0
+                          ? "請先至跨表單對帳撤銷匯款紀錄，再移除這筆紀錄。"
+                          : selected.receivingCheckedAt ||
+                              selected.outboundCheckedAt
+                            ? "請先至配單管理撤銷入出庫核對，再移除。"
+                            : undefined
                     }
                     onClick={() => void handleDeleteSubmission(selected)}
                   />
@@ -844,9 +915,9 @@ export function ClaimSubmissionsView({
               </>
             )}
             {(deleteError || paymentError) && (
-              <p role="alert" className="mt-3 text-[12px] text-danger">
+              <ErrorMessage className="mt-3 text-[12px] text-danger">
                 {deleteError || paymentError}
-              </p>
+              </ErrorMessage>
             )}
             {(deleteMessage || paymentMessage) && (
               <p role="status" className="mt-3 text-[12px] text-success">
@@ -854,7 +925,7 @@ export function ClaimSubmissionsView({
               </p>
             )}
           </section>
-        </div>
+        </CustomerDetailsLayout>
       )}
     </div>
   );

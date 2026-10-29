@@ -6,6 +6,7 @@ export type Product = {
   ownerName: string;
   ownerId: string;
   work: string;
+  preorderItemName?: string;
   category: string;
   country: string;
   source: string;
@@ -58,6 +59,9 @@ export type Order = {
   packedIds: string[];
   items: OrderItem[];
   total?: number;
+  source?: "general" | "stall" | "claim" | "bundle";
+  claimSubmissionId?: number;
+  bundleClaimOrderId?: number;
 };
 
 export type FinanceOverview = {
@@ -99,6 +103,8 @@ export type DashboardView =
   | "bundle-claims"
   | "orders"
   | "packing"
+  | "checkout"
+  | "stall-sales"
   | "locations"
   | "settlement"
   | "settings";

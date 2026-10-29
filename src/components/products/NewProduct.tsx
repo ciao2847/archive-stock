@@ -1,24 +1,24 @@
 "use client";
 
+import { CloseButton } from "@/components/ui/CloseButton";
+
+import { useDirtyBack } from "@/components/navigation/BackNavigation";
 import { ChangeEvent, useEffect, useState } from "react";
-import {
-  CheckCircle2,
-  ClipboardList,
-  ImagePlus,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   newProductSchema as schema,
   preorderProductSchema,
   type NewProductForm as Form,
 } from "./new-product-schema";
+import { PreorderNameFields } from "./PreorderNameFields";
+import { ProductImageUpload } from "./ProductImageUpload";
+import { buildPreorderProductName } from "@/lib/preorder-product-name";
 import { PosterSpecFields } from "./PosterSpecFields";
 import { validateProductImage } from "./product-image-validation";
 import { ProductFormField as Field } from "./ProductFormField";
 import {
+  countryLabel,
   COUNTRIES,
   POSTER_CATEGORY,
   POSTER_SIZES,
@@ -42,6 +42,8 @@ export function NewProduct({
   initialLocation,
   title,
   preorderOnly = false,
+  initialWorkName = "",
+  requireItemName = false,
 }: {
   ownerId: string;
   onClose: () => void;
@@ -50,6 +52,8 @@ export function NewProduct({
   initialLocation?: string;
   title?: string;
   preorderOnly?: boolean;
+  initialWorkName?: string;
+  requireItemName?: boolean;
 }) {
   const [locationOptions, setLocationOptions] = useState<
     Array<{ code: string; name: string }>
@@ -78,10 +82,14 @@ export function NewProduct({
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors },
   } = useForm<Form>({
     resolver: zodResolver(preorderOnly ? preorderProductSchema : schema),
     defaultValues: {
+      name: preorderOnly ? initialWorkName : "",
+      itemName: "",
       category: POSTER_CATEGORY,
       country: "",
       source: "",
@@ -94,6 +102,11 @@ export function NewProduct({
       description: preorderOnly ? "" : undefined,
       feature: preorderOnly ? "" : undefined,
     },
+  });
+
+  const [preorderWork, preorderItem, preorderCountry] = useWatch({
+    control,
+    name: ["name", "itemName", "country"],
   });
 
   useEffect(
@@ -126,6 +139,18 @@ export function NewProduct({
   }
 
   async function createProduct(values: Form) {
+    if (
+      preorderOnly &&
+      buildPreorderProductName(values.country, values.name, values.itemName)
+        .length > 300
+    ) {
+      setSubmitError("組合後的商品名稱最多 300 字元");
+      return;
+    }
+    if (preorderOnly && requireItemName && !values.itemName?.trim()) {
+      setSubmitError("多品表單請填寫品項名稱，例如 A款、全員款或肖像款");
+      return;
+    }
     if (!preorderOnly && !image) {
       setImageError("請上傳商品圖片");
       return;
@@ -145,7 +170,19 @@ export function NewProduct({
 
       const res = await createProductApi(
         {
-          name: values.name,
+          name: preorderOnly
+            ? buildPreorderProductName(
+                values.country,
+                values.name,
+                values.itemName,
+              )
+            : values.name,
+          ...(preorderOnly
+            ? {
+                work: values.name.trim(),
+                preorderItemName: values.itemName?.trim() ?? "",
+              }
+            : {}),
           preorderOnly,
           category: values.category,
           country: values.country,
@@ -179,9 +216,15 @@ export function NewProduct({
     }
   }
 
+  const { requestBack, markChanged } = useDirtyBack({
+    onBack: onClose,
+    hideButton: true,
+    busy: saving,
+    dirty: false,
+  });
   return (
     <>
-      <div className="overlay" onClick={onClose} />
+      <div className="overlay" onClick={requestBack} />
       <aside className="drawer new-drawer">
         <div className="drawer-head">
           <div>
@@ -190,95 +233,67 @@ export function NewProduct({
             </span>
             <h2>{title || "新增商品"}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose}>
-            <X />
-          </button>
+          <CloseButton aria-label="關閉新增商品" onClick={requestBack} />
         </div>
-        <form onSubmit={handleSubmit(createProduct)}>
-          {!preorderOnly &&
-            (previewUrl ? (
-              <div className="upload-preview">
-                {/* blob URL is only used for a local preview. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewUrl} alt="商品主圖預覽" />
-                <div className="upload-preview-info">
-                  <span className="upload-success">
-                    <CheckCircle2 size={16} />
-                    圖片已選擇
-                  </span>
-                  <b title={image?.name}>{image?.name}</b>
-                  <small>
-                    {image && `${(image.size / 1024 / 1024).toFixed(2)} MB`}
-                  </small>
-                  <div>
-                    <label className="outline image-change">
-                      更換圖片
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={selectImage}
-                        hidden
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="image-remove"
-                      onClick={removeImage}
-                    >
-                      <Trash2 size={15} />
-                      移除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <label className="upload">
-                <ImagePlus />
-                <b>上傳商品圖片（必填）</b>
-                <span>JPG、PNG、WebP，最多 10MB</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={selectImage}
-                  hidden
-                />
-              </label>
-            ))}
-          {!preorderOnly && imageError && (
-            <p className="upload-error">{imageError}</p>
-          )}
-          {preorderOnly && (
+        <form
+          onChangeCapture={markChanged}
+          onSubmit={handleSubmit(createProduct)}
+        >
+          <ProductImageUpload
+            src={previewUrl}
+            file={image}
+            required={!preorderOnly}
+            preorder={preorderOnly}
+            disabled={saving}
+            error={imageError}
+            onChange={selectImage}
+            onRemove={removeImage}
+          />
+          {/* {preorderOnly && (
             <div className="mb-5 flex items-start gap-3 rounded-[8px] border border-[#cbdde9] bg-[#eef5fa] px-4 py-3.5 text-[#29485f]">
               <span className="grid size-9 shrink-0 place-items-center rounded-[8px] bg-white text-[#5a87b1]">
                 <ClipboardList size={18} aria-hidden="true" />
               </span>
               <div>
                 <b className="block text-[13px]">先收訂購，再依總數叫貨</b>
-                <p className="mb-0 mt-1 text-[12px] leading-5 text-[#526b80]">
-                  只要填寫商品名稱、尺寸與販售金額。系統會自動以庫存 0
-                  建立，不佔用現貨；截止後再依訂購總數採購。
-                </p>
+
               </div>
             </div>
-          )}
+          )} */}
           <div className="form-grid">
             {preorderOnly ? (
               <>
-                <Field label="商品名稱" error={errors.name?.message}>
-                  <input
-                    {...register("name")}
-                    placeholder="例：烘焙款 IMAX 海報"
-                    required
-                  />
-                </Field>
+                <PreorderNameFields
+                  work={preorderWork ?? ""}
+                  itemName={preorderItem ?? ""}
+                  country={preorderCountry ?? ""}
+                  onWorkChange={(value) =>
+                    setValue("name", value, { shouldDirty: true })
+                  }
+                  onItemNameChange={(value) =>
+                    setValue("itemName", value, { shouldDirty: true })
+                  }
+                  onCountryChange={(value) =>
+                    setValue("country", value, { shouldDirty: true })
+                  }
+                  workError={errors.name?.message}
+                  itemError={errors.itemName?.message}
+                  countryError={errors.country?.message}
+                  requireItemName={requireItemName}
+                />
                 <Field label="尺寸" error={errors.size?.message}>
                   <select {...register("size")} required>
                     {POSTER_SIZES.map((item) => (
-                      <option key={item}>{item}</option>
+                      <option key={item} value={item}>
+                        {countryLabel(item)}
+                      </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="販售金額" error={errors.price?.message}>
+                <Field
+                  label="會員價（定價另加 150）"
+                  error={errors.price?.message}
+                >
                   <input
                     type="number"
                     min="0"
@@ -302,11 +317,16 @@ export function NewProduct({
                   <select {...register("country")} required>
                     <option value="">請選擇國家版本</option>
                     {COUNTRIES.map((item) => (
-                      <option key={item}>{item}</option>
+                      <option key={item} value={item}>
+                        {countryLabel(item)}
+                      </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="販售金額（必填）" error={errors.price?.message}>
+                <Field
+                  label="會員價（必填，定價另加 150）"
+                  error={errors.price?.message}
+                >
                   <input
                     type="number"
                     min="0"
@@ -336,7 +356,6 @@ export function NewProduct({
                       </option>
                     ))}
                   </select>
-                  <small>選擇櫃子格位，不需要輸入庫位代碼。</small>
                 </Field>
                 <details className="col-span-full mt-2 rounded-xl border border-line p-4">
                   <summary className="cursor-pointer text-sm font-semibold">
@@ -351,7 +370,9 @@ export function NewProduct({
                         }
                       >
                         {PRODUCT_CATEGORIES.map((item) => (
-                          <option key={item}>{item}</option>
+                          <option key={item} value={item}>
+                            {countryLabel(item)}
+                          </option>
                         ))}
                       </select>
                     </Field>
@@ -390,7 +411,7 @@ export function NewProduct({
             <button
               type="button"
               className="outline"
-              onClick={onClose}
+              onClick={requestBack}
               disabled={saving}
             >
               取消

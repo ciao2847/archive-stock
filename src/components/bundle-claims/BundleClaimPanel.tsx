@@ -1,5 +1,19 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { LoadingState } from "@/components/ui/LoadingState";
+
+import { RefreshButton } from "@/components/ui/RefreshButton";
+
+import {
+  useBackAction,
+  useDirtyBack,
+  useNavigationState,
+} from "@/components/navigation/BackNavigation";
+import { SearchField } from "@/components/ui/SearchField";
 import {
   type ChangeEvent,
   type FormEvent,
@@ -17,13 +31,10 @@ import {
   Clipboard,
   ImagePlus,
   Images,
-  LoaderCircle,
   PackageCheck,
   Palette,
   Pencil,
   Plus,
-  RefreshCw,
-  Search,
   Send,
   ShieldCheck,
   Trash2,
@@ -32,6 +43,7 @@ import {
 } from "lucide-react";
 
 import { RemoveRecordButton } from "@/components/order-management/RemoveRecordButton";
+import { CustomerDetailsLayout } from "@/components/order-management/CustomerDetailsLayout";
 import { CustomerList } from "@/components/order-management/CustomerList";
 import { OrderContactDetails } from "@/components/order-management/OrderContactDetails";
 import { OrderItems } from "@/components/order-management/OrderItems";
@@ -126,7 +138,10 @@ export function BundleClaimPanel({
 }) {
   const ownerRef = useRef(ownerId);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [orders, setOrders] = useState<BundleClaimOrder[]>([]);
+  const [orders, setOrders] = useNavigationState<BundleClaimOrder[]>(
+    `bundle:${ownerId}:orders`,
+    [],
+  );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -138,11 +153,17 @@ export function BundleClaimPanel({
   } | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<BundleClaimFilter>("all");
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | "all">(
+  const [search, setSearch] = useNavigationState(
+    `bundle:${ownerId}:search`,
+    "",
+  );
+  const [filter, setFilter] = useNavigationState<BundleClaimFilter>(
+    `bundle:${ownerId}:filter`,
     "all",
   );
+  const [selectedCampaignId, setSelectedCampaignId] = useNavigationState<
+    number | "all"
+  >(`bundle:${ownerId}:campaign`, "all");
   const campaignRef = useRef<number | "all">("all");
   useEffect(() => {
     campaignRef.current = selectedCampaignId;
@@ -211,7 +232,10 @@ export function BundleClaimPanel({
   } | null>(null);
 
   const selected = useMemo(
-    () => orders.find((order) => order.id === selectedId) ?? orders[0],
+    () =>
+      selectedId === 0
+        ? undefined
+        : (orders.find((order) => order.id === selectedId) ?? orders[0]),
     [orders, selectedId],
   );
   const editorOrder = useMemo(
@@ -286,10 +310,11 @@ export function BundleClaimPanel({
         }
       }
     },
-    [filter, ownerId, search, selectedCampaignId],
+    [filter, ownerId, search, selectedCampaignId, setOrders],
   );
 
   useEffect(() => {
+    if (ownerRef.current === ownerId) return;
     ownerRef.current = ownerId;
     setOrders([]);
     setSelectedId(null);
@@ -306,7 +331,7 @@ export function BundleClaimPanel({
     setCampaigns([]);
     setEditorCampaignId(null);
     setProductFields({});
-  }, [ownerId]);
+  }, [ownerId, setOrders, setSearch, setFilter, setSelectedCampaignId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -320,22 +345,26 @@ export function BundleClaimPanel({
     };
   }, [load]);
 
-  const selectCampaign = useCallback((id: number | "all") => {
-    if (campaignRef.current === id) return;
-    campaignRef.current = id;
-    setSelectedCampaignId(id);
-    setOrders([]);
-    setSelectedId(null);
-    setEditorOpen(false);
-    setEditorOrderId(null);
-    setPendingFiles([]);
-    setFileKeys(new Map());
-    setProductFields({});
-    setError("");
-    setMessage("");
-  }, []);
+  const selectCampaign = useCallback(
+    (id: number | "all") => {
+      if (campaignRef.current === id) return;
+      campaignRef.current = id;
+      setSelectedCampaignId(id);
+      setOrders([]);
+      setSelectedId(null);
+      setEditorOpen(false);
+      setEditorOrderId(null);
+      setPendingFiles([]);
+      setFileKeys(new Map());
+      setProductFields({});
+      setError("");
+      setMessage("");
+    },
+    [setSelectedCampaignId, setOrders],
+  );
 
   function resetEditor() {
+    resetChanged();
     setEditorOrderId(null);
     setDescription("");
     setProductFields({});
@@ -362,6 +391,7 @@ export function BundleClaimPanel({
   }
 
   function startEdit(order: BundleClaimOrder) {
+    resetChanged();
     setEditorOrderId(order.id);
     setDescription(order.description ?? "");
     setProductFields(
@@ -528,11 +558,7 @@ export function BundleClaimPanel({
       setEditorOrderId(null);
       setPendingFiles([]);
       setFileKeys(new Map());
-      setMessage(
-        pendingFiles.length > 0
-          ? "草稿與商品圖片已儲存。核對內容後，開放這份配單即可加入共同選單。"
-          : "草稿已儲存。",
-      );
+      setMessage(pendingFiles.length > 0 ? "草稿已儲存。" : "草稿已儲存。");
       setCampaignRefresh((current) => current + 1);
       await load(saved.orderId);
     } catch (saveError) {
@@ -695,14 +721,28 @@ export function BundleClaimPanel({
     }
   }
 
+  const { requestBack, markChanged, resetChanged } = useDirtyBack({
+    enabled: editorOpen,
+    priority: 60,
+    busy: working,
+    dirty: pendingFiles.length > 0,
+    onBack: () => setEditorOpen(false),
+  });
+  useBackAction({
+    enabled: Boolean(selected) && !editorOpen,
+    priority: 20,
+    onBack: () => {
+      if (!working) setSelectedId(0);
+    },
+  });
   return (
     <div className="min-w-0 space-y-5 pb-8">
       <section className="min-w-0 px-1">
         <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="bundle-management-actions">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              className="outline"
+              className="outline min-h-12 whitespace-nowrap p-3!"
               onClick={onOpenAppearance}
             >
               <Palette size={16} />
@@ -710,7 +750,7 @@ export function BundleClaimPanel({
             </button>
             <button
               type="button"
-              className="primary"
+              className="primary min-h-12 whitespace-nowrap p-3!"
               onClick={startCreate}
               disabled={campaigns.length === 0}
             >
@@ -737,12 +777,12 @@ export function BundleClaimPanel({
         </div>
       )}
       {error && (
-        <div
+        <ErrorMessage
           className="rounded-[8px] border border-danger/20 bg-danger-soft px-4 py-3 text-[13px] leading-6 text-danger"
-          role="alert"
+          as="div"
         >
           {error}
-        </div>
+        </ErrorMessage>
       )}
 
       {editorOpen && (
@@ -756,17 +796,18 @@ export function BundleClaimPanel({
                 整理顧客已確認的內容
               </h3>
             </div>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => setEditorOpen(false)}
+            <CloseButton
+              onClick={requestBack}
               aria-label="關閉草稿編輯"
-            >
-              <X size={19} />
-            </button>
+              size={19}
+            />
           </div>
 
-          <form className="mt-5" onSubmit={saveDraft}>
+          <form
+            className="mt-5"
+            onChangeCapture={markChanged}
+            onSubmit={saveDraft}
+          >
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <label className="block min-w-0">
                 <span className="mb-2 block text-[13px] font-semibold text-dark">
@@ -957,17 +998,13 @@ export function BundleClaimPanel({
               <button
                 type="button"
                 className="outline"
-                onClick={() => setEditorOpen(false)}
+                onClick={requestBack}
                 disabled={working}
               >
                 取消
               </button>
               <button type="submit" className="primary" disabled={working}>
-                {working ? (
-                  <LoaderCircle className="animate-spin" size={17} />
-                ) : (
-                  <Check size={17} />
-                )}
+                {working ? <Spinner size={17} /> : <Check size={17} />}
                 {working ? "儲存與上傳中…" : "儲存草稿"}
               </button>
             </div>
@@ -979,53 +1016,18 @@ export function BundleClaimPanel({
         className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
         aria-label="配單搜尋"
       >
-        <form
-          role="search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void load(selectedId);
-          }}
-          className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-        >
-          <label className="relative block min-w-0">
-            <Search
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-              size={17}
-              aria-hidden="true"
-            />
-            <input
-              className="claim-customer-search-input min-h-11 w-full min-w-0 rounded-[8px] border border-line pl-10 pr-11 text-[14px]"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="搜尋名稱、確認編號、暱稱或電話"
-              aria-label="搜尋名稱、確認編號、暱稱或電話"
-              maxLength={100}
-              autoComplete="off"
-            />
-            {search && (
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-muted"
-                onClick={() => setSearch("")}
-                aria-label="清除配單搜尋"
-              >
-                <X size={15} />
-              </button>
-            )}
-          </label>
-          <button type="submit" className="outline min-h-11" disabled={loading}>
-            {loading ? (
-              <LoaderCircle className="animate-spin" size={16} />
-            ) : (
-              <Search size={16} />
-            )}
-            {loading ? "查詢中" : "查詢"}
-          </button>
-        </form>
-        <p className="mb-0 mt-2 text-[11px] text-muted" role="status">
-          輸入後自動搜尋，也可以按 Enter 或查詢。
-        </p>
+        <SearchField
+          className="w-full"
+          value={search}
+          onChange={setSearch}
+          label="搜尋名稱、確認編號、暱稱或電話"
+          placeholder="搜尋名稱、確認編號、暱稱或電話"
+          maxLength={100}
+          busy={loading}
+          onSearch={() => load(selectedId)}
+          clearLabel="清除配單搜尋"
+          shortcut
+        />
         <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
           <select
             className="min-h-11 min-w-0 rounded-[8px] border border-line bg-white px-3 text-[13px] font-semibold text-dark"
@@ -1040,111 +1042,107 @@ export function BundleClaimPanel({
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="outline min-h-11"
+          <RefreshButton
+            label="重新整理"
+            loading={loading}
             onClick={() => void load(selectedId)}
-            disabled={loading}
-          >
-            <RefreshCw className={loading ? "animate-spin" : ""} size={16} />
-            重新整理
-          </button>
+          />
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] lg:items-start">
-        <section className="min-w-0">
-          <div className="flex items-center justify-between gap-3 px-1 pb-3">
-            <div>
-              <span className="text-[11px] font-bold text-primary">
-                配單清單
+      <CustomerDetailsLayout
+        selectedKey={selected && String(selected.id)}
+        disabled={working}
+        list={
+          <section className="min-w-0">
+            <div className="flex items-center justify-between gap-3 px-1 pb-3">
+              <div>
+                <span className="text-[11px] font-bold text-primary">
+                  配單清單
+                </span>
+              </div>
+              <span className="rounded-[8px] bg-light px-2.5 py-1 text-[11px] font-bold text-muted">
+                {orders.length} 筆
               </span>
             </div>
-            <span className="rounded-[8px] bg-light px-2.5 py-1 text-[11px] font-bold text-muted">
-              {orders.length} 筆
-            </span>
-          </div>
-          {loading ? (
-            <div className="grid min-h-52 place-items-center text-[13px] text-muted">
-              <span className="flex items-center gap-2">
-                <LoaderCircle className="animate-spin" size={18} />
-                讀取中…
-              </span>
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="rounded-[10px] border border-dashed border-line px-5 py-12 text-center">
-              <Images className="mx-auto text-muted" size={28} />
-              <p className="mb-0 mt-3 text-[13px] text-muted">
-                {search || filter !== "all"
-                  ? "沒有符合條件的配單"
-                  : "尚未建立配單確認"}
-              </p>
-            </div>
-          ) : (
-            <>
-              <CustomerList
-                rows={customerRows(
-                  filter === "all"
-                    ? orders.filter(
-                        (order) =>
-                          order.status !== "cancelled" &&
-                          order.status !== "expired",
-                      )
-                    : orders,
-                )}
-                selectedKey={selected && String(selected.id)}
-                disabled={working}
-                onSelect={(key) => {
-                  setSelectedId(Number(key));
-                  setPaymentEditor(null);
-                }}
-              />
-              {filter === "all" &&
-                orders.some(
-                  (order) =>
-                    order.status === "cancelled" || order.status === "expired",
-                ) && (
-                  <details className="mt-3 rounded-[8px] border border-line p-3 text-[12px] text-muted">
-                    <summary className="cursor-pointer">
-                      查看已撤銷／過期（
-                      {
-                        orders.filter(
+            {loading ? (
+              <LoadingState text="正在讀取配單…" />
+            ) : orders.length === 0 ? (
+              <div className="rounded-[10px] border border-dashed border-line px-5 py-12 text-center">
+                <Images className="mx-auto text-muted" size={28} />
+                <p className="mb-0 mt-3 text-[13px] text-muted">
+                  {search || filter !== "all"
+                    ? "沒有符合條件的配單"
+                    : "尚未建立配單確認"}
+                </p>
+              </div>
+            ) : (
+              <>
+                <CustomerList
+                  rows={customerRows(
+                    filter === "all"
+                      ? orders.filter(
                           (order) =>
-                            order.status === "cancelled" ||
-                            order.status === "expired",
-                        ).length
-                      }
-                      ）
-                    </summary>
-                    <div className="mt-2">
-                      <CustomerList
-                        rows={customerRows(
+                            order.status !== "cancelled" &&
+                            order.status !== "expired",
+                        )
+                      : orders,
+                  )}
+                  selectedKey={selected && String(selected.id)}
+                  disabled={working}
+                  onSelect={(key) => {
+                    setSelectedId(Number(key));
+                    setPaymentEditor(null);
+                  }}
+                />
+                {filter === "all" &&
+                  orders.some(
+                    (order) =>
+                      order.status === "cancelled" ||
+                      order.status === "expired",
+                  ) && (
+                    <details className="mt-3 rounded-[8px] border border-line p-3 text-[12px] text-muted">
+                      <summary className="cursor-pointer">
+                        查看已撤銷／過期（
+                        {
                           orders.filter(
                             (order) =>
                               order.status === "cancelled" ||
                               order.status === "expired",
-                          ),
-                        )}
-                        selectedKey={selected && String(selected.id)}
-                        disabled={working}
-                        onSelect={(key) => {
-                          setSelectedId(Number(key));
-                          setPaymentEditor(null);
-                        }}
-                      />
-                    </div>
-                  </details>
-                )}
-            </>
-          )}
-        </section>
-
+                          ).length
+                        }
+                        ）
+                      </summary>
+                      <div className="mt-2">
+                        <CustomerList
+                          rows={customerRows(
+                            orders.filter(
+                              (order) =>
+                                order.status === "cancelled" ||
+                                order.status === "expired",
+                            ),
+                          )}
+                          selectedKey={selected && String(selected.id)}
+                          disabled={working}
+                          onSelect={(key) => {
+                            setSelectedId(Number(key));
+                            setPaymentEditor(null);
+                          }}
+                        />
+                      </div>
+                    </details>
+                  )}
+              </>
+            )}
+          </section>
+        }
+      >
         <section className="min-w-0 rounded-[14px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6">
           {!selected ? (
             <div className="grid min-h-64 place-items-center text-center text-[13px] text-muted">
               <div>
                 <Clipboard className="mx-auto" size={30} />
-                <p className="mb-0 mt-3">選擇左側配單查看內容</p>
+                <p className="mb-0 mt-3">尚未選擇配單</p>
               </div>
             </div>
           ) : (
@@ -1213,11 +1211,6 @@ export function BundleClaimPanel({
                   })
                 }
               />
-              {selected.status === "open" && (
-                <p className="mt-4 rounded-[9px] border border-line bg-light/50 p-3 text-[12px] leading-6 text-muted">
-                  這個姓名選項已開放。請分享上方的共同連結，讓客人點選自己的姓名、核對品項與截圖，並送出表單留下配單紀錄。
-                </p>
-              )}
 
               {selected.status === "confirmed" && (
                 <>
@@ -1529,11 +1522,11 @@ export function BundleClaimPanel({
             </div>
           )}
         </section>
-      </div>
+      </CustomerDetailsLayout>
 
       {working && (
         <div className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit items-center gap-2 rounded-[8px] bg-dark px-4 py-3 text-[12px] font-semibold text-white shadow-lg">
-          <LoaderCircle className="animate-spin" size={16} />
+          <Spinner size={16} />
           正在處理，請稍候…
         </div>
       )}

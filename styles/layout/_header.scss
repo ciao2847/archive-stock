@@ -23,6 +23,13 @@ header {
   }
 }
 
+.dashboard-header {
+  gap: 10px;
+  > .search {
+    min-width: 0;
+  }
+}
+
 // 搜尋列 | Search Bar
 .search {
   max-width: 570px;

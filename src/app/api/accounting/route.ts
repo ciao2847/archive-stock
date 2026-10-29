@@ -1,3 +1,4 @@
+import { periodDetailsSchema } from "@/lib/accounting-details";
 import {
   periodSchema,
   periodCostSchema,
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
       auth.supabase
         .from("financial_period_costs")
         .select(
-          "id,owner_id,period_start,period_end,amount,notes,revision,updated_at",
+          "id,owner_id,period_start,period_end,amount,notes,revision,updated_at,cost_entries,share_rules",
         )
         .eq("owner_id", ownerId)
         .eq("period_start", start)
@@ -54,12 +55,12 @@ export async function GET(request: Request) {
     if (cost) {
       const result = await auth.supabase
         .from("financial_period_cost_revisions")
-        .select("revision,amount,notes,changed_at")
+        .select("revision,amount,notes,changed_at,cost_entries,share_rules")
         .eq("cost_id", cost.id)
         .order("revision", { ascending: false });
       if (result.error)
         return accountingFailure(result.error.message, result.error.code);
-      revisions = result.data ?? [];
+      revisions = (result.data ?? []) as unknown as AccountingData["revisions"];
     }
     return apiSuccess<AccountingData>({
       cost,
@@ -74,9 +75,33 @@ export async function PUT(request: Request) {
   return withApiErrorHandling("PUT /api/accounting", async () => {
     const auth = await requireApiUser();
     if (!auth.ok) return auth.response;
-    const parsed = periodCostSchema.safeParse(
-      await request.json().catch(() => null),
-    );
+    const body = await request.json().catch(() => null);
+    if (body && Object.hasOwn(body, "entries")) {
+      const details = periodDetailsSchema.safeParse(body);
+      if (!details.success)
+        return apiFailure(
+          details.error.issues[0]?.message ?? "成本與分帳資料格式不正確",
+          400,
+        );
+      const input = details.data;
+      if (auth.role !== "admin" && input.ownerId !== auth.inventoryOwnerId)
+        return apiFailure("無法修改其他庫藏的成本", 403);
+      const { data, error } = await auth.supabase.rpc(
+        "save_financial_period_details",
+        {
+          p_owner_id: input.ownerId,
+          p_start: input.start,
+          p_end: input.end,
+          p_entries: input.entries,
+          p_shares: input.shares,
+          p_notes: input.notes,
+          p_expected_revision: input.expectedRevision,
+        },
+      );
+      if (error) return accountingFailure(error.message, error.code);
+      return apiSuccess({ cost: data });
+    }
+    const parsed = periodCostSchema.safeParse(body);
     if (!parsed.success)
       return apiFailure(
         parsed.error.issues[0]?.message ?? "成本資料格式不正確",

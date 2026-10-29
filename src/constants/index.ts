@@ -16,6 +16,7 @@ export const API_ROUTES = {
   getPrintLabels: "/api/print-labels",
   getMarkPrintLabel: "/api/print-labels/mark",
   getProducts: "/api/products",
+  createPreorderBatch: "/api/products/preorder-batch",
   getProductImages: "/api/product-images",
   getOrder: (id: string) => `/api/orders/${encodeURIComponent(id)}`,
   getProduct: (id: string) => `/api/products/${encodeURIComponent(id)}`,
@@ -42,7 +43,19 @@ export const PRODUCT_CATEGORIES = [
   "其他周邊",
   "明信片",
 ] as const;
-export const COUNTRIES = ["韓國", "日本", "台灣", "香港", "大陸"] as const;
+export const COUNTRIES = [
+  "韓國",
+  "日本",
+  "台灣",
+  "香港",
+  "大陸",
+  "馬來西亞",
+  "北美",
+  "飯製",
+] as const;
+export const countryLabel = (country: string) =>
+  country === "飯製" ? "🎨 飯製" : country;
+
 export const POSTER_FORMATS = [
   "一般版",
   "IMAX",
@@ -52,6 +65,7 @@ export const POSTER_FORMATS = [
   "SCREENX",
   "2D",
   "3D",
+  "特別場",
   "其他特殊版本",
 ] as const;
 export const POSTER_SIZES = ["A3", "A2", "B2", "B1", "27×40"] as const;

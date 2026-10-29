@@ -1,5 +1,7 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+
 import { type CSSProperties, type FormEvent, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -209,7 +211,7 @@ export function PublicBundleClaimView({
 
   if (claim.state === "confirmed" && claim.confirmation) {
     const confirmation = claim.confirmation;
-    const lineMessage = `您好，我已完成「${claim.title}」配單確認，確認編號：${confirmation.confirmationCode}，請協助核對，謝謝。`;
+    const lineMessage = `您好，我已完成「${claim.title}」配單確認，確認編號：${confirmation.confirmationCode}，請協助核對，謝謝。\n\n我的末五碼：`;
     const lineUrl = claim.officialLineId
       ? buildOfficialLineChatUrl(claim.officialLineId, lineMessage)
       : undefined;
@@ -395,10 +397,7 @@ export function PublicBundleClaimView({
                 </a>
                 <div className="mt-4 rounded-[10px] border border-[var(--bundle-border)] bg-[var(--bundle-soft)] p-3.5 text-center">
                   <h2 className="m-0 text-[13px] font-bold">用手機掃碼聯絡</h2>
-                  <p className="mb-0 mt-1 text-[11px] leading-5 text-[var(--bundle-muted)]">
-                    使用電腦時，可用手機 LINE 掃描下方 QR
-                    Code，開啟官方帳號並送出預填訊息。
-                  </p>
+
                   <div className="mx-auto mt-3 w-fit max-w-full overflow-hidden rounded-[8px] bg-white">
                     <QRCodeSVG
                       value={lineUrl}
@@ -432,10 +431,6 @@ export function PublicBundleClaimView({
                     {copied === "message" ? "核對訊息已複製" : "複製核對訊息"}
                   </span>
                 </button>
-                <p className="mb-0 mt-2 text-center text-[11px] leading-5 text-[var(--bundle-muted)]">
-                  已加入官方帳號的客人，也可將核對訊息貼到電腦版 LINE
-                  對話中，再按送出。
-                </p>
               </>
             )}
             <small className="mt-2.5 block text-center text-[10px] leading-5 text-[var(--bundle-muted)] md:text-[11px]">
@@ -697,12 +692,9 @@ export function PublicBundleClaimView({
               </p>
             )}
             {error && (
-              <p
-                className="mb-0 mt-4 rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger"
-                role="alert"
-              >
+              <ErrorMessage className="mb-0 mt-4 rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger">
                 {error}
-              </p>
+              </ErrorMessage>
             )}
             <button
               type="submit"

@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Style file organization
+
+Keep standalone style files in the root `styles/` directory. Component CSS Modules belong in `styles/components/<feature>/`; preserve their `.module.scss` extension and import them from the component. Keep standalone theme style helpers (`*.styles.ts`) in the same feature directory. Do not add component-adjacent stylesheets under `src/`.

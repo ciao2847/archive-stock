@@ -1,14 +1,25 @@
 "use client";
+
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { LoadingState } from "@/components/ui/LoadingState";
+import { StorageDestinationPicker } from "./StorageDestinationPicker";
+import { QuantityStepper } from "@/components/ui/QuantityStepper";
+import batchStyles from "../../../styles/components/locations/BatchPutaway.module.scss";
+import { SearchField } from "@/components/ui/SearchField";
 import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Plus, Minus, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Image as ImageIcon } from "lucide-react";
 import { getStorage, manageStorage } from "@/lib/api/locations";
 import {
   slotTotals,
@@ -18,7 +29,7 @@ import {
   type StorageData,
   type StoredProduct,
 } from "@/lib/location-storage";
-import { COUNTRIES } from "@/constants";
+import { countryLabel, COUNTRIES } from "@/constants";
 const StorageFeedback = createContext("");
 const money = (n: number) => `NT$ ${n.toLocaleString("zh-TW")}`;
 export function LocationManager({
@@ -43,6 +54,22 @@ function StorageWorkspace({
     queryFn: ({ signal }) => getStorage(ownerId, signal),
     retry: false,
   });
+  const [mobileTab, setMobileTab] = useState<"locations" | "pending">(
+    "locations",
+  );
+  const [pendingSearch, setPendingSearch] = useState("");
+  const tabPositions = useRef({ locations: 0, pending: 0 });
+  const restoreScroll = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (restoreScroll.current === null) return;
+    window.scrollTo({ top: restoreScroll.current, behavior: "instant" });
+    restoreScroll.current = null;
+  });
+  function switchMobileTab(next: "locations" | "pending") {
+    tabPositions.current[mobileTab] = window.scrollY;
+    restoreScroll.current = tabPositions.current[next];
+    setMobileTab(next);
+  }
   const [selected, setSelected] = useState("");
   const [cabinetId, setCabinetId] = useState("");
   const activeCabinet =
@@ -121,33 +148,58 @@ function StorageWorkspace({
       setBusy(false);
     }
   }
-  if (isPending)
-    return (
-      <div className="card p-8">
-        <LoaderCircle className="animate-spin" />
-        正在讀取庫位…
-      </div>
-    );
+  if (isPending) return <LoadingState text="正在讀取庫位…" />;
   if (error || !data)
     return (
-      <div className="data-error" role="alert">
+      <ErrorMessage as="div" variant="panel">
         {error?.message ?? "庫位載入失敗"}
-      </div>
+      </ErrorMessage>
     );
   const slot = data.slots.find((s) => s.id === selected);
   const totals = slotTotals(data.products, selected);
   const pending = data.products.filter((p) => unassignedQuantity(p) > 0);
+  const pendingTerm = pendingSearch.trim().toLowerCase();
+  const visiblePending = pending.filter((product) =>
+    `${product.sku ?? ""} ${product.name}`.toLowerCase().includes(pendingTerm),
+  );
   const term = query.trim().toLowerCase();
   const cabinetSlots = data.slots.filter(
     (s) => s.cabinet_id === activeCabinet?.id,
   );
   return (
     <StorageFeedback.Provider value={failure}>
-      <div className="storage-workspace">
+      <div className="storage-workspace" data-mobile-tab={mobileTab}>
+        <div
+          className="storage-mobile-tabs"
+          role="group"
+          aria-label="庫位管理檢視"
+        >
+          <button
+            type="button"
+            aria-pressed={mobileTab === "locations"}
+            className={mobileTab === "locations" ? "primary" : "outline"}
+            onClick={() => switchMobileTab("locations")}
+          >
+            庫位
+          </button>
+          <button
+            type="button"
+            aria-pressed={mobileTab === "pending"}
+            className={mobileTab === "pending" ? "primary" : "outline"}
+            onClick={() => switchMobileTab("pending")}
+          >
+            待整理（
+            {pending.reduce(
+              (sum, product) => sum + unassignedQuantity(product),
+              0,
+            )}
+            ）
+          </button>
+        </div>
         {failure && (
-          <div className="data-error storage-notice" role="alert">
+          <ErrorMessage className="storage-notice" as="div" variant="panel">
             {failure}
-          </div>
+          </ErrorMessage>
         )}
         {message && (
           <p className="storage-notice text-secondary-strong" role="status">
@@ -156,173 +208,202 @@ function StorageWorkspace({
         )}
         <div className="storage-main">
           <div className="space-y-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">我的櫃子</h2>
-              <button
-                className="outline"
-                disabled={busy}
-                onClick={() => setCabinetEditor(null)}
-              >
-                <Plus size={16} />
-                新增櫃子
-              </button>
-            </div>
-            {data.cabinets.length === 0 && (
-              <section className="card p-8 text-center text-muted">
-                先建立櫃子，設定排數與每排格數。
-              </section>
-            )}
-            {data.cabinets.length > 0 && (
-              <div
-                className="storage-cabinet-tabs"
-                role="tablist"
-                aria-label="櫃子"
-              >
-                {data.cabinets.map((c, i) => (
-                  <button
-                    type="button"
-                    role="tab"
-                    id={`cabinet-tab-${c.id}`}
-                    aria-controls={`cabinet-panel-${c.id}`}
-                    aria-selected={activeCabinet?.id === c.id}
-                    tabIndex={activeCabinet?.id === c.id ? 0 : -1}
-                    title={c.name}
-                    disabled={busy}
-                    onClick={() => switchCabinet(c)}
-                    onKeyDown={(e) => {
-                      if (
-                        !["ArrowRight", "ArrowLeft", "Home", "End"].includes(
-                          e.key,
-                        )
-                      )
-                        return;
-                      e.preventDefault();
-                      const index =
-                        e.key === "Home"
-                          ? 0
-                          : e.key === "End"
-                            ? data.cabinets.length - 1
-                            : (i +
-                                (e.key === "ArrowRight" ? 1 : -1) +
-                                data.cabinets.length) %
-                              data.cabinets.length;
-                      const next = data.cabinets[index];
-                      switchCabinet(next);
-                      document
-                        .getElementById(`cabinet-tab-${next.id}`)
-                        ?.focus();
-                    }}
-                    key={c.id}
-                  >
-                    {c.code} 櫃
-                  </button>
-                ))}
+            <div className="storage-location-picker space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">我的櫃子</h2>
+                <button
+                  className="outline"
+                  disabled={busy}
+                  onClick={() => setCabinetEditor(null)}
+                >
+                  <Plus size={16} />
+                  新增櫃子
+                </button>
               </div>
-            )}
-            {data.cabinets
-              .filter((c) => c.id === activeCabinet?.id)
-              .map((c) => {
-                const slots = data.slots.filter((s) => s.cabinet_id === c.id);
-                const occupiedCells = new Set(
-                  slots.map((s) => `${s.shelf}-${s.bin}`),
-                );
-                const missingCells = Array.from(
-                  { length: c.rows * c.columns },
-                  (_, i) => ({
-                    row: Math.floor(i / c.columns) + 1,
-                    column: (i % c.columns) + 1,
-                  }),
-                ).filter(
-                  ({ row, column }) => !occupiedCells.has(`${row}-${column}`),
-                );
-                return (
-                  <section
-                    className={`card storage-cabinet ${c.rows > 5 ? "is-short" : ""}`}
-                    id={`cabinet-panel-${c.id}`}
-                    role="tabpanel"
-                    aria-labelledby={`cabinet-tab-${c.id}`}
-                    key={c.id}
-                  >
-                    <header className="storage-card-head storage-cabinet-head">
-                      <div>
-                        <h2>
-                          {c.code} 櫃 · {c.name}
-                        </h2>
-                        <p>
-                          {c.rows} 排 × {c.columns} 格 ·{" "}
-                          {slots.length === 0
-                            ? "尚未設定格位（留空待安排）"
-                            : missingCells.length
-                              ? `已建立 ${slots.length} 個庫位`
-                              : `共 ${slots.length} 個庫位`}
-                        </p>
-                      </div>
-                      <div className="storage-cabinet-controls">
-                        <button
-                          className="outline"
-                          disabled={busy}
-                          onClick={() => setCabinetEditor(c)}
-                        >
-                          調整格數
-                        </button>
-                        <button
-                          className="primary"
-                          disabled={busy}
-                          onClick={() =>
-                            void execute({ action: "add_slot", id: c.id })
-                          }
-                        >
-                          {missingCells.length ? "補齊格位" : "增加一欄"}
-                        </button>
-                      </div>
-                    </header>
-                    <div className="storage-grid-area">
-                      <p className="storage-grid-hint">
-                        選擇格位查看海報；小格顯示排／格編號，完整資訊顯示於詳情面板。
-                      </p>
-                      <div
-                        className="storage-cabinet-board"
-                        role="region"
-                        aria-label={`${c.name}格位`}
-                      >
+              {data.cabinets.length === 0 && (
+                <section className="card p-8 text-center text-muted">
+                  先建立櫃子，設定排數與每排格數。
+                </section>
+              )}
+              {data.cabinets.length > 0 && (
+                <div
+                  className="storage-cabinet-tabs"
+                  role="tablist"
+                  aria-label="櫃子"
+                >
+                  {data.cabinets.map((c, i) => (
+                    <button
+                      type="button"
+                      role="tab"
+                      id={`cabinet-tab-${c.id}`}
+                      aria-controls={`cabinet-panel-${c.id}`}
+                      aria-selected={activeCabinet?.id === c.id}
+                      tabIndex={activeCabinet?.id === c.id ? 0 : -1}
+                      title={c.name}
+                      disabled={busy}
+                      onClick={() => switchCabinet(c)}
+                      onKeyDown={(e) => {
+                        if (
+                          !["ArrowRight", "ArrowLeft", "Home", "End"].includes(
+                            e.key,
+                          )
+                        )
+                          return;
+                        e.preventDefault();
+                        const index =
+                          e.key === "Home"
+                            ? 0
+                            : e.key === "End"
+                              ? data.cabinets.length - 1
+                              : (i +
+                                  (e.key === "ArrowRight" ? 1 : -1) +
+                                  data.cabinets.length) %
+                                data.cabinets.length;
+                        const next = data.cabinets[index];
+                        switchCabinet(next);
+                        document
+                          .getElementById(`cabinet-tab-${next.id}`)
+                          ?.focus();
+                      }}
+                      key={c.id}
+                    >
+                      {c.code} 櫃
+                    </button>
+                  ))}
+                </div>
+              )}
+              {data.cabinets
+                .filter((c) => c.id === activeCabinet?.id)
+                .map((c) => {
+                  const slots = data.slots.filter((s) => s.cabinet_id === c.id);
+                  const occupiedCells = new Set(
+                    slots.map((s) => `${s.shelf}-${s.bin}`),
+                  );
+                  const missingCells = Array.from(
+                    { length: c.rows * c.columns },
+                    (_, i) => ({
+                      row: Math.floor(i / c.columns) + 1,
+                      column: (i % c.columns) + 1,
+                    }),
+                  ).filter(
+                    ({ row, column }) => !occupiedCells.has(`${row}-${column}`),
+                  );
+                  return (
+                    <section
+                      className={`card storage-cabinet ${c.rows > 5 ? "is-short" : ""}`}
+                      id={`cabinet-panel-${c.id}`}
+                      role="tabpanel"
+                      aria-labelledby={`cabinet-tab-${c.id}`}
+                      key={c.id}
+                    >
+                      <header className="storage-card-head storage-cabinet-head">
+                        <div>
+                          <h2>
+                            {c.code} 櫃 · {c.name}
+                          </h2>
+                          <p>
+                            {c.rows} 排 × {c.columns} 格 ·{" "}
+                            {slots.length === 0
+                              ? "尚未設定格位（留空待安排）"
+                              : missingCells.length
+                                ? `已建立 ${slots.length} 個庫位`
+                                : `共 ${slots.length} 個庫位`}
+                          </p>
+                        </div>
+                        <div className="storage-cabinet-controls">
+                          <button
+                            className="outline"
+                            disabled={busy}
+                            onClick={() => setCabinetEditor(c)}
+                          >
+                            調整格數
+                          </button>
+                          <button
+                            className="primary"
+                            disabled={busy}
+                            onClick={() =>
+                              void execute({ action: "add_slot", id: c.id })
+                            }
+                          >
+                            {missingCells.length ? "補齊格位" : "增加一欄"}
+                          </button>
+                        </div>
+                      </header>
+                      <div className="storage-grid-area">
                         <div
-                          className="storage-slot-grid"
-                          style={
-                            {
-                              "--slot-columns": c.columns,
-                              "--slot-rows": c.rows,
-                            } as React.CSSProperties
-                          }
+                          className="storage-cabinet-board"
+                          role="region"
+                          aria-label={`${c.name}格位`}
                         >
-                          {slots.map((s) => {
-                            const count = slotTotals(data.products, s.id);
-                            const matches =
-                              !term ||
-                              `${s.display_name} ${s.code} ${c.name}`
-                                .toLowerCase()
-                                .includes(term);
-                            return (
-                              <article
-                                key={s.id}
-                                className={`storage-slot ${count.quantity === 0 ? "is-available" : ""} ${s.id === selected ? "is-selected" : ""} ${locked && s.id === lockedId ? "is-locked" : ""} ${matches ? "" : "is-muted"}`}
-                                style={{
-                                  gridRow: s.shelf ?? undefined,
-                                  gridColumn: s.bin ?? undefined,
-                                }}
-                              >
-                                <button
-                                  className="storage-slot-select"
-                                  aria-pressed={s.id === selected}
-                                  aria-label={`${s.display_name ?? s.code} ${count.quantity > 0 ? `${count.count} 款 · ${count.quantity} 張` : "可用"}`}
-                                  title={`${s.code} · ${s.display_name ?? s.code}`}
-                                  onClick={() => setSelected(s.id)}
+                          <div
+                            className="storage-slot-grid"
+                            style={
+                              {
+                                "--slot-columns": c.columns,
+                                "--slot-rows": c.rows,
+                              } as React.CSSProperties
+                            }
+                          >
+                            {slots.map((s) => {
+                              const count = slotTotals(data.products, s.id);
+                              const matches =
+                                !term ||
+                                `${s.display_name} ${s.code} ${c.name}`
+                                  .toLowerCase()
+                                  .includes(term);
+                              return (
+                                <article
+                                  key={s.id}
+                                  className={`storage-slot ${count.quantity === 0 ? "is-available" : ""} ${s.id === selected ? "is-selected" : ""} ${locked && s.id === lockedId ? "is-locked" : ""} ${matches ? "" : "is-muted"}`}
+                                  style={{
+                                    gridRow: s.shelf ?? undefined,
+                                    gridColumn: s.bin ?? undefined,
+                                  }}
                                 >
+                                  <button
+                                    className="storage-slot-select"
+                                    aria-pressed={s.id === selected}
+                                    aria-label={`${s.display_name ?? s.code} ${count.quantity > 0 ? `${count.count} 款 · ${count.quantity} 張` : "可用"}`}
+                                    title={`${s.code} · ${s.display_name ?? s.code}`}
+                                    onClick={() => setSelected(s.id)}
+                                  >
+                                    <span className="storage-cell-full">
+                                      <b>{s.display_name ?? s.code}</b>
+                                      <small>
+                                        {count.quantity > 0
+                                          ? `${count.count} 款 · ${count.quantity} 張`
+                                          : "可用"}
+                                      </small>
+                                    </span>
+                                    <span
+                                      className="storage-cell-compact"
+                                      aria-hidden="true"
+                                    >
+                                      <b>
+                                        {s.shelf}-{s.bin}
+                                      </b>
+                                      <small>
+                                        {count.quantity > 0
+                                          ? `${count.quantity}張`
+                                          : "空"}
+                                      </small>
+                                    </span>
+                                  </button>
+                                </article>
+                              );
+                            })}
+                            {missingCells.map(({ row, column }) => (
+                              <div
+                                key={`missing-${row}-${column}`}
+                                className="storage-slot storage-slot-missing"
+                                style={{ gridRow: row, gridColumn: column }}
+                                aria-label={`第 ${row} 排第 ${column} 格尚未建立`}
+                              >
+                                <div className="storage-slot-select">
                                   <span className="storage-cell-full">
-                                    <b>{s.display_name ?? s.code}</b>
+                                    <b>尚未建格</b>
                                     <small>
-                                      {count.quantity > 0
-                                        ? `${count.count} 款 · ${count.quantity} 張`
-                                        : "可用"}
+                                      {row} 排 · {column} 格
                                     </small>
                                   </span>
                                   <span
@@ -330,90 +411,60 @@ function StorageWorkspace({
                                     aria-hidden="true"
                                   >
                                     <b>
-                                      {s.shelf}-{s.bin}
+                                      {row}-{column}
                                     </b>
-                                    <small>
-                                      {count.quantity > 0
-                                        ? `${count.quantity}張`
-                                        : "空"}
-                                    </small>
+                                    <small>未建立</small>
                                   </span>
-                                </button>
-                              </article>
-                            );
-                          })}
-                          {missingCells.map(({ row, column }) => (
-                            <div
-                              key={`missing-${row}-${column}`}
-                              className="storage-slot storage-slot-missing"
-                              style={{ gridRow: row, gridColumn: column }}
-                              aria-label={`第 ${row} 排第 ${column} 格尚未建立`}
-                            >
-                              <div className="storage-slot-select">
-                                <span className="storage-cell-full">
-                                  <b>尚未建格</b>
-                                  <small>
-                                    {row} 排 · {column} 格
-                                  </small>
-                                </span>
-                                <span
-                                  className="storage-cell-compact"
-                                  aria-hidden="true"
-                                >
-                                  <b>
-                                    {row}-{column}
-                                  </b>
-                                  <small>未建立</small>
-                                </span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      {missingCells.length > 0 && (
-                        <p className="storage-missing-hint">
-                          有 {missingCells.length}{" "}
-                          格尚未建立，可用「補齊格位」一次建立。
-                        </p>
-                      )}
-                      {term &&
-                        slots.every(
-                          (s) =>
-                            !`${s.display_name} ${s.code} ${c.name}`
-                              .toLowerCase()
-                              .includes(term),
-                        ) && (
-                          <p className="text-sm text-muted">
-                            找不到符合搜尋的格位
+                        {missingCells.length > 0 && (
+                          <p className="storage-missing-hint">
+                            有 {missingCells.length}{" "}
+                            格尚未建立，可用「補齊格位」一次建立。
                           </p>
                         )}
-                      <p className="storage-legend">
-                        <span>
-                          <i
-                            className="storage-legend-selected"
-                            aria-hidden="true"
-                          />
-                          目前選取
-                        </span>
-                        <span>
-                          <i
-                            className="storage-legend-available"
-                            aria-hidden="true"
-                          />
-                          可用庫位
-                        </span>
-                        <span>
-                          <i
-                            className="storage-legend-locked"
-                            aria-hidden="true"
-                          />
-                          鎖定快速建檔庫位
-                        </span>
-                      </p>
-                    </div>
-                  </section>
-                );
-              })}
+                        {term &&
+                          slots.every(
+                            (s) =>
+                              !`${s.display_name} ${s.code} ${c.name}`
+                                .toLowerCase()
+                                .includes(term),
+                          ) && (
+                            <p className="text-sm text-muted">
+                              找不到符合搜尋的格位
+                            </p>
+                          )}
+                        <p className="storage-legend">
+                          <span>
+                            <i
+                              className="storage-legend-selected"
+                              aria-hidden="true"
+                            />
+                            目前選取
+                          </span>
+                          <span>
+                            <i
+                              className="storage-legend-available"
+                              aria-hidden="true"
+                            />
+                            可用庫位
+                          </span>
+                          <span>
+                            <i
+                              className="storage-legend-locked"
+                              aria-hidden="true"
+                            />
+                            鎖定快速建檔庫位
+                          </span>
+                        </p>
+                      </div>
+                    </section>
+                  );
+                })}
+            </div>
             <section className="card storage-pending">
               <header className="storage-card-head">
                 <div>
@@ -426,12 +477,23 @@ function StorageWorkspace({
                         : ""}
                     </span>
                   </h2>
-                  <p>已建檔、尚未放入庫位的海報</p>
                 </div>
               </header>
-              <div className="storage-product-list">
-                {pending.length ? (
-                  pending.map((p) => (
+              <SearchField
+                className="my-4 w-full"
+                label="搜尋待整理海報"
+                placeholder="搜尋商品編號或名稱…"
+                value={pendingSearch}
+                onChange={setPendingSearch}
+              />
+              <div
+                className="storage-product-list"
+                role="region"
+                aria-label="待整理海報清單"
+                tabIndex={0}
+              >
+                {visiblePending.length ? (
+                  visiblePending.map((p) => (
                     <ProductRow
                       key={p.id}
                       product={p}
@@ -439,7 +501,7 @@ function StorageWorkspace({
                       action={
                         <button
                           className="primary"
-                          disabled={!slot || busy}
+                          disabled={busy || data.slots.length === 0}
                           onClick={() => setBatch({ productId: p.id })}
                         >
                           放入庫位
@@ -448,12 +510,14 @@ function StorageWorkspace({
                     />
                   ))
                 ) : (
-                  <p className="storage-empty">沒有待整理海報</p>
+                  <p className="storage-empty">
+                    {pendingTerm ? "找不到符合的海報" : "沒有待整理海報"}
+                  </p>
                 )}
               </div>
             </section>
           </div>
-          <div className="space-y-5">
+          <div className="storage-location-details space-y-5">
             <section className="card">
               <header className="storage-card-head">
                 <div>
@@ -464,7 +528,7 @@ function StorageWorkspace({
                   <p>
                     {slot
                       ? `${totals.count} 款海報 · 共 ${totals.quantity} 張`
-                      : "請點選左側格位查看明細，或於下方檢視待整理海報"}
+                      : "尚未選擇格位"}
                   </p>
                 </div>
                 {slot && (
@@ -491,7 +555,12 @@ function StorageWorkspace({
                   </div>
                 )}
               </header>
-              <div className="storage-product-list">
+              <div
+                className="storage-product-list"
+                role="region"
+                aria-label="庫位海報清單"
+                tabIndex={0}
+              >
                 {totals.items.length ? (
                   totals.items.map(({ product, quantity }) => (
                     <ProductRow
@@ -515,17 +584,9 @@ function StorageWorkspace({
                     />
                   ))
                 ) : !slot ? (
-                  <p className="storage-empty">
-                    尚未選擇庫位
-                    <br />
-                    請先在左側選取格位或建立格位
-                  </p>
+                  <p className="storage-empty">尚未選擇庫位</p>
                 ) : (
-                  <p className="storage-empty">
-                    這個庫位還沒有海報
-                    <br />
-                    點選下方「批次放入海報」開始整理
-                  </p>
+                  <p className="storage-empty">這個庫位還沒有海報</p>
                 )}
               </div>
               <footer className="storage-card-actions">
@@ -626,7 +687,7 @@ function StorageWorkspace({
             </button>
           </StorageDialog>
         )}
-        {batch && slot && (
+        {batch && (
           <BatchPutaway
             data={data}
             targetId={selected}
@@ -635,7 +696,11 @@ function StorageWorkspace({
             busy={busy}
             onClose={() => setBatch(null)}
             onSave={async (action) => {
-              if (await execute(action)) setBatch(null);
+              const position = window.scrollY;
+              if (await execute(action)) {
+                restoreScroll.current = position;
+                setBatch(null);
+              }
             }}
           />
         )}
@@ -656,6 +721,9 @@ function ProductRow({
     <div className="storage-product-row">
       <Thumbnail product={product} />
       <div className="storage-product-info min-w-0 flex-1">
+        {product.sku && (
+          <code className="block text-xs text-muted">{product.sku}</code>
+        )}
         <b className="block break-words text-sm">{product.name}</b>
         <small className="text-muted">
           {product.country || "未指定"} · {money(product.price)}
@@ -685,8 +753,10 @@ function StorageDialog({
   busy,
   onClose,
   children,
+  batchLayout = false,
 }: {
   title: string;
+  batchLayout?: boolean;
   busy: boolean;
   onClose: () => void;
   children: React.ReactNode;
@@ -696,17 +766,17 @@ function StorageDialog({
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    return () => previous?.focus();
+    return () => previous?.focus({ preventScroll: true });
   }, []);
   return (
     <div
-      className="storage-modal-overlay"
+      className={`storage-modal-overlay ${batchLayout ? batchStyles.overlay : ""}`}
       onClick={() => {
         if (!busy) onClose();
       }}
     >
       <section
-        className="card storage-modal"
+        className={`card storage-modal ${batchLayout ? batchStyles.dialog : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -716,7 +786,7 @@ function StorageDialog({
           if (e.key === "Tab") {
             const nodes = Array.from(
               e.currentTarget.querySelectorAll<HTMLElement>(
-                "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)",
+                "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary",
               ),
             );
             const first = nodes[0],
@@ -732,23 +802,25 @@ function StorageDialog({
         }}
       >
         <header className="storage-card-head">
-          <h2>{title}</h2>
-          <button
-            type="button"
+          <div>
+            {batchLayout && <span className="eyebrow">庫位管理</span>}
+            <h2>{title}</h2>
+          </div>
+          <CloseButton
             ref={closeRef}
-            className="icon-btn"
             disabled={busy}
             onClick={onClose}
             aria-label="關閉"
-          >
-            <X size={20} />
-          </button>
+            size={20}
+          />
         </header>
-        <div className="storage-modal-body">
+        <div
+          className={`storage-modal-body ${batchLayout ? batchStyles.body : ""}`}
+        >
           {dialogError && (
-            <div className="data-error mb-4" role="alert">
+            <ErrorMessage className="mb-4" as="div" variant="panel">
               {dialogError}
-            </div>
+            </ErrorMessage>
           )}
           {children}
         </div>
@@ -913,7 +985,9 @@ function QuickAdd({
               disabled={busy}
             >
               {COUNTRIES.map((c) => (
-                <option key={c}>{c}</option>
+                <option key={c} value={c}>
+                  {countryLabel(c)}
+                </option>
               ))}
             </select>
           </label>
@@ -961,7 +1035,7 @@ function QuickAdd({
           </label>
         </div>
         <button className="primary w-full" disabled={busy}>
-          {busy ? <LoaderCircle className="animate-spin" size={16} /> : null}
+          {busy ? <Spinner size={16} /> : null}
           儲存並建立下一筆 ↵
         </button>
         <p className="text-xs text-muted">
@@ -990,7 +1064,9 @@ function BatchPutaway({
 }) {
   const [search, setSearch] = useState("");
   const [target, setTarget] = useState(
-    source ? (data.slots.find((s) => s.id !== source)?.id ?? "") : targetId,
+    source
+      ? (data.slots.find((s) => s.id !== source)?.id ?? "")
+      : targetId || data.slots[0]?.id || "",
   );
   const candidates = data.products
     .map((product) => ({
@@ -1010,7 +1086,7 @@ function BatchPutaway({
       : {},
   );
   const visible = candidates.filter(({ product }) =>
-    `${product.name} ${product.country}`
+    `${product.sku ?? ""} ${product.name} ${product.country}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -1019,62 +1095,71 @@ function BatchPutaway({
     (sum, { product, max }) => sum + Math.min(selected[product.id], max),
     0,
   );
-  const name = data.slots.find((s) => s.id === target)?.display_name ?? "庫位";
+  const destination = data.slots.find((slot) => slot.id === target);
   return (
     <StorageDialog
-      title={`${source ? "搬移海報" : "批次放入"}：${name}`}
+      batchLayout
+      title={source ? "搬移海報" : "放入庫位"}
       busy={busy}
       onClose={onClose}
     >
-      <p className="text-xs text-muted">
-        未分配庫存放入此格；已入庫海報請使用「搬移」，避免重複計算。
-      </p>
-      {source && (
-        <label className="field mt-4">
-          <span>搬移至</span>
-          <select value={target} onChange={(e) => setTarget(e.target.value)}>
-            {data.slots
-              .filter((s) => s.id !== source)
-              .map((s) => (
-                <option value={s.id} key={s.id}>
-                  {s.display_name ?? s.code}
-                </option>
-              ))}
-          </select>
-        </label>
-      )}
-      <input
-        className="storage-search"
-        type="search"
-        aria-label="搜尋待放入海報"
-        placeholder="搜尋海報名稱或國家…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          disabled={busy || visible.length === 0}
-          checked={
-            visible.length > 0 &&
-            visible.every(({ product }) => Boolean(selected[product.id]))
-          }
-          onChange={(e) =>
-            setSelected((current) => {
-              const next = { ...current };
-              for (const { product, max } of visible) {
-                if (e.target.checked) next[product.id] = max;
-                else delete next[product.id];
-              }
-              return next;
-            })
-          }
+      <div className={batchStyles.filters}>
+        <StorageDestinationPicker
+          data={data}
+          value={target}
+          source={source}
+          disabled={busy}
+          onChange={setTarget}
         />
-        全選目前清單
-      </label>
-      <div className="storage-batch-list">
+        <div className={batchStyles.search}>
+          <span>搜尋商品</span>
+          <SearchField
+            className="w-full"
+            label="搜尋待放入海報"
+            placeholder="搜尋商品編號、名稱或國家…"
+            value={search}
+            onChange={setSearch}
+          />
+        </div>
+      </div>
+      <div className={batchStyles.selectionBar}>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            disabled={busy || visible.length === 0}
+            checked={
+              visible.length > 0 &&
+              visible.every(({ product }) => Boolean(selected[product.id]))
+            }
+            onChange={(e) =>
+              setSelected((current) => {
+                const next = { ...current };
+                for (const { product, max } of visible) {
+                  if (e.target.checked) next[product.id] = max;
+                  else delete next[product.id];
+                }
+                return next;
+              })
+            }
+          />
+          全選目前清單
+        </label>
+        <span>共 {visible.length} 項</span>
+      </div>
+      <div className={batchStyles.list}>
+        <div className={batchStyles.columns} aria-hidden="true">
+          <span>商品</span>
+          <span>國家</span>
+          <span>單價</span>
+          <span>可放入</span>
+          <span>放入數量</span>
+        </div>
         {visible.map(({ product, max }) => (
-          <div className="storage-batch-row" key={product.id}>
+          <div
+            className={batchStyles.row}
+            data-selected={Boolean(selected[product.id])}
+            key={product.id}
+          >
             <input
               type="checkbox"
               aria-label={`選擇 ${product.name}`}
@@ -1089,70 +1174,53 @@ function BatchPutaway({
                 })
               }
             />
-            <Thumbnail product={product} />
-            <div className="min-w-0 flex-1">
-              <b className="text-sm">{product.name}</b>
-              <small className="block text-xs text-muted">
-                {product.country} · {money(product.price)}
-              </small>
-            </div>
-            <div className="storage-batch-quantity">
-              <small>可放入 {max} 張</small>
-              <div className="storage-stepper">
-                <button
-                  aria-label={`減少 ${product.name} 數量`}
-                  disabled={
-                    busy || !selected[product.id] || selected[product.id] <= 1
-                  }
-                  onClick={() =>
-                    setSelected((current) => ({
-                      ...current,
-                      [product.id]: current[product.id] - 1,
-                    }))
-                  }
-                >
-                  <Minus size={14} />
-                </button>
-                <input
-                  type="number"
-                  aria-label={`${product.name} 放入數量`}
-                  min={1}
-                  max={max}
-                  disabled={busy || !selected[product.id]}
-                  value={selected[product.id] ?? max}
-                  onChange={(e) =>
-                    setSelected((current) => ({
-                      ...current,
-                      [product.id]: Math.max(
-                        1,
-                        Math.min(max, Math.floor(Number(e.target.value) || 1)),
-                      ),
-                    }))
-                  }
-                />
-                <button
-                  aria-label={`增加 ${product.name} 數量`}
-                  disabled={
-                    busy || !selected[product.id] || selected[product.id] >= max
-                  }
-                  onClick={() =>
-                    setSelected((current) => ({
-                      ...current,
-                      [product.id]: current[product.id] + 1,
-                    }))
-                  }
-                >
-                  <Plus size={14} />
-                </button>
+            <div className={batchStyles.product}>
+              <Thumbnail product={product} />
+              <div>
+                <b>{product.name}</b>
+                {product.sku && <code>{product.sku}</code>}
+                <span className={batchStyles.mobileMetadata}>
+                  {product.country || "未指定"} · {money(product.price)}
+                </span>
+                <span className={batchStyles.mobileMetadata}>
+                  可放入 {max} 張
+                </span>
               </div>
+            </div>
+            <span className={batchStyles.country}>
+              {product.country || "未指定"}
+            </span>
+            <span className={batchStyles.price}>{money(product.price)}</span>
+            <span className={batchStyles.available}>{max} 張</span>
+            <div className={batchStyles.quantity}>
+              <QuantityStepper
+                value={selected[product.id] ?? max}
+                min={1}
+                max={max}
+                itemName={product.name}
+                label={`${product.name} 放入數量`}
+                disabled={busy || !selected[product.id]}
+                onChange={(quantity) =>
+                  setSelected((current) => ({
+                    ...current,
+                    [product.id]: quantity,
+                  }))
+                }
+              />
             </div>
           </div>
         ))}
+        {visible.length === 0 && (
+          <p className="storage-empty">找不到符合的商品</p>
+        )}
       </div>
-      <footer className="storage-batch-footer">
+      <footer className={batchStyles.footer}>
         <b>
-          已選擇 {chosen.length} 款 · 共 {count} 張
+          已選 {chosen.length} 項 · 共 {count} 張
         </b>
+        <span className={batchStyles.destination}>
+          {destination ? `放入 ${destination.code}` : "尚未選擇庫位"}
+        </span>
         <div className="flex gap-2">
           <button className="outline" disabled={busy} onClick={onClose}>
             取消

@@ -1,5 +1,7 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import swal from "sweetalert";
 import {
   Boxes,
@@ -11,31 +13,45 @@ import {
   Menu,
   Plus,
   Printer,
+  RotateCcw,
   QrCode,
-  Search,
   Settings,
+  Trash2,
   Warehouse,
   WalletCards,
+  ChartNoAxesCombined,
   X,
 } from "lucide-react";
 import { DashboardView, Order, Product } from "@/lib/types";
+import { PrintLabelResetPanel } from "@/components/products/PrintLabelResetPanel";
 import { ProductPanel } from "@/components/products/ProductPanel";
 import { PackingPanel } from "@/components/packing/PackingPanel";
 import { NewProduct } from "@/components/products/NewProduct";
 import { LocationManager } from "@/components/locations/LocationManager";
 import { SystemSettings } from "@/components/settings/SystemSettings";
+import { StallSalesSummary } from "@/components/checkout/StallSalesSummary";
+import { StallCheckout } from "@/components/checkout/StallCheckout";
 import { NewOrder } from "@/components/orders/NewOrder";
 import { SettlementPanel } from "@/components/settlement/SettlementPanel";
 import { EditOrderAmount } from "@/components/orders/EditOrderAmount";
 import { DataState } from "@/components/ui/DataState";
+import { SearchField } from "@/components/ui/SearchField";
+import { useDashboardNavigation } from "@/hooks/useDashboardNavigation";
+import {
+  BackButton,
+  BackNavigationProvider,
+  useBackAction,
+  useBackNavigation,
+} from "@/components/navigation/BackNavigation";
+import { backDashboardPath } from "@/lib/dashboard-navigation";
 import { useProductsData } from "@/hooks/useProductsData";
 import { useOrdersData } from "@/hooks/useOrdersData";
 import { useAccountData } from "@/hooks/useAccountData";
 import { useAppDispatch } from "@/store/hooks";
 import { archiveOrder } from "@/store/slices/ordersSlice";
 import { BrandLogo } from "@/components/ui/BrandLogo";
-import { OrderTable } from "@/components/orders/OrderTable";
-import { ProductTable } from "@/components/products/ProductTable";
+import { OrdersWorkspace } from "@/components/orders/OrdersWorkspace";
+import { ProductInventoryTable } from "@/components/products/ProductInventoryTable";
 import { Overview } from "./Overview";
 import {
   groupOrdersByCustomer,
@@ -57,10 +73,6 @@ const HEADER_SEARCH_CONFIG: Partial<
   products: {
     label: "搜尋商品庫存",
     placeholder: "搜尋作品、商品 ID、版本、庫位…",
-  },
-  orders: {
-    label: "搜尋訂單",
-    placeholder: "搜尋訂單編號、客戶、電話、商品…",
   },
   packing: {
     label: "搜尋待包貨客人",
@@ -92,6 +104,15 @@ const EMPTY_ORDERS: Order[] = [];
 const EMPTY_OWNERS: Array<{ id: string; name: string }> = [];
 
 export function Dashboard({ authScope }: { authScope: string }) {
+  const navigation = useDashboardNavigation();
+  return (
+    <BackNavigationProvider navigation={navigation}>
+      <DashboardWorkspace authScope={authScope} />
+    </BackNavigationProvider>
+  );
+}
+
+function DashboardWorkspace({ authScope }: { authScope: string }) {
   const dispatch = useAppDispatch();
   const {
     data: productsData,
@@ -136,19 +157,19 @@ export function Dashboard({ authScope }: { authScope: string }) {
     ]);
   }, [reloadAccount, reloadOrders, reloadProducts]);
 
-  const [view, setView] = useState<View>("dashboard");
+  const { view, setView } = useBackNavigation();
   const [claimInitialTab, setClaimInitialTab] =
     useState<ClaimTab>("submissions");
   const [searchQueries, setSearchQueries] = useState<
     Partial<Record<View, string>>
   >({});
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [selectedCustomer, setSelectedCustomer] =
     useState<PackingCustomer | null>(null);
+  const [packingReturnView, setPackingReturnView] = useState<View>("packing");
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [greeting, setGreeting] = useState("您好");
   const [todayLabel, setTodayLabel] = useState("");
@@ -158,7 +179,28 @@ export function Dashboard({ authScope }: { authScope: string }) {
     () => new Set(),
   );
   const [preparingPrint, setPreparingPrint] = useState(false);
+  const [productDeleteMessage, setProductDeleteMessage] = useState("");
+  const [printResetInventoryId, setPrintResetInventoryId] = useState<
+    string | null
+  >(null);
+  const showPrintReset = isAdmin && printResetInventoryId === selectedOwnerId;
   const query = searchQueries[view] ?? "";
+  const productSelectionScope = JSON.stringify([
+    view,
+    selectedOwnerId,
+    query,
+    printSelectionMode,
+  ]);
+  const [deleteSelection, setDeleteSelection] = useState({
+    scope: productSelectionScope,
+    active: false,
+  });
+  // Reset before rendering a different inventory, search or selection mode.
+  if (deleteSelection.scope !== productSelectionScope) {
+    setDeleteSelection({ scope: productSelectionScope, active: false });
+  }
+  const deleteSelectionMode =
+    deleteSelection.scope === productSelectionScope && deleteSelection.active;
   const searchConfig =
     view === "packing" && selectedCustomer
       ? undefined
@@ -169,24 +211,22 @@ export function Dashboard({ authScope }: { authScope: string }) {
     },
     [view],
   );
+  function returnFromPacking() {
+    setSelectedCustomer(null);
+    if (packingReturnView !== "packing") backDashboardPath();
+  }
+  useBackAction({
+    enabled: mobile,
+    priority: 1000,
+    onBack: () => setMobile(false),
+  });
+  useBackAction({
+    enabled: view === "packing" && Boolean(selectedCustomer),
+    onBack: returnFromPacking,
+  });
   const activeInventoryName =
     availableOwners.find((owner) => owner.id === selectedOwnerId)?.name ??
     "目前庫藏";
-  useEffect(() => {
-    const focusSearch = (event: KeyboardEvent) => {
-      if (
-        searchConfig &&
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === "k"
-      ) {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, [searchConfig]);
   useEffect(() => {
     const updateGreeting = () => {
       const now = new Date();
@@ -297,10 +337,11 @@ export function Dashboard({ authScope }: { authScope: string }) {
       const customer = groupOrdersByCustomer(scopedOrders).find(
         (candidate) => candidate.key === order.customerKey,
       );
+      setPackingReturnView("orders");
       setSelectedCustomer(customer ?? null);
       setView("packing");
     },
-    [scopedOrders],
+    [scopedOrders, setView],
   );
   const nav = [
     { id: "dashboard", label: "總覽", icon: LayoutDashboard },
@@ -309,6 +350,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
     { id: "bundle-claims", label: "配單管理", icon: Images },
     { id: "orders", label: "訂單管理", icon: ClipboardList },
     { id: "packing", label: "掃碼出貨", icon: QrCode },
+    { id: "checkout", label: "攤位結帳", icon: WalletCards },
   ] as const;
   return (
     <div className="app-shell">
@@ -343,6 +385,16 @@ export function Dashboard({ authScope }: { authScope: string }) {
         </nav>
         <div className="side-section">
           <span>管理</span>
+          <button
+            className={view === "stall-sales" ? "active" : ""}
+            onClick={() => {
+              setView("stall-sales");
+              setMobile(false);
+            }}
+          >
+            <ChartNoAxesCombined size={18} />
+            攤位營收
+          </button>
           <button
             className={view === "locations" ? "active" : ""}
             onClick={() => {
@@ -392,7 +444,8 @@ export function Dashboard({ authScope }: { authScope: string }) {
         </button>
       </aside>
       <main>
-        <header>
+        <header className="dashboard-header">
+          {view !== "checkout" && <BackButton />}
           <button
             className="icon-btn menu"
             onClick={() => setMobile(true)}
@@ -404,47 +457,13 @@ export function Dashboard({ authScope }: { authScope: string }) {
           {view === "claims" ? (
             <div className="min-w-0 flex-1" />
           ) : searchConfig ? (
-            <form
-              className="search"
-              role="search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                searchInputRef.current?.blur();
-              }}
-            >
-              <Search className="shrink-0" size={18} aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Escape") return;
-                  if (query) setQuery("");
-                  else event.currentTarget.blur();
-                }}
-                placeholder={searchConfig.placeholder}
-                aria-label={searchConfig.label}
-                autoComplete="off"
-              />
-              {query && (
-                <button
-                  type="button"
-                  className="search-clear"
-                  onClick={() => {
-                    setQuery("");
-                    searchInputRef.current?.focus();
-                  }}
-                  aria-label="清除搜尋"
-                >
-                  <X size={15} aria-hidden="true" />
-                </button>
-              )}
-              <button type="submit" className="search-submit" aria-label="查詢">
-                <Search size={14} aria-hidden="true" />
-                <span>查詢</span>
-              </button>
-            </form>
+            <SearchField
+              shortcut
+              value={query}
+              onChange={setQuery}
+              label={searchConfig.label}
+              placeholder={searchConfig.placeholder}
+            />
           ) : null}
         </header>
         <div className="content">
@@ -453,10 +472,6 @@ export function Dashboard({ authScope }: { authScope: string }) {
               <PackingPanel
                 customer={selectedCustomer}
                 products={scopedProducts}
-                onBack={() => {
-                  setSelectedCustomer(null);
-                  setView("orders");
-                }}
                 onCompleted={() => {
                   void loadAllData();
                 }}
@@ -472,70 +487,136 @@ export function Dashboard({ authScope }: { authScope: string }) {
                 <PackingQueue
                   orders={scopedOrders}
                   query={query}
-                  onPack={(customer) => setSelectedCustomer(customer)}
+                  onPack={(customer) => {
+                    setPackingReturnView("packing");
+                    setSelectedCustomer(customer);
+                  }}
                 />
               </DataState>
             )
           ) : (
             <>
-              <div className="page-title">
-                <div>
-                  <span className="eyebrow">{todayLabel || "日期載入中…"}</span>
-                  <h1>
-                    {view === "products"
-                      ? "商品庫存"
-                      : view === "claims"
-                        ? "訂購管理"
-                        : view === "bundle-claims"
-                          ? "配單管理"
-                          : view === "orders"
-                            ? "訂單管理"
-                            : view === "locations"
-                              ? "庫位管理"
-                              : view === "settlement"
-                                ? "財務結算"
-                                : view === "settings"
-                                  ? "系統設定"
-                                  : `${greeting}，${userName}`}
-                  </h1>
-                  <p>
-                    {view === "dashboard"
-                      ? activeInventoryName
-                      : view === "claims"
-                        ? "管理預購與現貨商品、顧客訂購紀錄與採購數量。"
-                        : view === "bundle-claims"
-                          ? "整理每位客人的商品與金額，分享共同連結讓客人確認配單。"
-                          : view === "locations"
-                            ? "建立並查看收藏品的實際存放位置。"
-                            : view === "settlement"
-                              ? "確認雙月成本總額、保存購買佐證並結算本期收支。"
-                              : view === "settings"
-                                ? "管理帳號與系統連線資訊。"
-                                : "快速找到每一件收藏品，減少人工核對。"}
-                  </p>
-                </div>
-                {view === "orders" ? (
-                  <button
-                    className="primary"
-                    onClick={() => setCreatingOrder(true)}
-                  >
-                    <Plus size={18} />
-                    新增訂單
-                  </button>
-                ) : view === "products" ? (
-                  <div className="flex gap-2">
+              {view !== "checkout" && (
+                <div
+                  className={
+                    view === "products"
+                      ? "page-title flex-wrap gap-4"
+                      : "page-title"
+                  }
+                >
+                  <div>
+                    <span className="eyebrow">
+                      {todayLabel || "日期載入中…"}
+                    </span>
+                    <h1>
+                      {view === "stall-sales"
+                        ? "攤位營收"
+                        : view === "products"
+                          ? "商品庫存"
+                          : view === "claims"
+                            ? "訂購管理"
+                            : view === "bundle-claims"
+                              ? "配單管理"
+                              : view === "orders"
+                                ? "訂單管理"
+                                : view === "locations"
+                                  ? "庫位管理"
+                                  : view === "settlement"
+                                    ? "財務結算"
+                                    : view === "settings"
+                                      ? "系統設定"
+                                      : `${greeting}，${userName}`}
+                    </h1>
+                    <p>
+                      {view === "dashboard"
+                        ? activeInventoryName
+                        : view === "stall-sales"
+                          ? "查看今日攤位營收、成交筆數與售出件數。"
+                          : view === "claims"
+                            ? "管理預購與現貨商品、顧客訂購紀錄與採購數量。"
+                            : view === "bundle-claims"
+                              ? "整理每位客人的商品與金額，分享共同連結讓客人確認配單。"
+                              : view === "orders"
+                                ? "統一查找一般與攤位訂單，查看明細或管理交易。"
+                                : view === "locations"
+                                  ? "建立並查看收藏品的實際存放位置。"
+                                  : view === "settlement"
+                                    ? "確認雙月成本總額、保存購買佐證並結算本期收支。"
+                                    : view === "settings"
+                                      ? "管理帳號與系統連線資訊。"
+                                      : "快速找到每一件收藏品，減少人工核對。"}
+                    </p>
+                  </div>
+                  {view === "orders" ? (
                     <button
-                      type="button"
-                      className={`${printSelectionMode ? "outline" : "primary"} page-title-action`}
-                      onClick={() => {
-                        setPrintSelectionMode((current) => !current);
-                        setPrintProductIds(new Set());
-                      }}
+                      className="primary"
+                      onClick={() => setCreatingOrder(true)}
                     >
-                      <Printer size={18} />
-                      {printSelectionMode ? "取消批量列印" : "批量列印"}
+                      <Plus size={18} />
+                      新增訂單
                     </button>
-                    {!printSelectionMode && (
+                  ) : view === "products" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={`${printSelectionMode ? "outline" : "primary"} page-title-action`}
+                        onClick={() => {
+                          setPrintSelectionMode((current) => !current);
+                          setPrintProductIds(new Set());
+                        }}
+                      >
+                        <Printer size={18} />
+                        {printSelectionMode ? "取消批量列印" : "批量列印"}
+                      </button>
+                      {!printSelectionMode && (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="primary"
+                            onClick={() => setCreating(true)}
+                          >
+                            <Plus size={18} />
+                            新增商品
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="outline page-title-action"
+                              aria-expanded={showPrintReset}
+                              aria-controls="product-print-reset"
+                              disabled={!selectedOwnerId}
+                              onClick={() =>
+                                setPrintResetInventoryId(
+                                  showPrintReset ? null : selectedOwnerId,
+                                )
+                              }
+                            >
+                              <RotateCcw size={18} />
+                              還原已列印標籤
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="outline page-title-action"
+                            onClick={() =>
+                              setDeleteSelection({
+                                scope: productSelectionScope,
+                                active: !deleteSelectionMode,
+                              })
+                            }
+                          >
+                            <Trash2 size={18} />
+                            {deleteSelectionMode ? "取消批量刪除" : "批量刪除"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    view !== "stall-sales" &&
+                    view !== "settings" &&
+                    view !== "locations" &&
+                    view !== "settlement" &&
+                    view !== "claims" &&
+                    view !== "bundle-claims" && (
                       <button
                         className="primary"
                         onClick={() => setCreating(true)}
@@ -543,26 +624,14 @@ export function Dashboard({ authScope }: { authScope: string }) {
                         <Plus size={18} />
                         新增商品
                       </button>
-                    )}
-                  </div>
-                ) : (
-                  view !== "settings" &&
-                  view !== "locations" &&
-                  view !== "settlement" &&
-                  view !== "claims" &&
-                  view !== "bundle-claims" && (
-                    <button
-                      className="primary"
-                      onClick={() => setCreating(true)}
-                    >
-                      <Plus size={18} />
-                      新增商品
-                    </button>
-                  )
-                )}
-              </div>
+                    )
+                  )}
+                </div>
+              )}
               {loadError && (
-                <div className="data-error">資料載入失敗：{loadError}</div>
+                <ErrorMessage as="div" variant="panel">
+                  資料載入失敗：{loadError}
+                </ErrorMessage>
               )}
               {view === "dashboard" && (
                 <DataState
@@ -586,6 +655,23 @@ export function Dashboard({ authScope }: { authScope: string }) {
                     onSelectProduct={setSelected}
                   />
                 </DataState>
+              )}
+              {view === "products" && !printSelectionMode && showPrintReset && (
+                <div id="product-print-reset" className="mb-5">
+                  <PrintLabelResetPanel
+                    key={selectedOwnerId}
+                    inventoryId={selectedOwnerId}
+                    inventoryName={activeInventoryName}
+                  />
+                </div>
+              )}
+              {view === "products" && productDeleteMessage && (
+                <p
+                  className="mb-3 rounded-lg border border-line bg-white p-3 text-[13px]"
+                  role="status"
+                >
+                  {productDeleteMessage}
+                </p>
               )}
               {view === "products" && (
                 <DataState
@@ -647,16 +733,36 @@ export function Dashboard({ authScope }: { authScope: string }) {
                         <Printer size={17} />
                         {preparingPrint
                           ? "產生中…"
-                          : "下載批量列印檔（含 QR 圖片）"}
+                          : "下載批量列印檔"}
                       </button>
                     </div>
                   )}
-                  <ProductTable
+                  <ProductInventoryTable
+                    key={`${productSelectionScope}:${deleteSelectionMode}`}
                     items={filteredProducts}
-                    onSelect={printSelectionMode ? undefined : setSelected}
-                    selectionMode={printSelectionMode}
-                    selectedIds={printProductIds}
-                    onToggle={(productId) =>
+                    selecting={deleteSelectionMode}
+                    onSelectingChange={(active) =>
+                      setDeleteSelection({
+                        scope: productSelectionScope,
+                        active,
+                      })
+                    }
+                    onSelect={setSelected}
+                    onChanged={loadAllData}
+                    onDeleted={(result, refreshError) =>
+                      setProductDeleteMessage(
+                        [
+                          `${activeInventoryName}：已刪除 ${result.deletedProductIds.length} 項商品。`,
+                          result.imageCleanupWarning,
+                          refreshError,
+                        ]
+                          .filter(Boolean)
+                          .join(" "),
+                      )
+                    }
+                    printSelectionMode={printSelectionMode}
+                    printSelectedIds={printProductIds}
+                    onPrintToggle={(productId) =>
                       setPrintProductIds((current) => {
                         const next = new Set(current);
                         if (next.has(productId)) next.delete(productId);
@@ -667,51 +773,92 @@ export function Dashboard({ authScope }: { authScope: string }) {
                   />
                 </DataState>
               )}
-              {view === "orders" && (
-                <DataState
-                  loading={ordersLoading}
-                  isEmpty={filteredOrders.length === 0}
-                  loadingText="正在讀取訂單…"
-                  emptyText={
-                    query.trim()
-                      ? `找不到符合「${query.trim()}」的訂單`
-                      : "目前沒有正式訂單"
+              {view === "stall-sales" && selectedOwnerId && (
+                <StallSalesSummary
+                  key={selectedOwnerId}
+                  ownerId={selectedOwnerId}
+                />
+              )}
+              {view === "checkout" && selectedOwnerId && (
+                <StallCheckout
+                  key={selectedOwnerId}
+                  ownerId={selectedOwnerId}
+                  onBack={backDashboardPath}
+                  onCompleted={() => {
+                    void loadAllData();
+                  }}
+                />
+              )}
+              {view === "orders" && selectedOwnerId && (
+                <OrdersWorkspace
+                  key={selectedOwnerId}
+                  ownerId={selectedOwnerId}
+                  orders={filteredOrders}
+                  renderClaimManagement={(submissions, onReload) => (
+                    <ClaimFormPanel
+                      ownerId={selectedOwnerId}
+                      inventoryName={activeInventoryName}
+                      products={scopedProducts}
+                      orders={scopedOrders}
+                      managementSubmissions={submissions}
+                      managementQuery={query}
+                      onManagementReload={onReload}
+                      onPackOrder={selectCustomerForOrder}
+                    />
+                  )}
+                  customerReconciliation={
+                    <ClaimFormPanel
+                      key={`customer-accounts:${selectedOwnerId}`}
+                      ownerId={selectedOwnerId}
+                      inventoryName={activeInventoryName}
+                      products={scopedProducts}
+                      orders={scopedOrders}
+                      initialTab="checkout"
+                      reconciliationOnly
+                    />
                   }
-                >
-                  <OrderTable
-                    orders={filteredOrders}
-                    onEditAmount={canManageOrders ? setEditingOrder : undefined}
-                    onDelete={
-                      canManageOrders
-                        ? async (order) => {
-                            if (
-                              !window.confirm(
-                                `確定永久刪除訂單 ${order.id}？\n\n相關包貨、掃描與結算紀錄會一併刪除，已扣除的商品庫存會恢復。此操作無法復原。`,
-                              )
+                  loading={ordersLoading}
+                  query={query}
+                  onQueryChange={(value) =>
+                    setSearchQueries((current) => ({
+                      ...current,
+                      orders: value,
+                    }))
+                  }
+                  onChanged={() => {
+                    void loadAllData();
+                  }}
+                  onEditAmount={canManageOrders ? setEditingOrder : undefined}
+                  onDelete={
+                    canManageOrders
+                      ? async (order) => {
+                          if (
+                            !window.confirm(
+                              `確定永久刪除訂單 ${order.id}？\n\n相關包貨、掃描與結算紀錄會一併刪除，已扣除的商品庫存會恢復。此操作無法復原。`,
                             )
-                              return;
-                            try {
-                              await dispatch(
-                                archiveOrder({ orderId: order.dbId }),
-                              ).unwrap();
-                              await loadAllData();
-                            } catch (error) {
-                              const message =
-                                typeof error === "string"
-                                  ? error
-                                  : error instanceof Error
-                                    ? error.message
-                                    : "未知錯誤";
-                              window.alert(`刪除失敗：${message}`);
-                            }
+                          )
+                            return;
+                          try {
+                            await dispatch(
+                              archiveOrder({ orderId: order.dbId }),
+                            ).unwrap();
+                            await loadAllData();
+                          } catch (error) {
+                            const message =
+                              typeof error === "string"
+                                ? error
+                                : error instanceof Error
+                                  ? error.message
+                                  : "未知錯誤";
+                            window.alert(`刪除失敗：${message}`);
                           }
-                        : undefined
-                    }
-                    onPack={(order) => {
-                      selectCustomerForOrder(order);
-                    }}
-                  />
-                </DataState>
+                        }
+                      : undefined
+                  }
+                  onPack={(order) => {
+                    selectCustomerForOrder(order);
+                  }}
+                />
               )}
               {view === "claims" && selectedOwnerId && (
                 <ClaimFormPanel
@@ -726,6 +873,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
               )}
               {view === "bundle-claims" && selectedOwnerId && (
                 <BundleClaimPanel
+                  key={selectedOwnerId}
                   ownerId={selectedOwnerId}
                   inventoryName={activeInventoryName}
                   onOpenAppearance={() => {

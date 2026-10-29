@@ -2,6 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import type { Product } from "@/lib/types";
+import { productNameWithCountryFlag } from "@/lib/preorder-product-name";
 import {
   ResponsiveTable,
   type TableColumn,
@@ -24,6 +25,8 @@ export function ProductTable({
   selectionMode = false,
   selectedIds,
   onToggle,
+  selectionLabel = "批量列印",
+  selectionLimit,
 }: {
   items: Product[];
   onSelect?: (product: Product) => void;
@@ -31,6 +34,8 @@ export function ProductTable({
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onToggle?: (productId: string) => void;
+  selectionLabel?: string;
+  selectionLimit?: number;
 }) {
   return (
     <ResponsiveTable
@@ -60,7 +65,7 @@ export function ProductTable({
       {items.map((product) => (
         <tr
           className={`${onSelect ? "cursor-pointer" : ""} max-md:relative max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto_18px] max-md:gap-x-3 max-md:border-t max-md:border-line max-md:px-4 max-md:py-3`}
-          key={product.id}
+          key={product.dbId ?? product.id}
           onClick={() => onSelect?.(product)}
         >
           <td className="md:max-lg:!pl-4 max-md:col-start-1 max-md:row-start-1 max-md:!min-w-0 max-md:!border-0 max-md:!p-0">
@@ -70,7 +75,12 @@ export function ProductTable({
                   type="checkbox"
                   className="h-5 w-5 shrink-0 cursor-pointer accent-primary"
                   checked={selectedIds?.has(product.dbId) ?? false}
-                  aria-label={`選擇 ${product.id} 批量列印`}
+                  disabled={Boolean(
+                    selectionLimit &&
+                      (selectedIds?.size ?? 0) >= selectionLimit &&
+                      !selectedIds?.has(product.dbId),
+                  )}
+                  aria-label={`選擇 ${product.id} ${selectionLabel}`}
                   onClick={(event) => event.stopPropagation()}
                   onChange={() => onToggle?.(product.dbId!)}
                 />
@@ -90,7 +100,7 @@ export function ProductTable({
               </span>
               <div>
                 <b className="max-md:block max-md:max-w-full max-md:truncate">
-                  {product.name}
+                  {productNameWithCountryFlag(product.name, product.country)}
                 </b>
                 <div className="mt-2 hidden items-center gap-2 max-md:flex">
                   <code>{product.id}</code>
@@ -125,7 +135,7 @@ export function ProductTable({
             </span>
           </td>
           <td className="max-md:col-start-3 max-md:row-start-1 max-md:self-center max-md:!border-0 max-md:!p-0 max-md:text-muted">
-            <ChevronRight size={17} />
+            {!selectionMode && <ChevronRight size={17} />}
           </td>
         </tr>
       ))}

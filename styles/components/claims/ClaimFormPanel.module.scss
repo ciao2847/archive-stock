@@ -1,0 +1,63 @@
+// The native picker needs browser feature detection and pseudo-element rules.
+@supports (appearance: base-select) {
+  .selector,
+  .selector::picker(select) {
+    appearance: base-select;
+  }
+
+  .selector {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    line-height: 1.25;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: default;
+    }
+
+    &::picker(select) {
+      box-sizing: border-box;
+      inline-size: anchor-size(width);
+      max-inline-size: calc(100vw - 30px);
+      max-block-size: min(320px, calc(100dvh - 16px));
+      margin-block: 4px;
+      overflow-y: auto;
+      border: 1px solid var(--color-line);
+      border-radius: 8px;
+      background: var(--color-white);
+      padding: 4px;
+      color: var(--color-dark);
+      box-shadow: 0 10px 28px rgb(23 36 51 / 16%);
+    }
+
+    option {
+      min-block-size: 40px;
+      max-inline-size: 100%;
+      overflow: hidden;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--color-dark);
+      font: 600 13px/1.4 var(--font-sans);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &:checked {
+        background: var(--color-primary);
+        color: var(--color-white);
+      }
+
+      &:hover,
+      &:focus-visible {
+        background: var(--color-primary-soft);
+        color: var(--color-dark);
+      }
+
+      &:checked:hover,
+      &:checked:focus-visible {
+        background: var(--color-primary);
+        color: var(--color-white);
+      }
+    }
+  }
+}

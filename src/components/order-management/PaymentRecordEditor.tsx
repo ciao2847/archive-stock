@@ -1,5 +1,9 @@
 "use client";
-import { LoaderCircle } from "lucide-react";
+
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { Spinner } from "@/components/ui/Spinner";
+import { useState } from "react";
+import { useDirtyBack } from "@/components/navigation/BackNavigation";
 
 export type PaymentEditorValues = {
   amount: string;
@@ -28,6 +32,13 @@ export function PaymentRecordEditor({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const [initial] = useState(() => JSON.stringify(values));
+  const { requestBack } = useDirtyBack({
+    onBack: onCancel,
+    busy: saving,
+    priority: 95,
+    dirty: JSON.stringify(values) !== initial,
+  });
   const update = (field: keyof PaymentEditorValues, value: string) =>
     onChange({ ...values, [field]: value });
   const inputClass =
@@ -42,7 +53,9 @@ export function PaymentRecordEditor({
       }}
     >
       <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">
-        <h5 className="m-0 text-[12px] font-bold text-dark">新增匯款紀錄</h5>
+        <div className="flex items-center justify-between gap-3">
+          <h5 className="m-0 text-[12px] font-bold text-dark">新增匯款紀錄</h5>
+        </div>
         <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
           <label className="min-w-0 text-[11px] font-semibold text-dark">
             匯款金額
@@ -110,15 +123,15 @@ export function PaymentRecordEditor({
           </label>
         </div>
         {error && (
-          <p role="alert" className="mb-0 mt-2 text-[12px] text-danger">
+          <ErrorMessage className="mb-0 mt-2 text-[12px] text-danger">
             {error}
-          </p>
+          </ErrorMessage>
         )}
         <div className="mt-3 flex justify-end gap-2">
           <button
             type="button"
             className="outline min-h-9 text-[11px]"
-            onClick={onCancel}
+            onClick={requestBack}
             aria-label="關閉匯款紀錄表單"
           >
             取消
@@ -128,7 +141,7 @@ export function PaymentRecordEditor({
             className="primary min-h-9 text-[11px]"
             disabled={!values.amount || !values.transferredAt}
           >
-            {saving && <LoaderCircle size={13} className="animate-spin" />}
+            {saving && <Spinner size={13} />}
             {saving ? "儲存中…" : "儲存匯款紀錄"}
           </button>
         </div>

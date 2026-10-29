@@ -16,6 +16,7 @@ export type StorageSlot = {
 };
 export type StoredProduct = {
   id: string;
+  sku?: string;
   name: string;
   country: string | null;
   price: number;

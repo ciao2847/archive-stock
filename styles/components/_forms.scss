@@ -223,30 +223,6 @@
   margin-top: 25px;
 }
 
-// 訂單商品搜尋 | Order Product Search
-.order-product-search {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--color-line);
-  background: var(--color-white);
-  border-radius: $radius-lg;
-  margin: 12px 0;
-  padding: 0 11px;
-
-  svg {
-    width: 17px;
-    color: var(--color-muted);
-  }
-
-  input {
-    border: 0;
-    background: transparent;
-    outline: 0;
-    padding: 11px;
-    width: 100%;
-  }
-}
-
 // 手動輸入 | Manual Input
 .manual {
   display: flex;
@@ -289,7 +265,6 @@
   .field textarea,
   .search input,
   .manual input,
-  .order-product-search input,
   .login-card form input,
   .location-create input {
     font-size: 16px;

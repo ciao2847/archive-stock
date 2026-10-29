@@ -1,5 +1,7 @@
 "use client";
-import { LoaderCircle, Trash2 } from "lucide-react";
+
+import { Spinner } from "@/components/ui/Spinner";
+import { Trash2 } from "lucide-react";
 
 export function RemoveRecordButton({
   onClick,
@@ -24,11 +26,7 @@ export function RemoveRecordButton({
         onClick={onClick}
         title={reason}
       >
-        {busy ? (
-          <LoaderCircle size={15} className="animate-spin" />
-        ) : (
-          <Trash2 size={15} />
-        )}
+        {busy ? <Spinner size={15} /> : <Trash2 size={15} />}
         {busy ? "移除中…" : "移除"}
       </button>
       {reason && (

@@ -1,28 +1,36 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { LoadingState } from "@/components/ui/LoadingState";
+
+import { RefreshButton } from "@/components/ui/RefreshButton";
+
 import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+  useDirtyBack,
+  useNavigationState,
+} from "@/components/navigation/BackNavigation";
+import { useSearchParams } from "next/navigation";
+import {
+  backDashboardPath,
+  pushDashboardPath,
+} from "@/lib/dashboard-navigation";
+import { SearchField } from "@/components/ui/SearchField";
+import styles from "../../../styles/components/claims/ClaimFormPanel.module.scss";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
   ClipboardList,
   ExternalLink,
   Link2,
-  LoaderCircle,
   Palette,
   Plus,
-  RefreshCw,
-  Search,
   Send,
   Settings2,
   Trash2,
-  Users,
   X,
 } from "lucide-react";
 
@@ -50,12 +58,12 @@ import {
   type ClaimFormTheme,
 } from "@/lib/claim-form-theme";
 import {
-  groupClaimSubmissionsByCustomer,
   type ClaimFormManagement,
   type ClaimPaymentStatus,
   type ClaimSubmission,
 } from "@/lib/claims";
 import type { Order, Product } from "@/lib/types";
+import { FulfillmentActions } from "@/components/orders/FulfillmentActions";
 import { ClaimCustomersView } from "./ClaimCustomersView";
 import { ClaimFormAppearanceSettings } from "./ClaimFormAppearanceSettings";
 import {
@@ -87,6 +95,11 @@ export function ClaimFormPanel({
   orders,
   onReloadProducts,
   initialTab = "submissions",
+  reconciliationOnly = false,
+  managementSubmissions,
+  managementQuery = "",
+  onManagementReload,
+  onPackOrder,
 }: {
   ownerId: string;
   inventoryName: string;
@@ -94,17 +107,60 @@ export function ClaimFormPanel({
   orders: Order[];
   onReloadProducts?: () => Promise<void>;
   initialTab?: ClaimTab;
+  reconciliationOnly?: boolean;
+  managementSubmissions?: ClaimSubmission[];
+  managementQuery?: string;
+  onManagementReload?: () => Promise<void>;
+  onPackOrder?: (order: Order) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<ClaimTab>(initialTab);
-  const [data, setData] = useState<ClaimFormManagement | null>(null);
+  const searchParams = useSearchParams();
+  const managementScope = `${searchParams.toString()}:${managementQuery}`;
+  const [managementPagination, setManagementPagination] = useNavigationState(
+    `orders:${ownerId}:claimPage`,
+    { scope: managementScope, page: 1 },
+  );
+  const managementTotalPages = Math.max(
+    1,
+    Math.ceil((managementSubmissions?.length ?? 0) / 10),
+  );
+  const managementPage = Math.min(
+    managementTotalPages,
+    managementPagination.scope === managementScope
+      ? managementPagination.page
+      : 1,
+  );
+
+  const [activeTab, setActiveTab] = useNavigationState<ClaimTab>(
+    `claims:${ownerId}:${initialTab}:tab`,
+    initialTab,
+  );
+  const [data, setData] = useNavigationState<ClaimFormManagement | null>(
+    `claims:${ownerId}:${initialTab}:data`,
+    null,
+  );
   const [creatingForm, setCreatingForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingForm, setDeletingForm] = useState(false);
   const [error, setError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [phoneInput, setPhoneInput] = useState("");
+  const [customerPhone, setCustomerPhone] = useNavigationState(
+    `claims:${ownerId}:${initialTab}:customerPhone`,
+    "",
+  );
+  const [phoneInput, setPhoneInput] = useNavigationState(
+    `claims:${ownerId}:${initialTab}:phoneInput`,
+    "",
+  );
+  const previousData = useRef(data);
+  useEffect(() => {
+    previousData.current = data;
+  }, [data]);
+  const initialSelection = useRef({
+    formId: data?.form?.id,
+    page: data?.pagination.page ?? 1,
+    phone: customerPhone,
+  });
   const [phoneSearchError, setPhoneSearchError] = useState("");
   const [searchingCustomer, setSearchingCustomer] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,7 +186,40 @@ export function ClaimFormPanel({
   >({});
   const [allSubmissions, setAllSubmissions] = useState<ClaimSubmission[]>([]);
   const [allSubmissionsLoading, setAllSubmissionsLoading] = useState(false);
-  const [customerFilterPhone, setCustomerFilterPhone] = useState("");
+  const [customerFilterPhone] = useState("");
+
+  const { markChanged, resetChanged } = useDirtyBack({
+    enabled: activeTab !== "submissions" || Boolean(customerPhone),
+    priority: 30,
+    busy: loading || saving || deletingForm,
+    dirty:
+      (activeTab === "settings" || activeTab === "appearance") &&
+      Boolean(
+        bannerImageFile ||
+          bannerImageRemoved ||
+          (data?.appearance &&
+            (JSON.stringify(theme) !== JSON.stringify(data.appearance.theme) ||
+              JSON.stringify(bannerPosition) !==
+                JSON.stringify(data.appearance.bannerPosition))),
+      ),
+    onBack: () => {
+      if (creatingForm) {
+        if (data?.forms.length) {
+          cancelNewForm();
+          setActiveTab("submissions");
+        } else backDashboardPath();
+      } else if (activeTab !== "submissions") {
+        if (activeTab === "settings" || activeTab === "appearance")
+          void load(
+            data?.pagination.page ?? 1,
+            true,
+            data?.form?.id,
+            customerPhone || undefined,
+          );
+        setActiveTab("submissions");
+      } else void clearCustomerSearch();
+    },
+  });
 
   const loadAllSubmissions = useCallback(
     async (force = false) => {
@@ -140,8 +229,12 @@ export function ClaimFormPanel({
       try {
         const res = await fetchAllClaimSubmissions(ownerId);
         setAllSubmissions(res.submissions ?? []);
-      } catch {
-        // keep existing
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "顧客對帳資料讀取失敗，請重試。",
+        );
       } finally {
         setAllSubmissionsLoading(false);
       }
@@ -159,11 +252,6 @@ export function ClaimFormPanel({
     void loadAllSubmissions();
   }, [loadAllSubmissions]);
 
-  const unsettledCustomerCount = useMemo(() => {
-    const groups = groupClaimSubmissionsByCustomer(allSubmissions);
-    return groups.filter((g) => g.status !== "paid").length;
-  }, [allSubmissions]);
-
   const load = useCallback(
     async (
       page = 1,
@@ -175,7 +263,9 @@ export function ClaimFormPanel({
       if (!ownerId) return;
       const sequence = ++loadSequence.current;
       if (updateDraft) {
-        setData(null);
+        resetChanged();
+        if (!previousData.current || formId !== previousData.current.form?.id)
+          setData(null);
         setSelectedIds(new Set());
         setProductDrafts({});
       }
@@ -241,11 +331,12 @@ export function ClaimFormPanel({
         if (sequence === loadSequence.current) setLoading(false);
       }
     },
-    [inventoryName, ownerId],
+    [inventoryName, ownerId, resetChanged, setData, setActiveTab],
   );
 
   useEffect(() => {
-    void load();
+    const initial = initialSelection.current;
+    void load(initial.page, true, initial.formId, initial.phone || undefined);
   }, [load]);
 
   useEffect(() => {
@@ -434,11 +525,6 @@ export function ClaimFormPanel({
     searchTimer.current = setTimeout(() => void runCustomerSearch(value), 300);
   }
 
-  async function submitCustomerSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await runCustomerSearch(phoneInput);
-  }
-
   async function clearCustomerSearch() {
     setPhoneInput("");
     await runCustomerSearch("");
@@ -539,6 +625,20 @@ export function ClaimFormPanel({
       setError("請填寫 IP 名稱／訂購標題。");
       return;
     }
+    const missingItemNames =
+      selectedIds.size > 1 &&
+      products.some(
+        (product) =>
+          product.dbId &&
+          selectedIds.has(product.dbId) &&
+          product.preorderItemName === "",
+      );
+    if (missingItemNames) {
+      setError(
+        "多品表單請先編輯商品，補上每一款的品項名稱，例如 A款、全員款或肖像款。",
+      );
+      return;
+    }
     if (hasInvalidProductSettings) {
       setError("請確認公開商品的名稱、金額與單次數量上限。");
       return;
@@ -622,44 +722,124 @@ export function ClaimFormPanel({
     URL.revokeObjectURL(url);
   }
 
-  if (loading && !data) {
+  if (managementSubmissions && data) {
     return (
-      <div className="grid min-h-[320px] place-items-center rounded-[8px] border border-line bg-white">
-        <span className="flex items-center gap-2 text-muted">
-          <LoaderCircle className="animate-spin" size={19} />
-          正在讀取訂購資料…
-        </span>
-      </div>
+      <ClaimSubmissionsView
+        fixedView="customers"
+        products={products}
+        renderFulfillment={(submission) => (
+          <FulfillmentActions
+            key={`${submission.source}:${submission.id}`}
+            ownerId={ownerId}
+            submission={submission}
+            products={products}
+            order={orders.find((order) =>
+              submission.source === "claim"
+                ? order.claimSubmissionId === submission.id
+                : order.bundleClaimOrderId === submission.id,
+            )}
+            onPack={onPackOrder}
+            onReload={async () => {
+              await onManagementReload?.();
+            }}
+          />
+        )}
+        data={{
+          ...data,
+          form: null,
+          submissions: managementSubmissions.slice(
+            (managementPage - 1) * 10,
+            managementPage * 10,
+          ),
+          pagination: {
+            page: managementPage,
+            pageSize: 10,
+            total: managementSubmissions.length,
+            totalPages: managementTotalPages,
+          },
+        }}
+        loading={loading}
+        orders={orders}
+        customerPhone=""
+        publicPath=""
+        isOpen={false}
+        onToggleOpen={async () => {}}
+        onNavigateToSettings={() => pushDashboardPath("/claims")}
+        onClearCustomerSearch={async () => {}}
+        onReload={async (page = managementPage) => {
+          const nextPage = Math.max(1, Math.min(page, managementTotalPages));
+          setManagementPagination({ scope: managementScope, page: nextPage });
+          if (nextPage === managementPage) await onManagementReload?.();
+        }}
+        onDeleteSubmission={removeCustomerSubmission}
+        onUpdatePaymentStatus={updateSubmissionPaymentStatus}
+        onDownloadSummary={downloadSummary}
+        onRecordPayment={recordCustomerPayment}
+        onNavigateToCustomerCheckout={(phone) =>
+          pushDashboardPath(
+            `/orders?tab=customers&customer=${encodeURIComponent(phone)}`,
+          )
+        }
+      />
     );
+  }
+
+  if (reconciliationOnly) {
+    return (
+      <>
+        {error && <ErrorMessage className="text-danger">{error}</ErrorMessage>}
+        <ClaimCustomersView
+          key={searchParams.get("customer") ?? ""}
+          submissions={allSubmissions}
+          loading={allSubmissionsLoading || (loading && !data)}
+          inventoryName={inventoryName}
+          officialLineId={data?.officialLineId}
+          transferAccount={data?.transferAccount}
+          onRecordPayment={recordCustomerPayment}
+          onDeletePayment={removeCustomerPayment}
+          onDeleteSubmission={removeCustomerSubmission}
+          onReload={() => loadAllSubmissions(true)}
+          initialSearchQuery={searchParams.get("customer") ?? ""}
+        />
+      </>
+    );
+  }
+
+  if (loading && !data) {
+    return <LoadingState text="正在讀取訂購資料…" />;
   }
 
   if (!data && error) {
     return (
       <div className="rounded-[8px] border border-danger/20 bg-white px-6 py-10 text-center">
         <p className="m-0 text-[14px] text-danger">{error}</p>
-        <button
-          type="button"
-          className="outline mt-5"
+        <RefreshButton
+          label="重新讀取"
+          loading={loading}
           onClick={() => void load()}
-        >
-          <RefreshCw size={16} />
-          重新讀取
-        </button>
+          className="mt-5"
+        />
       </div>
     );
   }
 
   return (
     <>
-      <div className="claim-management w-full min-w-0 max-w-full space-y-5">
+      <div
+        className="w-full min-w-0 max-w-full space-y-5 [&_.shadow-sm]:shadow-none! [&_.shadow-md]:shadow-none! [&_.shadow-lg]:shadow-none! [&_.primary]:shadow-none!"
+        onChangeCapture={(event) => {
+          if (activeTab === "settings" || activeTab === "appearance")
+            markChanged(event);
+        }}
+      >
         {phoneSearchError && (
-          <div
+          <ErrorMessage
             id="claim-header-phone-error"
             className="rounded-[8px] bg-danger-soft px-4 py-3 text-[13px] text-danger"
-            role="alert"
+            as="div"
           >
             {phoneSearchError}
-          </div>
+          </ErrorMessage>
         )}
         <div className="grid min-w-0 gap-5 rounded-[14px] border border-line bg-white p-5 md:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-center">
           <div className="flex min-w-0 items-start gap-3">
@@ -671,15 +851,12 @@ export function ClaimFormPanel({
               <h2 className="mb-0 mt-0.5 text-[18px] font-bold text-dark">
                 IP 訂購連結
               </h2>
-              <p className="mb-0 mt-1 text-[12px] text-muted">
-                每個 IP 的商品、顧客訂購與分享網址都會分開統計。
-              </p>
             </div>
           </div>
 
           <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
             <select
-              className="claim-form-selector col-span-2 min-h-11 w-full min-w-0 max-w-full rounded-[8px] border border-line bg-white px-3 text-[14px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 sm:col-span-1"
+              className={`${styles.selector} col-span-2 min-h-11 w-full min-w-0 max-w-full rounded-[8px] border border-line bg-white px-3 text-[14px] font-semibold text-dark disabled:cursor-default disabled:bg-white disabled:text-dark disabled:opacity-100 disabled:[-webkit-text-fill-color:var(--color-dark)] sm:col-span-1`}
               aria-label="選擇 IP 訂購連結"
               title={
                 canSwitchForm
@@ -737,11 +914,7 @@ export function ClaimFormPanel({
                 disabled={saving || loading || deletingForm}
                 title={`移除「${currentForm.title}」IP 訂購頁`}
               >
-                {deletingForm ? (
-                  <LoaderCircle className="animate-spin" size={16} />
-                ) : (
-                  <Trash2 size={16} />
-                )}
+                {deletingForm ? <Spinner size={16} /> : <Trash2 size={16} />}
                 移除 IP
               </button>
             )}
@@ -750,7 +923,7 @@ export function ClaimFormPanel({
 
         {/* Top Tab Navigation */}
         <div className="flex flex-col items-stretch gap-3 border-b border-line pb-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 xl:flex xl:w-auto xl:items-center">
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3 xl:flex xl:w-auto xl:items-center">
             <button
               type="button"
               className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
@@ -763,8 +936,7 @@ export function ClaimFormPanel({
             >
               <ClipboardList className="shrink-0" size={17} />
               <span className="min-w-0 text-center leading-tight">
-                <span className="xl:hidden">表單明細</span>
-                <span className="hidden xl:inline">訂購明細與採購</span>
+                採購統計
               </span>
               {currentForm && data?.summary.customerCount ? (
                 <span
@@ -772,38 +944,6 @@ export function ClaimFormPanel({
                 >
                   {data.summary.customerCount}
                   <span className="hidden sm:inline"> 人</span>
-                </span>
-              ) : null}
-            </button>
-
-            <button
-              type="button"
-              className={`flex min-h-12 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-[8px] px-2 py-2.5 text-[13px] font-semibold transition md:gap-2 md:px-4 md:text-[14px] ${
-                activeTab === "checkout"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:bg-light hover:text-dark"
-              }`}
-              onClick={() => {
-                setActiveTab("checkout");
-                void loadAllSubmissions();
-              }}
-            >
-              <Users className="shrink-0" size={17} />
-              <span className="min-w-0 text-center leading-tight">
-                <span className="xl:hidden">顧客對帳</span>
-                <span className="hidden xl:inline">顧客對帳結算</span>
-              </span>
-              {unsettledCustomerCount > 0 ? (
-                <span
-                  className={`shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold md:px-2 md:text-[11px] ${
-                    activeTab === "checkout"
-                      ? "bg-white/25 text-white"
-                      : "bg-accent-soft text-accent-strong"
-                  }`}
-                  title={`${unsettledCustomerCount} 位顧客尚未結清`}
-                >
-                  {unsettledCustomerCount}
-                  <span className="hidden sm:inline"> 待結</span>
                 </span>
               ) : null}
             </button>
@@ -863,6 +1003,8 @@ export function ClaimFormPanel({
         {/* Tab Content */}
         {activeTab === "submissions" && data && currentForm && (
           <ClaimSubmissionsView
+            fixedView="procurement"
+            products={products}
             data={data}
             loading={loading}
             orders={orders}
@@ -877,65 +1019,23 @@ export function ClaimFormPanel({
                 className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
                 aria-label="訂購搜尋"
               >
-                <form
-                  role="search"
-                  onSubmit={(event) => void submitCustomerSearch(event)}
-                  className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
-                >
-                  <label className="relative block min-w-0">
-                    <Search
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-                      size={17}
-                      aria-hidden="true"
-                    />
-                    <input
-                      type="search"
-                      value={phoneInput}
-                      onChange={(event) =>
-                        changeCustomerSearch(event.target.value)
-                      }
-                      className="claim-customer-search-input min-h-11 w-full min-w-0 rounded-[8px] border border-line pl-10 pr-11 text-[14px]"
-                      maxLength={100}
-                      placeholder="搜尋顧客暱稱、電話或確認編號"
-                      aria-label="搜尋顧客暱稱、電話或確認編號"
-                      aria-invalid={Boolean(phoneSearchError)}
-                      aria-describedby={
-                        phoneSearchError
-                          ? "claim-header-phone-error"
-                          : undefined
-                      }
-                      autoComplete="off"
-                    />
-                    {phoneInput && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center text-muted"
-                        onClick={() => void clearCustomerSearch()}
-                        aria-label="清除顧客搜尋"
-                      >
-                        <X size={15} />
-                      </button>
-                    )}
-                  </label>
-                  <button
-                    type="submit"
-                    className="outline min-h-11"
-                    disabled={searchingCustomer}
-                    aria-label={searchingCustomer ? "查詢中" : "查詢"}
-                  >
-                    {searchingCustomer ? (
-                      <LoaderCircle className="animate-spin" size={16} />
-                    ) : (
-                      <Search size={16} />
-                    )}
-                    {searchingCustomer ? "查詢中" : "查詢"}
-                  </button>
-                </form>
-                <p className="mb-0 mt-2 text-[11px] text-muted" role="status">
-                  {searchingCustomer
-                    ? "正在更新顧客清單…"
-                    : "輸入後自動搜尋，也可以按 Enter 或查詢。"}
-                </p>
+                <SearchField
+                  className="w-full"
+                  value={phoneInput}
+                  onChange={changeCustomerSearch}
+                  label="搜尋顧客暱稱、電話或確認編號"
+                  placeholder="搜尋顧客暱稱、電話或確認編號"
+                  maxLength={100}
+                  busy={searchingCustomer}
+                  invalid={Boolean(phoneSearchError)}
+                  describedBy={
+                    phoneSearchError ? "claim-header-phone-error" : undefined
+                  }
+                  onSearch={() => runCustomerSearch(phoneInput)}
+                  onClear={clearCustomerSearch}
+                  clearLabel="清除顧客搜尋"
+                  shortcut
+                />
               </section>
             }
             onReload={async (page) => {
@@ -950,9 +1050,9 @@ export function ClaimFormPanel({
             onUpdatePaymentStatus={updateSubmissionPaymentStatus}
             onDownloadSummary={downloadSummary}
             onNavigateToCustomerCheckout={(phone) => {
-              setCustomerFilterPhone(phone);
-              setActiveTab("checkout");
-              void loadAllSubmissions();
+              pushDashboardPath(
+                `/orders?tab=customers&customer=${encodeURIComponent(phone)}`,
+              );
             }}
             onRecordPayment={recordCustomerPayment}
           />
@@ -1077,11 +1177,7 @@ export function ClaimFormPanel({
                     }
                     onClick={() => void save(undefined, "appearance")}
                   >
-                    {saving ? (
-                      <LoaderCircle className="animate-spin" size={17} />
-                    ) : (
-                      <Send size={17} />
-                    )}
+                    {saving ? <Spinner size={17} /> : <Send size={17} />}
                     {saving
                       ? "儲存中…"
                       : currentForm

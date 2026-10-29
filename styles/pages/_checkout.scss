@@ -1,0 +1,237 @@
+@use "../utilities/variables" as *;
+
+.stall-checkout {
+  .stall-checkout-grid {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.45fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .stall-scan-column,
+  .stall-cart {
+    min-width: 0;
+  }
+
+  .stall-scan-summary {
+    margin-bottom: 16px;
+    border: 1px solid var(--color-line);
+    border-radius: $radius-xl;
+    background: var(--color-white);
+    padding: 18px 20px;
+
+    p {
+      border-top: 1px solid var(--color-line);
+      margin: 12px 0 0;
+      padding-top: 12px;
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  }
+
+  .stall-scan-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+
+    > div:last-child {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    small {
+      color: var(--color-muted);
+      font-size: 12px;
+    }
+    h2 {
+      margin: 5px 0 0;
+      font-size: 16px;
+    }
+    em {
+      color: var(--color-rust);
+      font-style: normal;
+    }
+  }
+
+  .scanner {
+    .feedback {
+      max-width: 100%;
+    }
+    .feedback p {
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .manual {
+    input {
+      min-width: 0;
+      width: 0;
+    }
+    > svg,
+    button {
+      flex-shrink: 0;
+    }
+  }
+
+  .stall-cart .card-head {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .stall-cart-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .stall-cart-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-line);
+    b {
+      overflow-wrap: anywhere;
+    }
+  }
+  .stall-cart-empty {
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+    gap: 12px;
+    p {
+      margin: 0;
+      font-size: 13px;
+    }
+  }
+  .stall-payment {
+    border-top: 1px solid var(--color-line);
+    padding: 20px;
+  }
+  .stall-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    span {
+      font-size: 13px;
+      color: var(--color-muted);
+    }
+    strong {
+      font: 600 22px var(--font-mono);
+      white-space: nowrap;
+    }
+  }
+  .stall-pay-button {
+    margin-top: 16px;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .complete-help {
+    margin: 10px 0 0;
+  }
+  .stall-receipt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    border-radius: $radius-xl;
+    background: var(--color-secondary-soft);
+    color: var(--color-secondary-strong);
+    p {
+      margin: 4px 0 0;
+      font-size: 13px;
+    }
+    > svg {
+      flex-shrink: 0;
+    }
+  }
+
+  @media (max-width: $breakpoint-md) {
+    .stall-checkout-grid {
+      display: block;
+    }
+    .stall-scan-summary {
+      margin-bottom: 12px;
+      padding: 16px;
+    }
+    .stall-cart {
+      margin-top: 16px;
+    }
+    .stall-payment {
+      padding: 16px;
+    }
+    .stall-cart-item {
+      padding: 14px 16px;
+      gap: 8px;
+    }
+    .stall-cart-empty {
+      min-height: 150px;
+    }
+    .stall-checkout-top h1 {
+      font-size: 20px;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+.stall-daily-sales {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-line);
+  border-radius: $radius-xl;
+  background: var(--color-white);
+  .stall-daily-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  h2 {
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  p {
+    font-size: 12px;
+    color: var(--color-muted);
+    margin: 0;
+  }
+  .stall-daily-values {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0 12px;
+  }
+  small {
+    display: block;
+    color: var(--color-muted);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  strong {
+    display: block;
+    font: 600 24px var(--font-mono);
+    color: var(--color-rust);
+    overflow-wrap: anywhere;
+  }
+  b {
+    font: 600 18px var(--font-mono);
+  }
+  .camera-error {
+    margin: 12px 0;
+  }
+  @media (max-width: $breakpoint-md) {
+    padding: 16px;
+    .stall-daily-values {
+      grid-template-columns: 1fr 1fr;
+    }
+    .stall-daily-values > div:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+}

@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Database,
-  Landmark,
   LogOut,
-  QrCode,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -16,6 +14,8 @@ import { createClient } from "@/utils/supabase/client";
 import { DataState } from "@/components/ui/DataState";
 import { API_ROUTES } from "@/constants";
 import { OFFICIAL_LINE_ID_PATTERN } from "@/lib/claims";
+import { PushNotificationSettings } from "@/components/notifications/PushNotificationSettings";
+import styles from "../../../styles/components/settings/SystemSettings.module.scss";
 
 /** 系統設定面板。 */
 export function SystemSettings({
@@ -53,7 +53,9 @@ export function SystemSettings({
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("載入中…");
   const [name, setName] = useState("—");
-  const [role, setRole] = useState("staff");
+  const [tab, setTab] = useState<"general" | "super">("general");
+  const tabsId = useId();
+  const activeTab = isAdmin ? tab : "general";
   const [loading, setLoading] = useState(true);
   const [hasAccount, setHasAccount] = useState(false);
   const [creatingDatabase, setCreatingDatabase] = useState(false);
@@ -70,16 +72,32 @@ export function SystemSettings({
       setEmail(user.email || "—");
       const { data } = await supabase
         .from("profiles")
-        .select("display_name,role")
+        .select("display_name")
         .eq("id", user.id)
         .maybeSingle();
       setName(data?.display_name || user.email?.split("@")[0] || "使用者");
-      setRole(data?.role || "staff");
       setHasAccount(true);
       setLoading(false);
     })();
   }, []);
   async function logout() {
+    // A shared phone should stop receiving this account's notifications on logout.
+    try {
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration("/");
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+          await fetch("/api/push/subscriptions", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+        }
+      }
+    } catch {
+      /* Logout still works if the network or push service is unavailable. */
+    }
     queryClient.clear();
     window.localStorage.removeItem("archive-stock-owner-id");
     await createClient().auth.signOut();
@@ -100,116 +118,185 @@ export function SystemSettings({
       loadingText="正在讀取帳號資料…"
       emptyText="找不到帳號資料"
     >
-      <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
-        {isAdmin && (
-          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
-            <div className={`${iconClass} bg-primary-soft text-primary`}>
-              <UserRound />
-            </div>
-            <SettingsCardContent
-              eyebrow="使用者資料"
-              title="切換庫藏資料庫"
-              description="庫存、出貨、訂單、庫位與財務都會切換至同一個庫藏資料庫。"
-            >
-              <label className="block max-w-[360px]">
-                <span className="sr-only">選擇使用者</span>
-                <select
-                  className="mt-1 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
-                  value={selectedInventoryId}
-                  onChange={(event) => onInventoryChange(event.target.value)}
-                  aria-label="選擇庫藏資料庫"
-                >
-                  {inventories.map((inventory) => (
-                    <option key={inventory.id} value={inventory.id}>
-                      {inventory.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </SettingsCardContent>
-          </section>
-        )}
-        {isAdmin && (
-          <section className="card col-[1/-1] p-6">
-            <div className="flex items-start justify-between gap-3 sm:gap-4">
-              <div className="min-w-0 flex-1">
-                <span className="eyebrow">庫藏資料庫權限</span>
-                <h2 className="mb-1 mt-2">命名與擁有者</h2>
-                <p className="mb-5 mt-0 text-muted">
-                  每個資料庫至少需要一位擁有者；QR 購買入口由下方獨立設定。
-                </p>
-              </div>
-              <button
-                className="outline shrink-0 whitespace-nowrap"
-                type="button"
-                onClick={() => setCreatingDatabase(true)}
-                disabled={creatingDatabase}
+      <nav
+        className={styles.tabs}
+        role="tablist"
+        aria-label="設定分類"
+        onKeyDown={(event) => {
+          if (
+            !isAdmin ||
+            !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+          )
+            return;
+          event.preventDefault();
+          const next =
+            event.key === "Home"
+              ? "general"
+              : event.key === "End"
+                ? "super"
+                : activeTab === "general"
+                  ? "super"
+                  : "general";
+          setTab(next);
+          document.getElementById(`${tabsId}-${next}-tab`)?.focus();
+        }}
+      >
+        {(
+          ["general", ...(isAdmin ? ["super"] : [])] as Array<
+            "general" | "super"
+          >
+        ).map((item) => (
+          <button
+            key={item}
+            type="button"
+            role="tab"
+            id={`${tabsId}-${item}-tab`}
+            aria-selected={activeTab === item}
+            aria-controls={`${tabsId}-${item}-panel`}
+            tabIndex={activeTab === item ? 0 : -1}
+            className={activeTab === item ? "primary" : "outline"}
+            onClick={() => setTab(item)}
+          >
+            {item === "general" ? "一般管理" : "超級管理"}
+          </button>
+        ))}
+      </nav>
+      <div
+        id={`${tabsId}-general-panel`}
+        role="tabpanel"
+        aria-labelledby={`${tabsId}-general-tab`}
+        hidden={activeTab !== "general"}
+      >
+        <p className="mb-4 mt-0 text-muted">
+          目前庫藏：{activeInventory?.name ?? "尚未綁定庫藏"}
+        </p>
+        <div className="grid gap-4">
+          <PushNotificationSettings
+            inventories={inventories}
+            isAdmin={isAdmin}
+          />
+          {activeInventory && (
+            <section className="card p-6">
+              <SettingsCardContent
+                eyebrow="包裝完成 QR Code"
+                title={`${activeInventory.name} 的購買入口`}
               >
-                新增資料庫
-              </button>
-            </div>
-            <div className="grid gap-4">
-              {creatingDatabase && (
-                <InventoryDatabaseEditor
-                  inventory={{
-                    id: "",
-                    name: "",
-                    ownerIds: [],
-                  }}
-                  users={availableUsers}
-                  onSaved={async () => {
-                    setCreatingDatabase(false);
-                    await onInventoryDatabaseUpdated();
-                  }}
-                />
-              )}
-              {inventoryDatabases.map((inventory) => (
-                <InventoryDatabaseEditor
-                  key={`${inventory.id}:${inventory.name}:${inventory.ownerIds.join(",")}`}
-                  inventory={inventory}
-                  users={availableUsers}
+                <InventoryQrDestinationEditor
+                  key={activeInventory.id}
+                  inventory={activeInventory}
                   onSaved={onInventoryDatabaseUpdated}
                 />
-              ))}
-            </div>
-          </section>
-        )}
-        {activeInventory && (
-          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
-            <div className={`${iconClass} bg-primary-soft text-primary`}>
-              <QrCode />
-            </div>
-            <SettingsCardContent
-              eyebrow="包裝完成 QR Code"
-              title={`${activeInventory.name} 的購買入口`}
-              description="顧客掃描已完成包裝的 QR Code 時，系統會依訂單通路顯示對應入口。此庫藏的所有登入使用者都可調整。"
-            >
-              <InventoryQrDestinationEditor
-                key={activeInventory.id}
-                inventory={activeInventory}
-                onSaved={onInventoryDatabaseUpdated}
-              />
-            </SettingsCardContent>
-          </section>
-        )}
-        {activeInventory && (
-          <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
-            <div className={`${iconClass} bg-secondary-soft text-green`}>
-              <Landmark />
-            </div>
-            <SettingsCardContent
-              eyebrow="訂購／配單完成聯繫"
-              title={`${activeInventory.name} 的訂購／配單完成設定`}
-              description="設定顧客送出訂購後看到的匯款帳號、結帳提醒與官方 LINE；此設定套用到同一庫藏的訂購頁與配單確認頁。"
-            >
-              <InventoryClaimCheckoutEditor
-                key={activeInventory.id}
-                inventory={activeInventory}
-                onSaved={onInventoryDatabaseUpdated}
-              />
-            </SettingsCardContent>
-          </section>
-        )}
+              </SettingsCardContent>
+            </section>
+          )}
+          {activeInventory && (
+            <section className="card p-6">
+              <SettingsCardContent
+                eyebrow="訂購／配單完成聯繫"
+                title={`${activeInventory.name} 的訂購／配單完成設定`}
+              >
+                <InventoryClaimCheckoutEditor
+                  key={activeInventory.id}
+                  inventory={activeInventory}
+                  onSaved={onInventoryDatabaseUpdated}
+                />
+              </SettingsCardContent>
+            </section>
+          )}
+        </div>
+      </div>
+      {isAdmin && (
+        <div
+          id={`${tabsId}-super-panel`}
+          role="tabpanel"
+          aria-labelledby={`${tabsId}-super-tab`}
+          hidden={activeTab !== "super"}
+        >
+          <div className="grid gap-4">
+            <section className="card col-[1/-1] flex gap-5 p-6 max-lg:col-auto">
+              <div className={`${iconClass} bg-primary-soft text-primary`}>
+                <UserRound />
+              </div>
+              <SettingsCardContent eyebrow="使用者資料" title="切換庫藏資料庫">
+                <label className="block max-w-[360px]">
+                  <span className="sr-only">選擇使用者</span>
+                  <select
+                    className="mt-1 block w-full rounded-lg border border-line bg-white p-3 text-[14px] outline-none max-lg:text-[16px]"
+                    value={selectedInventoryId}
+                    onChange={(event) => onInventoryChange(event.target.value)}
+                    aria-label="選擇庫藏資料庫"
+                  >
+                    {inventories.map((inventory) => (
+                      <option key={inventory.id} value={inventory.id}>
+                        {inventory.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </SettingsCardContent>
+            </section>
+            <section className="card col-[1/-1] p-6">
+              <div className="flex items-start justify-between gap-3 sm:gap-4">
+                <div className="min-w-0 flex-1">
+                  <span className="eyebrow">庫藏資料庫權限</span>
+                  <h2 className="mb-1 mt-2">命名與擁有者</h2>
+                  <p className="mb-5 mt-0 text-muted">
+                    每個資料庫至少需要一位擁有者。
+                  </p>
+                </div>
+                <button
+                  className="outline shrink-0 whitespace-nowrap"
+                  type="button"
+                  onClick={() => setCreatingDatabase(true)}
+                  disabled={creatingDatabase}
+                >
+                  新增資料庫
+                </button>
+              </div>
+              <div className="grid gap-4">
+                {creatingDatabase && (
+                  <InventoryDatabaseEditor
+                    inventory={{
+                      id: "",
+                      name: "",
+                      ownerIds: [],
+                    }}
+                    users={availableUsers}
+                    onSaved={async () => {
+                      setCreatingDatabase(false);
+                      await onInventoryDatabaseUpdated();
+                    }}
+                  />
+                )}
+                {inventoryDatabases.map((inventory) => (
+                  <InventoryDatabaseEditor
+                    key={`${inventory.id}:${inventory.name}:${inventory.ownerIds.join(",")}`}
+                    inventory={inventory}
+                    users={availableUsers}
+                    onSaved={onInventoryDatabaseUpdated}
+                  />
+                ))}
+              </div>
+            </section>
+            <section className={cardClass}>
+              <div className={`${iconClass} bg-secondary-soft text-green`}>
+                <Database />
+              </div>
+              <SettingsCardContent
+                eyebrow="資料庫連線"
+                title="Supabase"
+                description="quhwzldmtmynahvcdfrj.supabase.co"
+              >
+                <span className="flex items-center gap-1 text-[11px] text-green">
+                  <CheckCircle2 className="w-[15px]" />
+                  連線正常
+                </span>
+              </SettingsCardContent>
+            </section>
+          </div>
+        </div>
+      )}
+      <div className="mt-4 grid gap-4">
         <section className={cardClass}>
           <div className={iconClass}>
             <UserRound />
@@ -221,31 +308,13 @@ export function SystemSettings({
           >
             <span className="pill green inline-flex items-center gap-1">
               <ShieldCheck size={13} />
-              {role === "admin" ? "超級管理員" : "個別使用者"}
-            </span>
-          </SettingsCardContent>
-        </section>
-        <section className={cardClass}>
-          <div className={`${iconClass} bg-secondary-soft text-green`}>
-            <Database />
-          </div>
-          <SettingsCardContent
-            eyebrow="資料庫連線"
-            title="Supabase"
-            description="quhwzldmtmynahvcdfrj.supabase.co"
-          >
-            <span className="flex items-center gap-1 text-[11px] text-green">
-              <CheckCircle2 className="w-[15px]" />
-              連線正常
+              {isAdmin ? "超級管理者" : "一般管理者"}
             </span>
           </SettingsCardContent>
         </section>
         <section className="card col-[1/-1] flex items-center justify-between p-6 max-lg:col-auto max-lg:flex-col max-lg:items-start max-lg:gap-5">
           <div>
             <h2 className="mb-1 mt-0">帳號操作</h2>
-            <p className="m-0 text-muted">
-              在共用手機或電腦使用完畢後，請記得登出。
-            </p>
           </div>
           <button className="outline danger" onClick={logout}>
             <LogOut />
@@ -748,16 +817,18 @@ function SettingsCardContent({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="min-w-0 flex-1">
       <span className="eyebrow">{eyebrow}</span>
       <h2 className="mb-1 mt-2">{title}</h2>
-      <p className="mb-3 mt-0 text-muted max-lg:[overflow-wrap:anywhere]">
-        {description}
-      </p>
+      {description && (
+        <p className="mb-3 mt-0 text-muted max-lg:[overflow-wrap:anywhere]">
+          {description}
+        </p>
+      )}
       {children}
     </div>
   );

@@ -1,0 +1,129 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  button {
+    min-height: 44px;
+  }
+}
+.selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-danger);
+  border-radius: 8px;
+  background: var(--color-danger);
+  color: var(--color-white);
+  font-weight: 600;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+.dialog {
+  width: min(620px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-paper);
+  color: var(--color-dark);
+  overflow: auto;
+  &::backdrop {
+    background: rgb(15 23 42 / 55%);
+  }
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-line);
+  h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+}
+.body {
+  padding: 18px 20px;
+  p {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    display: grid;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-line);
+    overflow-wrap: anywhere;
+  }
+  small {
+    color: var(--color-muted);
+  }
+}
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-line);
+  button {
+    min-height: 44px;
+  }
+}
+.error {
+  color: var(--color-danger);
+}
+@media (max-width: 600px) {
+  .actions {
+    align-items: stretch;
+  }
+  .selection {
+    width: 100%;
+  }
+  .footer {
+    display: grid;
+    grid-template-columns: 1fr 1.8fr;
+  }
+}
+
+.confirmation {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  input {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-white);
+    color: var(--color-dark);
+    padding: 10px;
+    font-size: 16px;
+  }
+}

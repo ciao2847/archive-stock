@@ -1,7 +1,12 @@
 "use client";
 
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { useDirtyBack } from "@/components/navigation/BackNavigation";
+import { SearchField } from "@/components/ui/SearchField";
 import { FormEvent, useMemo, useState } from "react";
-import { Check, ClipboardPlus, LoaderCircle, Search, X } from "lucide-react";
+import { Check, ClipboardPlus } from "lucide-react";
 import { Product } from "@/lib/types";
 import { SALES_CHANNELS } from "@/constants";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
@@ -110,20 +115,24 @@ export function NewOrder({
     }
   }
 
+  const { requestBack, markChanged } = useDirtyBack({
+    onBack: onClose,
+    hideButton: true,
+    busy: saving,
+    dirty: selected.length > 0,
+  });
   return (
     <>
-      <div className="overlay" onClick={onClose} />
+      <div className="overlay" onClick={requestBack} />
       <aside className="drawer order-drawer">
         <div className="drawer-head">
           <div>
             <span className="eyebrow">訂單管理</span>
             <h2>新增訂單</h2>
           </div>
-          <button className="icon-btn" onClick={onClose}>
-            <X />
-          </button>
+          <CloseButton aria-label="關閉新增訂單" onClick={requestBack} />
         </div>
-        <form onSubmit={submit}>
+        <form onChangeCapture={markChanged} onSubmit={submit}>
           <div className="form-grid">
             <Field label="客人姓名">
               <input
@@ -185,14 +194,14 @@ export function NewOrder({
               {selected.length} 件
             </span>
           </div>
-          <div className="order-product-search">
-            <Search />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜尋商品 ID、作品或庫位"
-            />
-          </div>
+          <SearchField
+            className="my-4 w-full"
+            value={query}
+            onChange={setQuery}
+            label="搜尋訂購商品"
+            placeholder="搜尋商品 ID、作品或庫位"
+            withinForm
+          />
           <div className="order-product-list">
             <DataState
               loading={productsLoading}
@@ -297,13 +306,13 @@ export function NewOrder({
             <button
               type="button"
               className="outline"
-              onClick={onClose}
+              onClick={requestBack}
               disabled={saving}
             >
               取消
             </button>
             <button className="primary" disabled={saving || !selected.length}>
-              {saving ? <LoaderCircle className="spin" /> : <ClipboardPlus />}
+              {saving ? <Spinner /> : <ClipboardPlus />}
               {saving ? "建立中…" : "建立訂單"}
             </button>
           </div>

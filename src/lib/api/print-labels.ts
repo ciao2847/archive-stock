@@ -35,3 +35,16 @@ export async function markPrintLabel(labelId: string) {
   });
   return readApiResponse<{ printed: boolean }>(response);
 }
+
+export async function resetPrintLabels(inventoryId: string, sku: string) {
+  const response = await fetch("/api/print-labels/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inventoryId, sku }),
+  });
+  return readApiResponse<{
+    resetCount: number;
+    sku: string;
+    productName: string;
+  }>(response);
+}

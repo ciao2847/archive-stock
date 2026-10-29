@@ -1,0 +1,27 @@
+.back {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  font: 600 13px var(--font-sans);
+  white-space: nowrap;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  @media (max-width: 1279.98px), (hover: none) and (pointer: coarse) {
+    display: inline-flex;
+  }
+}

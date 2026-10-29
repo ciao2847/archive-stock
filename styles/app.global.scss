@@ -26,9 +26,10 @@
 @use "components/forms";
 @use "components/tables";
 
-// 5. 頁面特定樣式（漸進遷移至 Tailwind + 元件中）
+// 5. 全域頁面樣式；元件專用 CSS Modules 位於 styles/components/
 // ============================================================================
 @use "pages/packing";
+@use "pages/checkout";
 @use "pages/claims";
 
 @use "pages/accounting";

@@ -1,7 +1,11 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+
+import { RefreshButton } from "@/components/ui/RefreshButton";
+
 import { useCallback, useEffect, useState } from "react";
-import { Check, RefreshCw } from "lucide-react";
+import { Check } from "lucide-react";
 import { PublicBundleClaimView } from "@/components/bundle-claims/PublicBundleClaimView";
 import { fetchPublicBundleMenu } from "@/lib/api/bundle-claims";
 import {
@@ -179,38 +183,29 @@ export function PublicBundleMenuView({
               </span>
               第一步：選自己的群組暱稱
             </h2>
-            <button
-              type="button"
-              disabled={busy || refreshing}
+            <RefreshButton
+              label="更新選單"
+              loading={refreshing}
               onClick={() => void refresh()}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-[8px] border border-current/20 px-3 text-[12px] disabled:opacity-50"
-            >
-              <RefreshCw
-                size={14}
-                className={refreshing ? "animate-spin" : ""}
-              />
-              更新選單
-            </button>
+              disabled={busy}
+            />
           </div>
           {error && (
-            <p role="alert" className="mb-0 mt-3 text-[13px] text-danger">
+            <ErrorMessage className="mb-0 mt-3 text-[13px] text-danger">
               {error}
-            </p>
+            </ErrorMessage>
           )}
           {!selected && submissionError && (
-            <p role="alert" className="mb-0 mt-3 text-[13px] text-danger">
+            <ErrorMessage className="mb-0 mt-3 text-[13px] text-danger">
               {submissionError}
-            </p>
+            </ErrorMessage>
           )}
           {menu && (
             <>
               <p className="mb-0 mt-3 text-[12px] leading-6 opacity-75">
-                每份都已配好，請選擇自己的暱稱。金額與數量不可修改；已確認的選項不能重複確認。
+                金額與數量固定；每份配單限確認一次。
               </p>
-              <p className="mb-0 mt-4 text-[12px] opacity-65">
-                <span className="font-semibold">規格：</span>{" "}
-                點選你的暱稱，灰色代表已被選走
-              </p>
+
               <div
                 role="group"
                 aria-label="姓名選項"
@@ -261,13 +256,9 @@ export function PublicBundleMenuView({
                 })}
               </div>
               {menu.options.length === 0 ? (
-                <p className="mb-0 mt-5 text-[13px]">
-                  目前沒有已開放的配單，請稍後再看或聯絡管理者。
-                </p>
+                <p className="mb-0 mt-5 text-[13px]">目前沒有開放的配單。</p>
               ) : selected ? (
-                <p className="mb-0 mt-3 text-[13px]">
-                  已選擇 {selected.label} 的專屬配單，請往下核對內容。
-                </p>
+                <p className="mb-0 mt-3 text-[13px]">已選擇 {selected.label}</p>
               ) : null}
             </>
           )}

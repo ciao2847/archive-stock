@@ -3,6 +3,10 @@ import { apiFailure } from "./server-auth";
 
 export function accountingFailure(message: string, code?: string) {
   const messages: Record<string, string> = {
+    "invalid financial details": "成本明細格式不正確，請確認日期、項目與金額",
+    "cost detail total mismatch": "成本明細合計與總額不一致",
+    "invalid profit shares": "請確認分帳對象與比例",
+    "profit shares must total 100 percent": "分帳比例合計須為 100%",
     "owner access required": "無法存取其他庫藏的結算資料",
     "period already settled":
       "這個帳期已結算或與歷史結算重疊，不能再修改或重複結算",

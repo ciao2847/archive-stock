@@ -9,8 +9,9 @@ export interface SpinnerProps {
 export function Spinner({ size = 18, className }: SpinnerProps) {
   return (
     <LoaderCircle
+      aria-hidden="true"
       size={size}
-      className={cn("animate-spin text-muted", className)}
+      className={cn("animate-spin motion-reduce:animate-none", className)}
     />
   );
 }

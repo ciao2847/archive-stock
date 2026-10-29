@@ -1,0 +1,256 @@
+.card {
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-white);
+  min-width: 0;
+  overflow: hidden;
+  h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+  p {
+    line-height: 1.6;
+  }
+}
+.search {
+  margin-bottom: 24px;
+}
+.historyHeader {
+  padding: 24px;
+}
+.results {
+  padding: 24px;
+  min-height: 280px;
+  border-top: 1px solid var(--color-line);
+}
+.empty {
+  min-height: 232px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--color-muted);
+  strong {
+    color: var(--color-dark);
+    font-size: 16px;
+  }
+  p {
+    margin: 0;
+    font-size: 13px;
+  }
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+  > div {
+    min-width: 0;
+  }
+  b,
+  h2 {
+    overflow-wrap: anywhere;
+  }
+  p {
+    margin: 5px 0;
+    font-size: 12px;
+    color: var(--color-muted);
+  }
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0;
+  label,
+  input,
+  select {
+    min-width: 0;
+    width: 100%;
+  }
+  button {
+    justify-content: center;
+  }
+}
+.filterActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  > button {
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+}
+.list {
+  display: grid;
+  gap: 14px;
+}
+.order {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+  }
+}
+.items {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 10px;
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+  }
+  span {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  b {
+    white-space: nowrap;
+  }
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.amount {
+  font-size: 15px;
+}
+.text {
+  font-size: 13px;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.notice,
+.error {
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.notice {
+  background: var(--color-secondary-soft);
+  color: var(--color-secondary-strong);
+}
+.error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.editor {
+  width: min(620px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  overflow-y: auto;
+  &::backdrop {
+    background: rgba(10, 25, 40, 0.55);
+  }
+  input,
+  textarea {
+    min-width: 0;
+    width: 100%;
+  }
+}
+.editorHead {
+  composes: head;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-line);
+  h2 {
+    margin: 4px 0 0;
+    font-size: 18px;
+  }
+}
+.editorBody {
+  padding: 20px;
+}
+.editorFoot {
+  position: sticky;
+  bottom: 0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.skuAdd {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  label {
+    flex: 1;
+    min-width: 0;
+  }
+  button {
+    flex-shrink: 0;
+  }
+}
+.itemEditor {
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+.productName {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 1000px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .filters > label:last-of-type,
+  .filterActions {
+    grid-column: 1 / -1;
+  }
+  .historyHeader,
+  .results,
+  .empty {
+    min-height: 200px;
+  }
+  .order {
+    padding: 12px;
+  }
+  .editorBody,
+  .editorHead,
+  .editorFoot {
+    padding: 16px;
+  }
+}

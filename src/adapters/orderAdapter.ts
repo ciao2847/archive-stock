@@ -1,6 +1,7 @@
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/constants";
 import type { Order, OrderItem } from "@/lib/types";
 import type { OrderRow } from "@/lib/api/archive";
+import { getOrderSource } from "@/lib/order-source";
 
 const firstRelation = <T>(relation: T | T[] | null): T | null =>
   Array.isArray(relation) ? (relation[0] ?? null) : relation;
@@ -43,6 +44,9 @@ export const adaptOrder = (row: OrderRow): Order => {
     dbId: row.id,
     id: row.order_no,
     ownerId: row.owner_id,
+    source: row.source ?? getOrderSource(row.notes),
+    claimSubmissionId: row.claim_submission_id ?? undefined,
+    bundleClaimOrderId: row.bundle_claim_order_id ?? undefined,
     customer: customer?.nickname || customer?.name || "未填寫客人",
     customerKey: customerIdentityKey(
       customerName,

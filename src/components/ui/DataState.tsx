@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LoaderCircle } from "lucide-react";
+import { LoadingState } from "./LoadingState";
 
 export function DataState({
   loading,
@@ -19,16 +19,7 @@ export function DataState({
   className?: string;
 }) {
   if (loading) {
-    return (
-      <div
-        className={`empty flex items-center justify-center gap-2 ${className}`}
-        role="status"
-        aria-live="polite"
-      >
-        <LoaderCircle className="animate-spin" size={18} />
-        {loadingText}
-      </div>
-    );
+    return <LoadingState text={loadingText} className={className} />;
   }
 
   if (isEmpty) {

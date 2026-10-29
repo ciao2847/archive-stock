@@ -1,7 +1,8 @@
 "use client";
 
+import { useBackAction } from "@/components/navigation/BackNavigation";
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import { CloseButton } from "./CloseButton";
 
 /** 圖片燈箱預覽。 */
 export function ImageLightbox({
@@ -15,6 +16,7 @@ export function ImageLightbox({
   label?: string;
   onClose: () => void;
 }) {
+  useBackAction({ priority: 200, hideButton: true, onBack: onClose });
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -35,13 +37,12 @@ export function ImageLightbox({
       aria-label="商品圖片預覽"
       onClick={onClose}
     >
-      <button
+      <CloseButton
+        size={24}
         className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full border border-white/30 bg-black/50 text-white hover:bg-white/15"
         onClick={onClose}
         aria-label="關閉圖片"
-      >
-        <X />
-      </button>
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className="max-h-full max-w-full object-contain"

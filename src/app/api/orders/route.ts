@@ -1,19 +1,63 @@
 import { z } from "zod";
 import { SALES_CHANNELS } from "@/constants";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
+import { getOrderSource } from "@/lib/order-source";
 
 export async function GET() {
   const auth = await requireApiUser();
   if (!auth.ok) return auth.response;
-  const { data, error } = await auth.supabase
-    .from("orders")
-    .select(
-      "id,owner_id,order_no,payment_status,status,created_at,customers(name,nickname,contact),order_items(id,quantity,scanned_quantity,packed_quantity,unit_price,products(id,sku,name))",
-    )
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-  if (error) return apiFailure(error.message, 400, error.code);
-  return apiSuccess(data ?? []);
+  const rows: Array<{
+    id: string;
+    created_at: string;
+    notes: string | null;
+    [key: string]: unknown;
+  }> = [];
+  let cursor: string | undefined;
+  let fulfillmentColumns = true;
+  // Load every visible order so source filtering and search also find older sales.
+  for (;;) {
+    let query = auth.supabase
+      .from("orders")
+      .select(
+        fulfillmentColumns
+          ? "id,owner_id,order_no,notes,claim_submission_id,bundle_claim_order_id,payment_status,status,created_at,customers(name,nickname,contact),order_items(id,quantity,scanned_quantity,packed_quantity,unit_price,products(id,sku,name))"
+          : "id,owner_id,order_no,notes,payment_status,status,created_at,customers(name,nickname,contact),order_items(id,quantity,scanned_quantity,packed_quantity,unit_price,products(id,sku,name))",
+      )
+      .is("deleted_at", null)
+      .order("id")
+      .limit(500);
+    if (cursor) query = query.gt("id", cursor);
+    const { data, error } = await query;
+    if (
+      error &&
+      fulfillmentColumns &&
+      (error.code === "42703" || error.code === "PGRST204")
+    ) {
+      fulfillmentColumns = false;
+      continue;
+    }
+    if (error) return apiFailure("讀取訂單失敗，請稍後再試", 400, error.code);
+    if (!data?.length) break;
+    // Both selections return the same cursor fields; the fallback omits only source links.
+    const pageRows = data as unknown as typeof rows;
+    rows.push(...pageRows);
+    if (data.length < 500) break;
+    cursor = pageRows[pageRows.length - 1].id;
+  }
+  rows.sort(
+    (a, b) =>
+      b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
+  );
+  return apiSuccess(
+    rows.map(({ notes, ...order }) => ({
+      ...order,
+      source: order.claim_submission_id
+        ? "claim"
+        : order.bundle_claim_order_id
+          ? "bundle"
+          : getOrderSource(notes),
+    })),
+  );
 }
 
 const salesChannels = SALES_CHANNELS.map((channel) => channel.value);

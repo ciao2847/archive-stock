@@ -1,5 +1,7 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+
 import {
   ChangeEvent,
   type KeyboardEvent,
@@ -224,10 +226,6 @@ export function ClaimFormAppearanceSettings({
         </span>
         <div>
           <h3 className="mb-0 text-[17px] font-bold text-dark">表單外觀</h3>
-          <p className="mb-0 mt-0.5 text-[12px] text-muted">
-            設定頂部橫幅背景圖與整頁色系，此庫藏所有 IP
-            訂購頁共用同一組外觀風格。
-          </p>
         </div>
       </div>
 
@@ -338,9 +336,9 @@ export function ClaimFormAppearanceSettings({
               hidden
             />
             {imageError && (
-              <p className="mb-0 mt-2 text-[12px] text-danger" role="alert">
+              <ErrorMessage className="mb-0 mt-2 text-[12px] text-danger">
                 {imageError}
-              </p>
+              </ErrorMessage>
             )}
           </div>
 

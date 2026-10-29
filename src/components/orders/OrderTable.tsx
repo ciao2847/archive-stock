@@ -8,6 +8,7 @@ import {
   QrCode,
   Trash2,
   WalletCards,
+  ClipboardList,
 } from "lucide-react";
 
 import swal from "sweetalert";
@@ -28,16 +29,26 @@ const ORDER_COLUMNS: TableColumn[] = [
   { key: "action", label: "操作", className: "w-[132px] text-center" },
 ];
 
+function orderStatus(order: Order) {
+  if (order.source === "stall") {
+    if (order.status === "已包裝") return "已結帳";
+    if (order.status === "已取消") return "已撤銷";
+  }
+  return order.status;
+}
+
 export function OrderTable({
   orders,
   onPack,
   onEditAmount,
   onDelete,
+  onManageStall,
 }: {
   orders: Order[];
   onPack: (order: Order) => void;
   onEditAmount?: (order: Order) => void;
   onDelete?: (order: Order) => void | Promise<void>;
+  onManageStall?: (order: Order) => void;
 }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const canOperate = (order: Order) => {
@@ -90,6 +101,9 @@ export function OrderTable({
         >
           <td className="max-md:hidden">
             <code>{order.id}</code>
+            <span className="mt-2 block text-[11px] text-muted">
+              {order.source === "stall" ? "攤位訂單" : "一般訂單"}
+            </span>
           </td>
           <td className="max-md:col-start-1 max-md:col-end-4 max-md:row-start-1 max-md:min-w-0 max-md:self-center max-md:!border-0 max-md:!p-0">
             <b className="max-md:block max-md:truncate max-md:text-[15px]">
@@ -98,6 +112,9 @@ export function OrderTable({
             <code className="mt-1 hidden text-[10px] text-muted max-md:block">
               {order.id}
             </code>
+            <span className="mt-1 hidden text-[11px] text-muted max-md:block">
+              {order.source === "stall" ? "攤位訂單" : "一般訂單"}
+            </span>
           </td>
           <td className="max-md:hidden">{order.createdAt}</td>
           <td className="hidden max-md:col-start-1 max-md:col-end-5 max-md:row-start-2 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:!border-0 max-md:!p-0">
@@ -115,7 +132,7 @@ export function OrderTable({
               className={`pill inline-flex items-center gap-1 ${order.status === "已包裝" ? "blue" : "amber"}`}
             >
               <PackageCheck size={13} />
-              {order.status}
+              {orderStatus(order)}
             </span>
           </td>
           <td className="max-md:hidden">{order.itemIds.length} 件</td>
@@ -126,7 +143,7 @@ export function OrderTable({
               {order.payment}
             </span>
           </td>
-          <td className="max-md:hidden">{order.status}</td>
+          <td className="max-md:hidden">{orderStatus(order)}</td>
           <td
             className={`${openMenuId === order.dbId ? "z-30" : "z-10"} relative w-[132px] bg-white text-center max-md:col-start-4 max-md:row-start-1 max-md:w-auto max-md:self-start max-md:text-right max-md:!border-0 max-md:!p-0`}
           >
@@ -137,6 +154,7 @@ export function OrderTable({
             >
               <button
                 type="button"
+                aria-label={`訂單 ${order.id} 操作`}
                 className="outline min-h-10 px-3 py-2 max-md:min-h-11"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -150,7 +168,20 @@ export function OrderTable({
               </button>
               {openMenuId === order.dbId && (
                 <div className="absolute top-full right-0 z-30 mt-1 min-w-36 overflow-hidden rounded-lg border border-line bg-white p-1 text-left shadow-xl">
-                  {onEditAmount && (
+                  {order.source === "stall" && onManageStall && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        onManageStall(order);
+                      }}
+                    >
+                      <ClipboardList size={15} />
+                      查看與管理攤位訂單
+                    </button>
+                  )}
+                  {order.source !== "stall" && onEditAmount && (
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
@@ -164,7 +195,7 @@ export function OrderTable({
                       編輯訂單
                     </button>
                   )}
-                  {onDelete && (
+                  {order.source !== "stall" && onDelete && (
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left text-danger-strong hover:bg-danger-soft"
@@ -178,18 +209,20 @@ export function OrderTable({
                       刪除訂單
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setOpenMenuId(null);
-                      if (canOperate(order)) onPack(order);
-                    }}
-                  >
-                    <QrCode size={15} />
-                    開始包貨
-                  </button>
+                  {order.source !== "stall" && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-md border-0 bg-transparent px-3 py-3 text-left hover:bg-light"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setOpenMenuId(null);
+                        if (canOperate(order)) onPack(order);
+                      }}
+                    >
+                      <QrCode size={15} />
+                      開始包貨
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       .order("bin"),
     db
       .from("products")
-      .select("id,name,country,price,stock,image_paths")
+      .select("id,sku,name,country,price,stock,image_paths")
       .eq("owner_id", owner.data)
       .order("created_at", { ascending: false }),
     db
@@ -90,6 +90,7 @@ export async function GET(request: Request) {
     );
   const products = results[2].data as Array<{
     id: string;
+    sku: string;
     name: string;
     country: string | null;
     price: number;
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
     slots: results[1].data,
     products: products.map((p) => ({
       id: p.id,
+      sku: p.sku,
       name: p.name,
       country: p.country,
       price: Number(p.price),

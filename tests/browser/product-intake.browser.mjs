@@ -5,9 +5,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "esbuild";
+import { compile } from "sass";
 import { chromium } from "playwright";
 const ownerId = "00000000-0000-4000-8000-000000000001";
 const bundle = await build({
+  outfile: "/tmp/poster-product-intake-browser.js",
   bundle: true,
   write: false,
   format: "iife",
@@ -15,6 +17,16 @@ const bundle = await build({
   alias: { "@": resolve("src") },
   define: { "process.env.NODE_ENV": '"development"' },
   plugins: [
+    {
+      name: "component-styles",
+      setup(builder) {
+        builder.onLoad({ filter: /\.module\.scss$/ }, (args) => ({
+          contents: compile(args.path).css,
+          loader: "local-css",
+          resolveDir: resolve(args.path, ".."),
+        }));
+      },
+    },
     {
       name: "product-api-fixture",
       setup(builder) {
@@ -35,17 +47,25 @@ const bundle = await build({
     contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {NewProduct} from './src/components/products/NewProduct';createRoot(document.getElementById('root')).render(<NewProduct ownerId='${ownerId}' onClose={()=>{}}/>);`,
   },
 });
-const css = (
-  await Promise.all(
-    (await readdir(".next/static/chunks"))
-      .filter((name) => name.endsWith(".css"))
-      .map((name) => readFile(`.next/static/chunks/${name}`, "utf8")),
-  )
-).join("\n");
+const css =
+  (
+    await Promise.all(
+      (await readdir(".next/static/chunks"))
+        .filter((name) => name.endsWith(".css"))
+        .map((name) => readFile(`.next/static/chunks/${name}`, "utf8")),
+    )
+  ).join("\n") +
+  "\n" +
+  bundle.outputFiles
+    .filter((file) => file.path.endsWith(".css"))
+    .map((file) => file.text)
+    .join("\n");
 const server = createServer((request, response) => {
   if (request.url === "/app.js") {
     response.setHeader("Content-Type", "text/javascript");
-    response.end(bundle.outputFiles[0].text);
+    response.end(
+      bundle.outputFiles.find((file) => file.path.endsWith(".js")).text,
+    );
   } else if (request.url === "/app.css") {
     response.setHeader("Content-Type", "text/css");
     response.end(css);
@@ -96,7 +116,7 @@ try {
   assert.equal(await page.getByText("作品名稱", { exact: true }).count(), 0);
   await page.getByLabel("名稱（必填）").fill("測試海報");
   await page.getByLabel("國家版本（必填）").selectOption("韓國");
-  await page.getByLabel("販售金額（必填）").fill("1200");
+  await page.getByLabel("會員價（必填，定價另加 150）").fill("1200");
   await page.getByRole("button", { name: "儲存商品", exact: true }).click();
   await page.getByText("請上傳商品圖片", { exact: true }).waitFor();
   assert.equal(await page.evaluate(() => window.savedProduct), undefined);

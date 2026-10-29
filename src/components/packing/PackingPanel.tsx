@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import {
-  ArrowLeft,
   Camera,
   CameraOff,
   Check,
@@ -30,13 +29,11 @@ type Feedback = "ok" | "bad" | null;
 
 /** 以客人為單位的合併包貨面板。 */
 export function PackingPanel({
-  onBack,
   customer,
   products,
   onCompleted,
   packerName,
 }: {
-  onBack: () => void;
   customer: PackingCustomer;
   products: Product[];
   onCompleted?: () => void;
@@ -273,12 +270,6 @@ export function PackingPanel({
           <b>包貨人</b>
           <span>{packerName}</span>
         </div>
-        <p className="complete-help">
-          尚未到貨的品項仍保留在原訂單，之後可以再建立下一個包裹。
-        </p>
-        <button className="primary" onClick={onBack}>
-          回到總覽
-        </button>
       </div>
     );
 
@@ -298,15 +289,6 @@ export function PackingPanel({
   return (
     <div className="packing">
       <div className="packing-top">
-        <button
-          className="icon-btn"
-          onClick={() => {
-            stopCamera();
-            onBack();
-          }}
-        >
-          <ArrowLeft />
-        </button>
         <div>
           <span className="eyebrow">依客人合併包貨</span>
           <h1>{packageData?.packageNo || "建立包裝工作"}</h1>
@@ -357,9 +339,7 @@ export function PackingPanel({
               </div>
             ) : cameraOpen ? (
               <div className="camera-status">
-                <p>
-                  {cameraStarting ? "正在開啟相機…" : "請將 QR Code 放入框內"}
-                </p>
+                <p>{cameraStarting ? "正在開啟相機…" : "掃描中…"}</p>
                 <button className="camera-close" onClick={stopCamera}>
                   <CameraOff />
                   關閉相機
@@ -369,7 +349,7 @@ export function PackingPanel({
               <>
                 <Camera size={34} />
                 <h2>掃描已到貨商品</h2>
-                <p>掃到的商品會自動歸入最早的未出貨訂單</p>
+
                 <button
                   className="scan-button"
                   onClick={startCamera}
@@ -413,15 +393,11 @@ export function PackingPanel({
               {isVerifying ? "核對中…" : "確認"}
             </button>
           </div>
-          <p className="mt-2 text-[12px] text-muted">
-            只要商品已到貨就能先包裝，不需要等同一張訂單全部到齊。
-          </p>
         </section>
         <section className="packing-items">
           <div className="card-head">
             <div>
               <h2>客人訂單商品</h2>
-              <p>已出貨數量會保留，未到貨品項下次再處理</p>
             </div>
           </div>
           <DataState
@@ -493,13 +469,6 @@ export function PackingPanel({
             <PackageCheck />
             {isCompleting ? "正在完成包裝…" : "完成本次包裝"}
           </button>
-          <p className="complete-help">
-            {progressLoading
-              ? "正在讀取包貨進度"
-              : scannedCount > 0
-                ? `可先完成這 ${scannedCount} 件，未到貨品項會留在原訂單`
-                : "先掃描已到貨商品，再完成本次包裝"}
-          </p>
         </section>
       </div>
     </div>

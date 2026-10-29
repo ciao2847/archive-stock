@@ -1,0 +1,15 @@
+.git/
+.next/
+node_modules/
+.vercel/
+.env*
+!.env.example
+supabase/.temp/
+.agents/
+.codex/
+.DS_Store
+*.log
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/

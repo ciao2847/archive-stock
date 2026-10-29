@@ -10,6 +10,9 @@ function redirectWithSessionCookies(
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
+  if (/^\/notifications\/[0-9a-f-]{36}$/.test(request.nextUrl.pathname)) {
+    url.searchParams.set("returnTo", request.nextUrl.pathname);
+  }
 
   const redirectResponse = NextResponse.redirect(url);
   supabaseResponse.cookies
@@ -25,6 +28,8 @@ function redirectWithSessionCookies(
 }
 
 export async function updateSession(request: NextRequest) {
+  if (["/sw.js", "/api/push/dispatch"].includes(request.nextUrl.pathname))
+    return NextResponse.next({ request });
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(

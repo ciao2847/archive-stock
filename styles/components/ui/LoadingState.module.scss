@@ -1,0 +1,24 @@
+.loading {
+  display: grid;
+  min-height: 320px;
+  min-width: 0;
+  padding: 24px 16px;
+  place-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-muted);
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+
+  > span:first-child {
+    display: flex;
+    flex-shrink: 0;
+  }
+}

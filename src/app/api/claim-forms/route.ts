@@ -588,6 +588,28 @@ export async function PUT(request: Request) {
       return apiFailure("橫幅圖片不屬於這個庫藏", 400);
     }
 
+    if (input.products.length > 0) {
+      const { data: selected, error: productsError } = await auth.supabase
+        .from("products")
+        .select("id,name,preorder_item_name")
+        .eq("owner_id", input.ownerId)
+        .in(
+          "id",
+          input.products.map((product) => product.productId),
+        );
+      if (productsError) return apiFailure("商品資料讀取失敗，請重新載入", 503);
+      if (!selected || selected.length !== input.products.length)
+        return apiFailure("商品不屬於這個庫藏或已移除", 400);
+      if (
+        input.products.length > 1 &&
+        selected.some((product) => product.preorder_item_name === "")
+      )
+        return apiFailure(
+          "多品表單請填寫每款的品項名稱，例如 A款、全員款或肖像款",
+          400,
+        );
+    }
+
     const { data, error } = await auth.supabase.rpc("configure_claim_form", {
       // Postgres accepts NULL here for a new form; generated RPC types cannot
       // represent nullable function arguments.

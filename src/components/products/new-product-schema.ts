@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { LOCATION_CODE_PATTERN } from "@/constants";
 export const newProductSchema = z.object({
-  name: z.string().trim().min(1, "請輸入商品名稱"),
+  name: z.string().trim().min(1, "請輸入商品名稱").max(300),
+  itemName: z.string().trim().max(200).optional(),
   category: z.string(),
   country: z.string().trim().min(1, "請選擇國家版本"),
   source: z.string(),
@@ -21,6 +22,10 @@ export const newProductSchema = z.object({
   feature: z.string().optional(),
 });
 export const preorderProductSchema = newProductSchema.extend({
-  country: z.string(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "請輸入作品名稱")
+    .max(200, "作品名稱最多 200 字元"),
 });
 export type NewProductForm = z.input<typeof newProductSchema>;

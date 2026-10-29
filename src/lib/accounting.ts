@@ -75,6 +75,8 @@ export type PeriodCost = {
   notes: string;
   revision: number;
   updated_at: string;
+  cost_entries?: import("./accounting-details").CostEntry[];
+  share_rules?: import("./accounting-details").ProfitShare[];
 };
 export type Settlement = {
   id: string;
@@ -101,6 +103,8 @@ export type AccountingData = {
     amount: number;
     notes: string;
     changed_at: string;
+    cost_entries?: import("./accounting-details").CostEntry[];
+    share_rules?: import("./accounting-details").ProfitShare[];
   }>;
 };
 

@@ -1,0 +1,60 @@
+.stepper {
+  display: flex;
+  align-items: stretch;
+  width: 136px;
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--quantity-border, var(--color-line));
+  border-radius: 10px;
+  background: var(--quantity-background, var(--color-white));
+  color: var(--quantity-color, var(--color-dark));
+  overflow: hidden;
+
+  &:focus-within {
+    outline: 2px solid var(--quantity-primary, var(--color-primary));
+    outline-offset: 2px;
+  }
+
+  > button {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+
+    &:hover:not(:disabled) {
+      background: var(--quantity-soft, var(--color-primary-soft));
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+  }
+
+  > input {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    text-align: center;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    appearance: textfield;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      appearance: none;
+      margin: 0;
+    }
+  }
+}

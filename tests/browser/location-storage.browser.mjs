@@ -6,9 +6,22 @@ import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "esbuild";
+import { compile } from "sass";
 import { chromium } from "playwright";
 const ownerId = "00000000-0000-4000-8000-000000000001";
 const bundle = await build({
+  outfile: "/tmp/poster-storage-fixture.js",
+  plugins: [
+    {
+      name: "styles",
+      setup(builder) {
+        builder.onLoad({ filter: /\.module\.scss$/ }, (args) => ({
+          contents: compile(args.path).css,
+          loader: "local-css",
+        }));
+      },
+    },
+  ],
   bundle: true,
   write: false,
   format: "iife",
@@ -31,10 +44,19 @@ const css = (
 const server = createServer((request, response) => {
   if (request.url === "/app.js") {
     response.setHeader("Content-Type", "text/javascript");
-    response.end(bundle.outputFiles[0].text);
+    response.end(
+      bundle.outputFiles.find((file) => file.path.endsWith(".js")).text,
+    );
   } else if (request.url === "/app.css") {
     response.setHeader("Content-Type", "text/css");
-    response.end(css);
+    response.end(
+      css +
+        "\n" +
+        bundle.outputFiles
+          .filter((file) => file.path.endsWith(".css"))
+          .map((file) => file.text)
+          .join("\n"),
+    );
   } else {
     response.setHeader("Content-Type", "text/html");
     response.end(
@@ -238,8 +260,10 @@ try {
     .filter({ hasText: "待整理海報" });
   await row.getByRole("button", { name: "搬移", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByLabel("搬移至").selectOption(slots[2].id);
-  await dialog.getByLabel("搬移至").selectOption(slots[1].id);
+  await dialog.locator("summary").click();
+  await dialog.locator(`input[type="radio"][value="${slots[2].id}"]`).check();
+  await dialog.locator("summary").click();
+  await dialog.locator(`input[type="radio"][value="${slots[1].id}"]`).check();
   await dialog
     .getByRole("spinbutton", { name: "待整理海報 放入數量" })
     .fill("1");

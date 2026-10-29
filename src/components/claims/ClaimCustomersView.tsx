@@ -1,5 +1,11 @@
 "use client";
 
+import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { RefreshButton } from "@/components/ui/RefreshButton";
+
+import { SearchField } from "@/components/ui/SearchField";
 import { useMemo, useState } from "react";
 import { RemoveRecordButton } from "@/components/order-management/RemoveRecordButton";
 import { PaymentRecordEditor } from "@/components/order-management/PaymentRecordEditor";
@@ -10,10 +16,7 @@ import {
   ChevronUp,
   Clock3,
   Copy,
-  LoaderCircle,
   Phone,
-  RefreshCw,
-  Search,
   Trash2,
   Users,
 } from "lucide-react";
@@ -79,7 +82,7 @@ export function ClaimCustomersView({
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [statusFilter, setStatusFilter] = useState<
     "unsettled" | "paid" | "all"
-  >("unsettled");
+  >(initialSearchQuery ? "all" : "unsettled");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deletingSubmissionKey, setDeletingSubmissionKey] = useState<
     string | null
@@ -149,6 +152,7 @@ export function ClaimCustomersView({
       const matchNickname = group.nickname.toLowerCase().includes(query);
       const matchFormOrItem = group.submissions.some(
         (sub) =>
+          sub.confirmationCode.toLowerCase().includes(query) ||
           sub.formTitle.toLowerCase().includes(query) ||
           sub.items.some((item) => item.name.toLowerCase().includes(query)),
       );
@@ -319,22 +323,14 @@ export function ClaimCustomersView({
             <h3 className="mb-0 mt-1 text-[20px] font-bold tracking-[-0.02em] text-dark">
               顧客對帳與待結帳總覽
             </h3>
-            <p className="mb-0 mt-1 text-[13px] leading-5 text-muted">
-              自動彙整相同顧客在各 IP
-              訂購頁的全部商品；直接查看誰尚未結帳、買了哪些、總金額多少，告別跨記事本手動找人的繁瑣！
-            </p>
           </div>
 
-          <button
-            type="button"
-            className="icon-btn size-10 shrink-0"
+          <RefreshButton
+            label="重新整理顧客對帳資料"
+            loading={loading}
             onClick={() => void onReload()}
             disabled={loading || savingPayment || deletingPaymentId !== null}
-            aria-label="重新整理顧客對帳資料"
-            title="重新整理"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+          />
         </div>
 
         {/* Stats Cards */}
@@ -415,29 +411,20 @@ export function ClaimCustomersView({
           </button>
         </div>
 
-        <div className="relative min-w-[220px] flex-1 sm:max-w-[320px]">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            className="min-h-9 w-full rounded-[8px] border border-line bg-white pl-9 pr-3 text-[13px] outline-none transition focus:border-primary"
-            placeholder="搜尋顧客電話、暱稱或商品…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <SearchField
+          className="w-full sm:max-w-[320px]"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          label="搜尋訂購編號、電話、暱稱或商品"
+          placeholder="搜尋訂購編號、電話、暱稱或商品…"
+          shortcut
+        />
       </div>
 
       {actionError && (
-        <p
-          className="mb-0 rounded-[8px] bg-danger-soft px-4 py-2.5 text-[12px] font-medium text-danger"
-          role="alert"
-        >
+        <ErrorMessage className="mb-0 rounded-[8px] bg-danger-soft px-4 py-2.5 text-[12px] font-medium text-danger">
           {actionError}
-        </p>
+        </ErrorMessage>
       )}
       {actionMessage && (
         <p
@@ -713,10 +700,7 @@ export function ClaimCustomersView({
                                       title="刪除匯款紀錄"
                                     >
                                       {deletingPaymentId === payment.id ? (
-                                        <LoaderCircle
-                                          size={12}
-                                          className="animate-spin"
-                                        />
+                                        <Spinner size={12} />
                                       ) : (
                                         <Trash2 size={12} />
                                       )}
@@ -833,13 +817,7 @@ export function ClaimCustomersView({
                 ? "所有顧客款項皆已結清！"
                 : "目前尚無任何顧客訂購紀錄"}
           </h4>
-          <p className="mx-auto mb-0 mt-1 max-w-[360px] text-[12px] text-muted">
-            {searchQuery
-              ? "請嘗試更換電話、暱稱或商品名稱再次搜尋。"
-              : statusFilter === "unsettled"
-                ? "太棒了！目前庫藏中沒有待處理的匯款與欠款。"
-                : "買家在任何公開訂購頁登記後，將自動在此處以顧客為單位歸戶。"}
-          </p>
+
           {searchQuery && (
             <button
               type="button"

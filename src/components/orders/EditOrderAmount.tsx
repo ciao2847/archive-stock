@@ -1,7 +1,11 @@
 "use client";
 
+import { CloseButton } from "@/components/ui/CloseButton";
+import { Spinner } from "@/components/ui/Spinner";
+
+import { useDirtyBack } from "@/components/navigation/BackNavigation";
 import { useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Save, X } from "lucide-react";
+import { Save } from "lucide-react";
 import { SALES_CHANNELS } from "@/constants";
 import { createClient } from "@/utils/supabase/client";
 import { DEFAULT_VALUES, toNumber } from "@/constants";
@@ -159,18 +163,25 @@ export function EditOrderAmount({
     await onUpdated();
     onClose();
   }
+  const { requestBack, markChanged } = useDirtyBack({
+    onBack: onClose,
+    hideButton: true,
+    busy: saving || loading,
+    dirty: false,
+  });
   return (
     <>
-      <div className="fixed inset-0 z-[100] bg-black/55" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-[100] bg-black/55"
+        onClick={requestBack}
+      />
       <aside className="drawer z-[110]!">
         <div className="drawer-head">
           <div>
             <span className="eyebrow">編輯訂單</span>
             <h2>{orderNo}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose}>
-            <X />
-          </button>
+          <CloseButton aria-label="關閉訂單編輯" onClick={requestBack} />
         </div>
         <DataState
           loading={loading}
@@ -179,6 +190,7 @@ export function EditOrderAmount({
           emptyText="這筆訂單沒有商品明細"
         >
           <form
+            onChangeCapture={markChanged}
             className="p-6"
             onSubmit={(event) => {
               event.preventDefault();
@@ -289,15 +301,11 @@ export function EditOrderAmount({
             </div>
             {error && <p className="upload-error">更新失敗：{error}</p>}
             <div className="form-actions">
-              <button type="button" className="outline" onClick={onClose}>
+              <button type="button" className="outline" onClick={requestBack}>
                 取消
               </button>
               <button className="primary" disabled={saving}>
-                {saving ? (
-                  <LoaderCircle className="spin" />
-                ) : (
-                  <Save size={17} />
-                )}
+                {saving ? <Spinner /> : <Save size={17} />}
                 儲存訂單
               </button>
             </div>
