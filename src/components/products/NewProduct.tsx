@@ -13,7 +13,10 @@ import {
 } from "./new-product-schema";
 import { PreorderNameFields } from "./PreorderNameFields";
 import { ProductImageUpload } from "./ProductImageUpload";
-import { buildPreorderProductName } from "@/lib/preorder-product-name";
+import {
+  buildPreorderProductName,
+  productNameWithCountryFlag,
+} from "@/lib/preorder-product-name";
 import { PosterSpecFields } from "./PosterSpecFields";
 import { validateProductImage } from "./product-image-validation";
 import { ProductFormField as Field } from "./ProductFormField";
@@ -176,7 +179,7 @@ export function NewProduct({
                 values.name,
                 values.itemName,
               )
-            : values.name,
+            : productNameWithCountryFlag(values.name, values.country),
           ...(preorderOnly
             ? {
                 work: values.name.trim(),

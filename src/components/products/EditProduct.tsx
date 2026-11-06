@@ -12,6 +12,7 @@ import { validateProductImage } from "./product-image-validation";
 import {
   buildPreorderProductName,
   cleanPreorderNamePart,
+  productNameWithCountryFlag,
 } from "@/lib/preorder-product-name";
 import { Product } from "@/lib/types";
 import { toNumber } from "@/constants";
@@ -46,7 +47,7 @@ export function EditProduct({
   const [form, setForm] = useState({
     work: product.work,
     itemName: product.preorderItemName ?? "",
-    name: product.name,
+    name: productNameWithCountryFlag(product.name, product.country),
     category: product.category,
     country: product.country === "—" ? "" : product.country,
     source: product.source === "—" ? "" : product.source,
@@ -62,7 +63,7 @@ export function EditProduct({
   });
   const displayName = namedPreorder
     ? buildPreorderProductName(form.country, form.work, form.itemName)
-    : form.name;
+    : productNameWithCountryFlag(form.name, form.country);
   const [crafts, setCrafts] = useState(product.crafts ?? []);
   const [image, setImage] = useState<File | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
@@ -315,6 +316,9 @@ export function EditProduct({
                       value={form.name}
                       onChange={(e) => change("name", e.target.value)}
                     />
+                    <small>
+                      儲存時會依國家版本自動補上缺少的國旗：{displayName}
+                    </small>
                   </Field>
                 )}
               </section>

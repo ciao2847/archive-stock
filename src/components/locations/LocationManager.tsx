@@ -1,5 +1,7 @@
 "use client";
 
+import { productNameWithCountryFlag } from "@/lib/preorder-product-name";
+
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { CloseButton } from "@/components/ui/CloseButton";
 import { Spinner } from "@/components/ui/Spinner";
@@ -724,7 +726,9 @@ function ProductRow({
         {product.sku && (
           <code className="block text-xs text-muted">{product.sku}</code>
         )}
-        <b className="block break-words text-sm">{product.name}</b>
+        <b className="block break-words text-sm">
+          {productNameWithCountryFlag(product.name, product.country ?? "")}
+        </b>
         <small className="text-muted">
           {product.country || "未指定"} · {money(product.price)}
         </small>
@@ -1177,7 +1181,12 @@ function BatchPutaway({
             <div className={batchStyles.product}>
               <Thumbnail product={product} />
               <div>
-                <b>{product.name}</b>
+                <b>
+                  {productNameWithCountryFlag(
+                    product.name,
+                    product.country ?? "",
+                  )}
+                </b>
                 {product.sku && <code>{product.sku}</code>}
                 <span className={batchStyles.mobileMetadata}>
                   {product.country || "未指定"} · {money(product.price)}

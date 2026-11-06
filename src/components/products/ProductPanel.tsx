@@ -172,7 +172,7 @@ export function ProductPanel({
         <ImageLightbox
           src={p.image}
           alt={`${p.name} 商品圖片`}
-          label={`${p.id} · ${p.name}`}
+          label={`${p.id} · ${productNameWithCountryFlag(p.name, p.country)}`}
           onClose={() => setPreview(false)}
         />
       )}

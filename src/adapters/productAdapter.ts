@@ -1,3 +1,4 @@
+import { productNameWithCountryFlag } from "@/lib/preorder-product-name";
 import type { Product, Status } from "@/lib/types";
 
 type RecordValue = Record<string, unknown>;
@@ -80,7 +81,10 @@ export const adaptProduct = (raw: unknown): Product => {
             data.preorder_item_name) as string,
         }
       : {}),
-    name: asString(data.name ?? data.title, "未命名商品"),
+    name: productNameWithCountryFlag(
+      asString(data.name ?? data.title, "未命名商品"),
+      asString(data.country),
+    ),
     ownerName: asString(data.ownerName, "未命名使用者"),
     ownerId: asString(data.ownerId ?? data.owner_id),
     work: asString(data.work ?? data.series, "未指定作品"),
