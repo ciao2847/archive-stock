@@ -7,6 +7,10 @@ import { getContrastColor } from "@/lib/claim-form-theme";
 import type { PublicClaimForm } from "@/lib/claims";
 import type { SelectedClaimProduct } from "./types";
 import { currency } from "./format";
+import {
+  fullProductImage,
+  groupClaimProducts,
+} from "@/lib/shared-image-options";
 
 export function ClaimProductSelection({
   form,
@@ -59,34 +63,51 @@ export function ClaimProductSelection({
             </div>
           ) : (
             <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
-              {form.products.map((product) => {
-                const quantity = product.isEnabled
-                  ? (quantities[product.id] ?? 0)
-                  : 0;
+              {groupClaimProducts(form.products).map((group) => {
+                const product = group[0];
+                const multiple = group.length > 1;
+                const sharedPrice =
+                  multiple &&
+                  group.every((item) => item.price === product.price);
+                const imageUrl = product.imageUrl
+                  ? fullProductImage(product.imageUrl)
+                  : undefined;
                 return (
                   <article
                     key={product.id}
-                    className="min-w-0"
-                    aria-label={product.name}
+                    className={
+                      multiple
+                        ? "col-span-full min-w-0 rounded-[9px] border border-[var(--claim-border)] p-3"
+                        : "min-w-0"
+                    }
+                    aria-label={
+                      multiple ? `${product.work} 款式選擇` : product.name
+                    }
                   >
-                    {product.imageUrl ? (
+                    {imageUrl ? (
                       <button
                         type="button"
-                        className={`group block aspect-square w-full overflow-hidden rounded-[9px] border border-[var(--claim-border)] bg-[var(--claim-soft)] p-0 ${product.isEnabled ? "" : "opacity-55 grayscale"}`}
-                        aria-label={`放大查看 ${product.name} 圖片`}
+                        className={`group block ${multiple ? "" : "aspect-square"} w-full overflow-hidden rounded-[9px] border border-[var(--claim-border)] bg-[var(--claim-soft)] p-0 ${group.some((item) => item.isEnabled) ? "" : "opacity-55 grayscale"}`}
+                        aria-label={`放大查看 ${multiple ? product.work : product.name} 圖片`}
                         onClick={() =>
                           setLightboxImage({
-                            src: product.imageUrl!,
+                            src: imageUrl,
                             alt: `${product.name} 商品圖片`,
-                            label: `${product.name} (${currency.format(product.price)})`,
+                            label: multiple
+                              ? `${product.work} · ${group.length} 款`
+                              : `${product.name} (${currency.format(product.price)})`,
                           })
                         }
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={product.imageUrl}
+                          src={imageUrl}
                           alt={`${product.name} 商品圖片`}
-                          className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+                          className={
+                            multiple
+                              ? "block h-auto max-h-[480px] w-full object-contain"
+                              : "h-full w-full object-cover transition group-hover:scale-[1.03]"
+                          }
                           loading="lazy"
                           decoding="async"
                         />
@@ -96,54 +117,104 @@ export function ClaimProductSelection({
                         <ImageIcon size={28} className="opacity-45" />
                       </div>
                     )}
-                    <h3
-                      className="mb-0 mt-2 break-words text-[12px] font-bold leading-5"
-                      style={{ color: surfaceText }}
-                    >
-                      {product.name}
-                    </h3>
-                    <span className="block text-[11px] text-[var(--claim-surface-muted)]">
-                      {product.category}
-                      {product.size ? ` · ${product.size}` : ""}
-                    </span>
-                    <strong
-                      style={{ color: "#D6A84B" }}
-                      className="mt-0.5 block text-[13px]"
-                    >
-                      {currency.format(product.price)}
-                    </strong>
-                    {product.isEnabled ? (
-                      <QuantityStepper
-                        className="mt-2"
-                        style={
-                          {
-                            width: "100%",
-                            "--quantity-border": "var(--claim-border)",
-                            "--quantity-background": "transparent",
-                            "--quantity-color": "var(--claim-surface-text)",
-                            "--quantity-primary": "var(--claim-primary)",
-                            "--quantity-soft": "var(--claim-soft)",
-                          } as CSSProperties
-                        }
-                        value={quantity}
-                        min={0}
-                        max={product.maxQuantity}
-                        itemName={product.name}
-                        label={`${product.name}數量`}
-                        disabled={!form.isOpen || submitting}
-                        onChange={(next) =>
-                          onQuantityChange(
-                            product.id,
-                            next,
-                            product.maxQuantity,
-                          )
-                        }
-                      />
-                    ) : (
-                      <span className="mt-2 block rounded-[8px] bg-[var(--claim-soft)] px-2 py-3 text-center text-[11px] text-[var(--claim-surface-muted)]">
-                        已停止訂購
-                      </span>
+                    {sharedPrice && (
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[12px] text-[var(--claim-surface-muted)]">
+                          所有款式統一單價
+                        </span>
+                        <strong
+                          aria-label="款式統一單價"
+                          style={{ color: "#D6A84B" }}
+                          className="text-[16px]"
+                        >
+                          {currency.format(product.price)}
+                        </strong>
+                      </div>
                     )}
+                    {multiple && (
+                      <p className="mb-1 mt-3 text-[12px] font-semibold text-[var(--claim-surface-muted)]">
+                        各款數量分開選，可同時訂購多款
+                      </p>
+                    )}
+                    <div
+                      className={
+                        multiple ? "grid min-w-0 gap-3 sm:grid-cols-2" : ""
+                      }
+                    >
+                      {group.map((product) => {
+                        const quantity = product.isEnabled
+                          ? (quantities[product.id] ?? 0)
+                          : 0;
+                        return (
+                          <div
+                            key={product.id}
+                            className={
+                              multiple
+                                ? "grid min-w-0 grid-cols-[minmax(0,1fr)_136px] items-center gap-3 rounded-[8px] bg-[var(--claim-soft)] p-3"
+                                : "min-w-0"
+                            }
+                            aria-label={multiple ? product.name : undefined}
+                          >
+                            <div className="min-w-0">
+                              <h3
+                                className={`mb-0 ${multiple ? "mt-0" : "mt-2"} break-words text-[12px] font-bold leading-5`}
+                                style={{ color: surfaceText }}
+                              >
+                                {product.name}
+                              </h3>
+                              {!multiple && (
+                                <span className="block text-[11px] text-[var(--claim-surface-muted)]">
+                                  {product.category}
+                                  {product.size ? ` · ${product.size}` : ""}
+                                </span>
+                              )}
+                              {!sharedPrice && (
+                                <strong
+                                  style={{ color: "#D6A84B" }}
+                                  className="mt-0.5 block text-[13px]"
+                                >
+                                  {currency.format(product.price)}
+                                </strong>
+                              )}
+                            </div>
+                            {product.isEnabled ? (
+                              <QuantityStepper
+                                className={multiple ? "" : "mt-2"}
+                                style={
+                                  {
+                                    width: "100%",
+                                    "--quantity-border": "var(--claim-border)",
+                                    "--quantity-background": "transparent",
+                                    "--quantity-color":
+                                      "var(--claim-surface-text)",
+                                    "--quantity-primary":
+                                      "var(--claim-primary)",
+                                    "--quantity-soft": "var(--claim-soft)",
+                                  } as CSSProperties
+                                }
+                                value={quantity}
+                                min={0}
+                                max={product.maxQuantity}
+                                itemName={product.name}
+                                label={`${product.name}數量`}
+                                disabled={!form.isOpen || submitting}
+                                onChange={(next) =>
+                                  onQuantityChange(
+                                    product.id,
+                                    next,
+                                    product.maxQuantity,
+                                  )
+                                }
+                              />
+                            ) : (
+                              <span className="mt-2 block rounded-[8px] bg-[var(--claim-soft)] px-2 py-3 text-center text-[11px] text-[var(--claim-surface-muted)]">
+                                已停止訂購
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </article>
                 );
               })}

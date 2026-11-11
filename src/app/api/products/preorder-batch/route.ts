@@ -27,14 +27,19 @@ export async function POST(request: Request) {
     const input = parsed.data;
     if (auth.role !== "admin" && input.ownerId !== auth.inventoryOwnerId)
       return apiFailure("只能替自己的庫藏建立預購商品", 403);
-    const { data, error } = await auth.supabase.rpc(
-      "create_preorder_product_batch",
-      {
-        p_owner_id: input.ownerId,
-        p_batch_id: input.requestId,
-        p_items: input.items,
-      },
-    );
+    const args = {
+      p_owner_id: input.ownerId,
+      p_batch_id: input.requestId,
+      p_items: input.items,
+    };
+    const { data, error } = input.sharedImagePaths
+      ? await auth.supabase.rpc("create_shared_image_product_batch", {
+          ...args,
+          p_image_paths: input.sharedImagePaths,
+        })
+      : await auth.supabase.rpc("create_preorder_product_batch", args);
+    if (error?.code === "PGRST202" && input.sharedImagePaths)
+      return apiFailure("整圖多款功能尚未安裝，請先套用最新 migration", 503);
     if (error)
       return apiFailure(
         error.message,

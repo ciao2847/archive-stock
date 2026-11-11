@@ -26,6 +26,7 @@ import { PreorderTextImport } from "./preorder-import/PreorderTextImport";
 import { EditProduct } from "@/components/products/EditProduct";
 import { suggestPreorderWorkName } from "@/lib/preorder-product-name";
 import { NewProduct } from "@/components/products/NewProduct";
+import { SharedImageOptions } from "@/components/products/SharedImageOptions";
 import type { ClaimFormSettings } from "@/lib/claims";
 import type { Product } from "@/lib/types";
 
@@ -118,6 +119,7 @@ export function ClaimProductSettings({
     "all" | "selected" | "unselected"
   >("all");
   const [creatingPreorder, setCreatingPreorder] = useState(false);
+  const [creatingOptions, setCreatingOptions] = useState(false);
   const [importingPreorders, setImportingPreorders] = useState(false);
   const [batchMessage, setBatchMessage] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -619,6 +621,17 @@ export function ClaimProductSettings({
               <button
                 type="button"
                 className="outline text-[13px]"
+                onClick={() => setCreatingOptions(true)}
+                disabled={saving}
+              >
+                <ImageIcon size={16} />
+                整圖多款上架
+              </button>
+            )}
+            {onReloadProducts && (
+              <button
+                type="button"
+                className="outline text-[13px]"
                 onClick={() => setImportingPreorders(true)}
                 disabled={saving}
               >
@@ -650,6 +663,11 @@ export function ClaimProductSettings({
           </div>
         </div>
 
+        {onReloadProducts && (
+          <p className="mb-0 mt-3 text-[12px] leading-6 text-muted">
+            單品可沿用「新增預購商品」；一張圖有多個款式時，可選用「整圖多款上架」，只填一次統一價格與款式名稱。兩種商品可放在同一份訂購頁。
+          </p>
+        )}
         {batchMessage && (
           <p role="status" className="mt-3 text-[13px] text-primary">
             {batchMessage}
@@ -1094,6 +1112,22 @@ export function ClaimProductSettings({
         </div>
       </div>
 
+      {creatingOptions && (
+        <SharedImageOptions
+          key={`${ownerId}:${form?.id ?? title}`}
+          ownerId={ownerId}
+          contextKey={form ? String(form.id) : `draft:${title}`}
+          initialWorkName={suggestPreorderWorkName(title)}
+          onClose={() => setCreatingOptions(false)}
+          onCreated={async (ids) => {
+            await onReloadProducts?.();
+            setSelectedIds((current) => new Set([...current, ...ids]));
+            setBatchMessage(
+              `已建立並加入 ${ids.length} 個共用圖片的款式，請儲存商品設定或發佈訂購頁。`,
+            );
+          }}
+        />
+      )}
       {editingProduct && (
         <EditProduct
           preorderOnly

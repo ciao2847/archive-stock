@@ -12,6 +12,8 @@ npm run dev
 `supabase/migrations/` 內的時間戳 migration 為正式變更來源；歷史手動安裝腳本已移至
 `supabase/legacy/`，請勿在正式環境重複執行。
 
+商品整圖可一次上傳，再批量建立款式，讓客人在同一張圖下分別選各款數量。操作、migration 與驗證方式見 [整圖多款訂購](docs/shared-image-options.md)。
+
 部署目前版本前，需依序套用安全訂單流程及最新的 RLS／商品交易 migration：
 
 ```text

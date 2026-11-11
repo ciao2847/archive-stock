@@ -2,6 +2,7 @@
 .next/
 node_modules/
 .vercel/
+.local/
 .env*
 !.env.example
 supabase/.temp/

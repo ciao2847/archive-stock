@@ -1887,6 +1887,10 @@ export type Database = {
         Args: {p_owner_id: string; p_batch_id: string; p_items: Json}
         Returns: string[]
       }
+      create_shared_image_product_batch: {
+        Args: {p_owner_id: string; p_batch_id: string; p_items: Json; p_image_paths: string[]}
+        Returns: string[]
+      }
       save_named_inventory_product: {
         Args: {p_input: Json; p_owner_id?: string; p_product_id?: string}
         Returns: string

@@ -148,3 +148,45 @@ test("conflicting receipts and unknown results retain their retry semantics", as
   };
   assert.equal((await POST(request())).status, 400);
 });
+
+test("shared-image options use the atomic image batch RPC and reject mismatched uploads", async () => {
+  fixture();
+  const sharedImagePaths = [`${batch}/main.webp`, `${batch}/thumb.webp`];
+  const items = [item, { ...item, itemName: "B款" }];
+  state.batchResult = { data: [owner, other], error: null };
+  assert.equal(
+    (await POST(request({ ...input, items, sharedImagePaths }))).status,
+    200,
+  );
+  assert.deepEqual(state.batchCalls[0], [
+    "create_shared_image_product_batch",
+    {
+      p_owner_id: owner,
+      p_batch_id: batch,
+      p_items: items,
+      p_image_paths: sharedImagePaths,
+    },
+  ]);
+  for (const paths of [
+    [],
+    ["bad", "bad"],
+    [sharedImagePaths[0], `${other}/thumb.webp`],
+  ])
+    assert.equal(
+      (await POST(request({ ...input, items, sharedImagePaths: paths })))
+        .status,
+      400,
+    );
+  assert.equal(
+    (await POST(request({ ...input, sharedImagePaths }))).status,
+    400,
+  );
+  state.batchResult = {
+    data: null,
+    error: { code: "PGRST202", message: "not installed" },
+  };
+  assert.equal(
+    (await POST(request({ ...input, items, sharedImagePaths }))).status,
+    503,
+  );
+});

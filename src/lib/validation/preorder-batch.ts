@@ -51,9 +51,25 @@ export const preorderBatchSchema = z
   .object({
     ownerId: z.string().uuid(),
     requestId: z.string().uuid(),
+    sharedImagePaths: z
+      .tuple([
+        z.string().regex(/^[0-9a-f-]{36}\/main\.webp$/i),
+        z.string().regex(/^[0-9a-f-]{36}\/thumb\.webp$/i),
+      ])
+      .optional(),
     items: z.array(preorderBatchItemSchema).min(1).max(MAX_PREORDER_BATCH),
   })
-  .superRefine(({ items }, context) => {
+  .superRefine(({ items, sharedImagePaths }, context) => {
+    if (
+      sharedImagePaths &&
+      (items.length < 2 ||
+        sharedImagePaths[0].split("/")[0] !== sharedImagePaths[1].split("/")[0])
+    )
+      context.addIssue({
+        code: "custom",
+        message: "整圖多款請提供同一張圖片及至少兩個款式",
+        path: ["sharedImagePaths"],
+      });
     const seen = new Set<string>();
     items.forEach((item, index) => {
       if (items.length > 1 && !item.itemName)
