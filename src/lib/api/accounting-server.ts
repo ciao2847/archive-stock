@@ -3,6 +3,7 @@ import { apiFailure } from "./server-auth";
 
 export function accountingFailure(message: string, code?: string) {
   const messages: Record<string, string> = {
+    "missing product batch costs": "尚有售出商品未填批次成本，請補齊後再結算",
     "invalid financial details": "成本明細格式不正確，請確認日期、項目與金額",
     "cost detail total mismatch": "成本明細合計與總額不一致",
     "invalid profit shares": "請確認分帳對象與比例",

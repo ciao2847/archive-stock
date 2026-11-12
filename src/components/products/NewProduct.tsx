@@ -1,5 +1,6 @@
 "use client";
 
+import { InventoryCostHint } from "./InventoryCostHint";
 import { CloseButton } from "@/components/ui/CloseButton";
 
 import { useDirtyBack } from "@/components/navigation/BackNavigation";
@@ -407,6 +408,7 @@ export function NewProduct({
               </>
             )}
           </div>
+          <InventoryCostHint ownerId={ownerId} />
           {submitError && (
             <p className="upload-error">儲存失敗：{submitError}</p>
           )}

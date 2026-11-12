@@ -15,6 +15,7 @@ import { DataState } from "@/components/ui/DataState";
 import { API_ROUTES } from "@/constants";
 import { OFFICIAL_LINE_ID_PATTERN } from "@/lib/claims";
 import { PushNotificationSettings } from "@/components/notifications/PushNotificationSettings";
+import { InventoryAccountingSettings } from "./InventoryAccountingSettings";
 import styles from "../../../styles/components/settings/SystemSettings.module.scss";
 
 /** 系統設定面板。 */
@@ -171,6 +172,13 @@ export function SystemSettings({
           目前庫藏：{activeInventory?.name ?? "尚未綁定庫藏"}
         </p>
         <div className="grid gap-4">
+          {activeInventory && (
+            <InventoryAccountingSettings
+              key={activeInventory.id}
+              ownerId={activeInventory.id}
+              name={activeInventory.name}
+            />
+          )}
           <PushNotificationSettings
             inventories={inventories}
             isAdmin={isAdmin}

@@ -205,3 +205,70 @@ test("loss reports and combined exports keep negative shares and all saved perio
   assert.equal(combined.getWorksheet("分帳結果")!.getCell("D2").value, -600.01);
   assert.ok((await combined.xlsx.writeBuffer()).byteLength > 1000);
 });
+
+test("FIFO Excel includes sold batch costs alongside expenses and uses the combined cost for shares and all-period totals", async () => {
+  const report: import("../src/lib/accounting-details.ts").AccountingReport = {
+    period: { start: input.start, end: input.end },
+    cost: {
+      id: uid(7),
+      owner_id: uid(1),
+      period_start: input.start,
+      period_end: input.end,
+      amount: 50,
+      notes: "",
+      revision: 1,
+      updated_at: "",
+      cost_entries: [{ ...entries[0], amount: 50 }],
+      share_rules: shares,
+    },
+    preview: {
+      revenue: 3000,
+      order_count: 1,
+      settled: false,
+      blocked_reason: null,
+      accounting_mode: "product_fifo",
+      product_cost: 2200,
+      missing_costs: [],
+      product_cost_details: [
+        {
+          batchId: uid(9),
+          orderId: uid(10),
+          orderNo: "O-1",
+          productId: uid(11),
+          sku: "A001",
+          name: "第一批商品",
+          quantity: 10,
+          unitCost: 180,
+          cost: 1800,
+          receivedAt: "2026-09-01T00:00:00Z",
+        },
+        {
+          batchId: uid(12),
+          orderId: uid(10),
+          orderNo: "O-1",
+          productId: uid(11),
+          sku: "A001",
+          name: "第二批商品",
+          quantity: 2,
+          unitCost: 200,
+          cost: 400,
+          receivedAt: "2026-09-02T00:00:00Z",
+        },
+      ],
+    },
+    settlementNo: null,
+    orders: [],
+  };
+  const wb = await buildAccountingWorkbook(report);
+  const summary = wb.getWorksheet("收支總覽")!;
+  assert.equal(summary.getCell(7, 2).value, 2250);
+  assert.equal(summary.getCell(8, 2).value, 750);
+  const costs = wb.getWorksheet("成本明細")!;
+  assert.equal(costs.getCell(3, 4).value, 1800);
+  assert.equal(costs.getCell(4, 4).value, 400);
+  assert.equal(costs.getCell(5, 4).value, 2250);
+  assert.equal(wb.getWorksheet("分帳結果")!.getCell(2, 3).value, 450);
+  const combined = await buildCombinedAccountingWorkbook([report]);
+  assert.equal(combined.getWorksheet("收支總覽")!.getCell(2, 4).value, 2250);
+  assert.equal(combined.getWorksheet("收支總覽")!.getCell(3, 4).value, 2250);
+});

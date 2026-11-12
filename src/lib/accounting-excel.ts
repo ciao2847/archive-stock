@@ -1,10 +1,18 @@
 import ExcelJS from "exceljs";
 import { allocateProfit, type AccountingReport } from "./accounting-details";
 
+function totalCost(report: AccountingReport) {
+  return (
+    Math.round(
+      ((report.cost?.amount ?? 0) + (report.preview.product_cost ?? 0)) * 100,
+    ) / 100
+  );
+}
+
 export async function buildAccountingWorkbook(report: AccountingReport) {
   if (!report.cost) throw new Error("請先儲存本期成本再匯出");
   const { cost, preview, orders } = report;
-  const profit = Math.round((preview.revenue - cost.amount) * 100) / 100;
+  const profit = Math.round((preview.revenue - totalCost(report)) * 100) / 100;
   const shares = allocateProfit(profit, cost.share_rules ?? []);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ARCHIVE STOCK";
@@ -20,7 +28,7 @@ export async function buildAccountingWorkbook(report: AccountingReport) {
     ["結算編號", report.settlementNo ?? ""],
     ["成本版本", cost.revision],
     ["營收（不含買家運費）", preview.revenue],
-    ["成本總額", cost.amount],
+    ["成本總額", totalCost(report)],
     ["本期盈虧", profit],
     ["可分配盈虧", profit],
     [
@@ -103,7 +111,18 @@ export async function buildAccountingWorkbook(report: AccountingReport) {
       entry.notes,
     ]),
   );
-  costSheet.addRow(["", "", "合計", cost.amount, ""]);
+  for (const item of preview.product_cost_details ?? []) {
+    costSheet.addRow([
+      new Date(item.receivedAt).toLocaleDateString("sv-SE", {
+        timeZone: "Asia/Taipei",
+      }),
+      "售出商品成本",
+      `${item.sku} · ${item.name}`,
+      item.cost ?? 0,
+      `訂單 ${item.orderNo}；批次 ${item.batchId}；${item.quantity} 件 × ${item.unitCost ?? "未填"}`,
+    ]);
+  }
+  costSheet.addRow(["", "", "合計", totalCost(report), ""]);
   costSheet.getColumn(4).numFmt = "#,##0.00";
   const shareSheet = workbook.addWorksheet("分帳結果");
   shareSheet.columns = [
@@ -171,7 +190,7 @@ export async function buildCombinedAccountingWorkbook(
     if (!report.cost) continue;
     const period = `${report.period.start} ～ ${report.period.end}`;
     const profit =
-      Math.round((report.preview.revenue - report.cost.amount) * 100) / 100;
+      Math.round((report.preview.revenue - totalCost(report)) * 100) / 100;
     const allocated =
       allocateProfit(profit, report.cost.share_rules ?? []).reduce(
         (sum, row) => sum + Math.round(row.amount * 100),
@@ -181,7 +200,7 @@ export async function buildCombinedAccountingWorkbook(
       period,
       report.preview.settled ? "已結算" : "未結算預覽",
       report.preview.revenue,
-      report.cost.amount,
+      totalCost(report),
       profit,
       allocated,
       Math.round((profit - allocated) * 100) / 100,
@@ -218,8 +237,8 @@ export async function buildCombinedAccountingWorkbook(
           (column === 3
             ? report.preview.revenue
             : column === 4
-              ? (report.cost?.amount ?? 0)
-              : report.preview.revenue - (report.cost?.amount ?? 0)) * 100,
+              ? totalCost(report)
+              : report.preview.revenue - totalCost(report)) * 100,
         ),
       0,
     ) / 100;

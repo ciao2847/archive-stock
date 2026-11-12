@@ -1,5 +1,6 @@
 "use client";
 
+import { InventoryCostHint } from "./InventoryCostHint";
 import { CloseButton } from "@/components/ui/CloseButton";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { Spinner } from "@/components/ui/Spinner";
@@ -501,6 +502,7 @@ export function EditProduct({
                   <p className="upload-error">功能描述最多 2,000 字元</p>
                 )}
               </section>
+              <InventoryCostHint ownerId={product.ownerId} />
               {error && (
                 <ErrorMessage className="upload-error">
                   更新失敗：{error}

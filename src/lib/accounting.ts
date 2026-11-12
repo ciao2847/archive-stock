@@ -96,6 +96,10 @@ export type AccountingData = {
     order_count: number;
     settled: boolean;
     blocked_reason: string | null;
+    accounting_mode?: import("./inventory-costs").AccountingMode;
+    product_cost?: number;
+    product_cost_details?: import("./inventory-costs").ProductCostDetail[];
+    missing_costs?: import("./inventory-costs").MissingProductCost[];
   };
   history: Settlement[];
   revisions: Array<{

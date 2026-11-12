@@ -47,6 +47,8 @@ export async function GET(request: Request) {
       if (error) return accountingFailure(error.message, error.code);
       const report = data as unknown as AccountingReport;
       if (!report.cost) return apiFailure("請先儲存本期成本再匯出", 409);
+      if (report.preview.missing_costs?.length)
+        return apiFailure("請先補齊商品批次成本再匯出", 409);
       if (report.preview.blocked_reason)
         return apiFailure(report.preview.blocked_reason, 409);
       const revenueCents = report.orders.reduce(

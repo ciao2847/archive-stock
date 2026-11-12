@@ -110,7 +110,6 @@ order rows. Corrections affect only the selected record. Validate with
 `node --experimental-strip-types --test tests/customer-name-api.test.mts tests/customer-name-db.test.mts`,
 `node tests/browser/customer-name.browser.mjs` and the phone editor browser suite.
 
-
 ### 預售商品合併至已入庫商品
 
 `20261106013840_merge_preorders_into_inventory.sql` 增加預覽／確認合併 RPC，以及合併紀錄與已停用商品的寫入防護。部署順序為先套用此遷移，再部署使用 `merged_into_product_id` 的商品／庫位 API 和合併介面。前置資料結構包含 `20261020033449_connect_claims_to_packing.sql`、庫位分配，以及 `20261102090000_receive_bundle_products_into_inventory.sql`。
@@ -120,3 +119,28 @@ order rows. Corrections affect only the selected record. Validate with
 本機驗證：`node --experimental-strip-types --test tests/product-merge-api.test.mts tests/product-merge-db.test.mts`；完成 build 後可執行 `node tests/browser/product-merge.browser.mjs`。資料庫測試使用 PGlite 執行正式交易、參照防護與真實包貨同步觸發器。CLI security advisors 需要可連線的本機 Supabase；此工作區未啟動 54322 服務，無法執行完整 advisors，部署前應在已套用遷移的環境執行。
 
 部署不會自動選配或合併正式資料。已完成的合併不應透過移除合併欄位回滾；若需撤回介面，保留資料庫的合併紀錄與防護。
+
+### 庫藏別結算與 FIFO 批次成本
+
+`20261112013316_inventory_fifo_cost_accounting.sql` 新增庫藏結算模式。部署順序為先執行 migration，再部署應用程式；此 migration 不會重算或改寫任何舊結算。
+
+- 海報小天地及其他庫藏預設維持帳期成本。原始遷移比對簡稱「佛系代購」，實際完整名稱經確認為「NN佛系海報代購」；請接著執行 `20261112021946_correct_nn_inventory_accounting_mode.sql` 修復啟用。也可於新版網站的「設定 → 庫藏結算方式」明確啟用。
+- 初次啟用時，現有庫存與未結算的已包裝數量建立期初批次，成本維持「未填」，不會把舊的商品成本或零元當成已確認成本。若舊批次不可區分，可填入已核對的平均單件成本。
+- 新增商品、入庫或增加庫存後會自動建立新批次。開啟商品資料的「進貨批次與成本」，逐批填寫 TWD 單件成本與備註。零成本須明確輸入 `0`。
+- 批次依建立時間先進先出；部分包裝先保留成本批次，整單已包裝／已出貨才沿用原有雙月歸帳規則。未結算訂單減量或取消時，庫存回補會釋放原批次，不會新增假進貨批次。
+- 手動減少庫存會列為批次的庫存調整減量，不計入售出商品成本；需要把報損列入當期費用時，應另以額外費用登錄。
+- FIFO 模式的原有帳期成本明細代表「額外費用」。若啟用前已填商品購入總額，請先人工核對並移除與商品批次成本重複的費用。已包含於單件成本的運費不得再次列入額外費用。
+- 會計頁顯示每筆售出的訂單、商品、進貨日、數量、單件成本與小計；缺漏可在會計頁展開商品直接補登。缺少成本時可以銷售，但不得結算或匯出可能不完整的報表。
+- 結算合計為「售出批次成本＋額外費用」。結算保存成本模式、商品成本與明細快照；已使用於結算的批次成本不可再改，已結算訂單項目也不能修改。剩餘批次數量仍可在後續銷售使用。
+- 已建立成本批次後，禁止切回帳期成本模式，避免同一套庫存中斷成本追蹤。
+- 新表開啟 RLS，成員僅可讀取自身庫藏；成本與模式寫入走具有庫藏授權檢查的 RPC。authenticated 無直接批次寫入權限，anon 無讀寫權限。
+
+驗證：`node --experimental-strip-types --test tests/inventory-fifo-db.test.mts` 使用 PGlite 執行實際 migration 與 SQL，涵蓋跨批次、部分包裝、庫存調整、訂單回補、缺漏成本、零元、版本衝突、結算鎖定與租戶隔離。`node tests/browser/inventory-fifo.browser.mjs` 驗證手機與桌面成本補登與會計更新。
+
+#### 已執行初始遷移時的名稱修復
+
+若 `20261112013316_inventory_fifo_cost_accounting.sql` 已執行成功，但實際名稱為「NN佛系海報代購」，僅需接著執行 `20261112021946_correct_nn_inventory_accounting_mode.sql`，無需重跑原始遷移。
+
+修復檔可由 Supabase SQL Editor 的 `postgres` 角色完整執行。它會確認名稱唯一，透過現有管理員及已檢查權限的啟用流程建立期初成本批次；沒有管理員、找不到名稱或找到重複名稱會明確報錯。交易後恢復身分設定，不修改 RLS 或任何函式權限。可重複執行，不會覆蓋已填成本或重複建立批次。
+
+執行結果直接列出「NN佛系海報代購」與「海報小天地」的名稱、結算模式及批次數。預期前者為 `product_fifo`，後者維持 `period_total`。這仍屬資料庫更新，網站程式需要另外部署後才有填寫成本的介面。

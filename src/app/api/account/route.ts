@@ -24,7 +24,7 @@ export async function GET() {
     const { data: inventory, error: inventoryError } = await auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
+        "id,name,accounting_mode,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
       )
       .eq("id", auth.inventoryOwnerId)
       .maybeSingle();
@@ -94,7 +94,7 @@ export async function GET() {
     auth.supabase
       .from("inventory_databases")
       .select(
-        "id,name,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
+        "id,name,accounting_mode,qr_destination_url,qr_shopee_destination_url,qr_other_destination_url,official_line_id,claim_completion_message,claim_transfer_enabled,claim_bank_code,claim_bank_name,claim_bank_branch,claim_bank_account,claim_bank_account_name",
       )
       .order("name"),
     auth.supabase
@@ -122,9 +122,51 @@ export async function GET() {
   }
 
   const canonicalOwners = inventories ?? [];
+  // Period amount holds manually entered expenses; FIFO product costs are additional.
+  const costBreakdowns = await Promise.all(
+    (costs ?? []).map(async (cost) => {
+      if (
+        canonicalOwners.find((owner) => owner.id === cost.owner_id)
+          ?.accounting_mode !== "product_fifo"
+      )
+        return cost;
+      if (
+        (snapshots ?? []).some(
+          (row) =>
+            row.owner_id === cost.owner_id &&
+            row.period_start === cost.period_start,
+        )
+      )
+        return cost;
+      const { data, error } = await auth.supabase.rpc(
+        "get_financial_product_costs",
+        {
+          p_owner_id: cost.owner_id,
+          p_start: cost.period_start,
+          p_end: cost.period_end,
+        },
+      );
+      if (error) return { error };
+      const productCosts = data as { total?: number } | null;
+      return {
+        ...cost,
+        amount: toNumber(cost.amount) + (productCosts?.total ?? 0),
+      };
+    }),
+  );
+  const costBreakdownError = costBreakdowns.find((row) => "error" in row);
+  if (costBreakdownError && "error" in costBreakdownError)
+    return apiFailure(
+      "商品成本總覽載入失敗，請確認資料庫已更新",
+      400,
+      costBreakdownError.error.code,
+    );
+  const completeCosts = costBreakdowns.filter(
+    (row): row is NonNullable<typeof costs>[number] => !("error" in row),
+  );
   const financeByOwner = buildFinanceOverview(
     canonicalOwners.map((owner) => owner.id),
-    costs ?? [],
+    completeCosts,
     (snapshots ?? []).map((row) => ({ ...row, profit: toNumber(row.profit) })),
     (sales ?? []).map((row) => ({
       ...row,

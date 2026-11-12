@@ -13,6 +13,7 @@ import { Product } from "@/lib/types";
 import { deleteProduct as deleteProductApi } from "@/lib/api/products";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { createClient } from "@/utils/supabase/client";
+import { ProductBatchCosts } from "./ProductBatchCosts";
 import { EditProduct } from "./EditProduct";
 import { DataState } from "@/components/ui/DataState";
 import { buildPublicQrUrl } from "@/lib/public-qr";
@@ -153,6 +154,7 @@ export function ProductPanel({
             移動庫位
           </button>
         </div>
+        {p.dbId && <ProductBatchCosts productId={p.dbId} />}
         {p.dbId && (
           <QrLabels productId={p.dbId} sku={p.id} memberPrice={p.price} />
         )}

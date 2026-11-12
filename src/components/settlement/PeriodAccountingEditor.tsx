@@ -1,5 +1,7 @@
 "use client";
 
+import type { MissingProductCost } from "@/lib/inventory-costs";
+import { ProductBatchCosts } from "@/components/products/ProductBatchCosts";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 
@@ -127,9 +129,13 @@ export function PeriodAccountingEditor({
     confirmed: true as const,
   };
   const validation = periodDetailsSchema.safeParse(input);
-  const total = sumCostEntries(
+  const extraCost = sumCostEntries(
     numericEntries.filter((entry) => Number.isFinite(entry.amount)),
   );
+  const productCost = data.preview.product_cost ?? 0;
+  const fifo = data.preview.accounting_mode === "product_fifo";
+  const missingCosts = data.preview.missing_costs ?? [];
+  const total = Math.round((extraCost + productCost) * 100) / 100;
   const profit = Math.round((data.preview.revenue - total) * 100) / 100;
   const ratio = shares.reduce(
     (sum, share) => sum + (Number(share.percent) || 0),
@@ -183,6 +189,7 @@ export function PeriodAccountingEditor({
   }
   async function settle() {
     if (!data.cost || dirty) throw new Error("請先儲存成本與分帳設定");
+    if (missingCosts.length) throw new Error("請先補齊商品批次成本");
     if (
       !window.confirm(
         `本期營收 ${money(data.preview.revenue)}、成本 ${money(total)}、盈虧 ${money(profit)}。結算後將鎖定成本與分帳比例，確定結算？`,
@@ -208,7 +215,9 @@ export function PeriodAccountingEditor({
             value: total,
             icon: ReceiptText,
             tone: "cost",
-            caption: `共 ${entries.length} 筆成本明細`,
+            caption: fifo
+              ? `商品成本 ${money(productCost)}＋額外費用 ${money(extraCost)}`
+              : `共 ${entries.length} 筆成本明細`,
           },
           {
             label: locked ? "本期盈虧" : "預估盈虧",
@@ -232,6 +241,63 @@ export function PeriodAccountingEditor({
           </article>
         ))}
       </div>
+      {fifo && (
+        <section
+          className={`card ${styles.section} ${styles.productCosts}`}
+          aria-label="本期售出商品成本"
+        >
+          <h2>本期售出商品成本 · {money(productCost)}</h2>
+          <p>
+            依先進先出批次計算，未售出庫存不列入本期成本。額外費用請於下方逐筆新增。
+          </p>
+          {missingCosts.length > 0 && (
+            <ErrorMessage>
+              尚有商品未填批次成本，請展開下列商品補齊。也可以在商品資料的「進貨批次與成本」編輯。
+            </ErrorMessage>
+          )}
+          {missingCosts.map((item) => (
+            <MissingCostEditor key={item.productId} item={item} />
+          ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th>訂單</th>
+                  <th>商品</th>
+                  <th>批次進貨日</th>
+                  <th>售出數量</th>
+                  <th>單件成本</th>
+                  <th>成本小計</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.preview.product_cost_details ?? []).map((item) => (
+                  <tr key={`${item.orderId}:${item.batchId}`}>
+                    <td>{item.orderNo}</td>
+                    <td>
+                      {item.sku} · {item.name}
+                    </td>
+                    <td>
+                      {new Date(item.receivedAt).toLocaleDateString("zh-TW", {
+                        timeZone: "Asia/Taipei",
+                      })}
+                    </td>
+                    <td>{item.quantity}</td>
+                    <td>
+                      {item.unitCost === null
+                        ? "尚未填寫"
+                        : money(item.unitCost)}
+                    </td>
+                    <td>
+                      {item.cost === null ? "尚未填寫" : money(item.cost)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       <section
         className={`card ${styles.section} ${styles.detail}`}
         aria-label="帳期成本與分帳"
@@ -288,7 +354,9 @@ export function PeriodAccountingEditor({
         )}
         <fieldset disabled={locked || working} className={styles.fieldset}>
           <div className={styles.heading}>
-            <h3>成本明細 · {entries.length} 筆</h3>
+            <h3>
+              {fifo ? "額外費用明細" : "成本明細"} · {entries.length} 筆
+            </h3>
             <button
               type="button"
               className="outline"
@@ -300,7 +368,7 @@ export function PeriodAccountingEditor({
                   {
                     id: crypto.randomUUID(),
                     date: period.start,
-                    category: "商品購入",
+                    category: fifo ? "其他" : "商品購入",
                     name: "",
                     amount: "",
                     notes: "",
@@ -405,8 +473,8 @@ export function PeriodAccountingEditor({
             {!entries.length && <p className={styles.empty}>尚無成本明細</p>}
           </div>
           <div className={styles.total}>
-            <span>成本合計</span>
-            <strong>{money(total)}</strong>
+            <span>{fifo ? "額外費用合計" : "成本合計"}</span>
+            <strong>{money(extraCost)}</strong>
           </div>
           <div className={styles.heading}>
             <div>
@@ -599,7 +667,10 @@ export function PeriodAccountingEditor({
           <div className={styles.checklist}>
             <h3>結算前檢查</h3>
             {[
-              { label: "成本資料已核對", done: Boolean(data.cost) && !dirty },
+              {
+                label: "成本資料已核對",
+                done: Boolean(data.cost) && !dirty && !missingCosts.length,
+              },
               {
                 label: shares.length ? "分帳比例合計 100%" : "不設定分帳",
                 done: !shares.length || Math.round(ratio * 100) === 10000,
@@ -622,7 +693,7 @@ export function PeriodAccountingEditor({
           <button
             type="button"
             className="primary"
-            disabled={working || dirty || !data.cost}
+            disabled={working || dirty || !data.cost || missingCosts.length > 0}
             onClick={() => void run(settle)}
           >
             <WalletCards size={16} />
@@ -631,5 +702,17 @@ export function PeriodAccountingEditor({
         </section>
       )}
     </div>
+  );
+}
+
+function MissingCostEditor({ item }: { item: MissingProductCost }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer text-danger-strong">
+        {item.sku} · {item.name}：{item.quantity} 件缺少成本，展開補登
+      </summary>
+      {open && <ProductBatchCosts productId={item.productId} />}
+    </details>
   );
 }

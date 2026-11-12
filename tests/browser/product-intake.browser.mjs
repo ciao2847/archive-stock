@@ -135,7 +135,7 @@ try {
   await page.getByRole("button", { name: "儲存商品", exact: true }).click();
   await page.waitForFunction(() => Boolean(window.savedProduct));
   const saved = await page.evaluate(() => window.savedProduct);
-  assert.equal(saved.name, "測試海報");
+  assert.equal(saved.name, "🇰🇷 測試海報");
   assert.equal(saved.price, 1200);
   assert.equal(saved.country, "韓國");
   assert.equal(saved.location, "A-01-01");

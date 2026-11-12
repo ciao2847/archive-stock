@@ -647,8 +647,21 @@ export type Database = {
           },
         ]
       }
+      inventory_cost_batches: {
+        Row: { id: string; owner_id: string; product_id: string; quantity: number; written_off: number; unit_cost: number | null; received_at: string; notes: string; revision: number; updated_at: string }
+        Insert: { id?: string; owner_id: string; product_id: string; quantity: number; written_off?: number; unit_cost?: number | null; received_at?: string; notes?: string; revision?: number; updated_at?: string }
+        Update: { unit_cost?: number | null; notes?: string; revision?: number; written_off?: number }
+        Relationships: []
+      }
+      inventory_cost_allocations: {
+        Row: { batch_id: string; order_item_id: string; quantity: number }
+        Insert: { batch_id: string; order_item_id: string; quantity: number }
+        Update: { quantity?: number }
+        Relationships: []
+      }
       inventory_databases: {
         Row: {
+          accounting_mode: "period_total" | "product_fifo"
           bundle_menu_enabled: boolean
           bundle_menu_token: string
           claim_bank_account: string | null
@@ -676,6 +689,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accounting_mode?: "period_total" | "product_fifo"
           bundle_menu_enabled?: boolean
           bundle_menu_token?: string
           claim_bank_account?: string | null
@@ -703,6 +717,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accounting_mode?: "period_total" | "product_fifo"
           bundle_menu_enabled?: boolean
           bundle_menu_token?: string
           claim_bank_account?: string | null
@@ -1525,6 +1540,9 @@ export type Database = {
       }
       settlements: {
         Row: {
+          accounting_mode: string
+          product_cost: number
+          product_cost_details: Json
           cost: number
           cost_source: string
           created_at: string
@@ -1538,6 +1556,9 @@ export type Database = {
           settlement_no: string
         }
         Insert: {
+          accounting_mode?: string
+          product_cost?: number
+          product_cost_details?: Json
           cost?: number
           cost_source?: string
           created_at?: string
@@ -1551,6 +1572,9 @@ export type Database = {
           settlement_no?: string
         }
         Update: {
+          accounting_mode?: string
+          product_cost?: number
+          product_cost_details?: Json
           cost?: number
           cost_source?: string
           created_at?: string
@@ -1633,6 +1657,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_manual_financial_period_preview: { Args: { p_owner_id: string; p_start: string; p_end: string }; Returns: Json }
+      get_inventory_product_costs: { Args: { p_product_id: string }; Returns: Json }
+      get_financial_product_costs: { Args: { p_owner_id: string; p_start: string; p_end: string }; Returns: Json }
+      save_inventory_batch_cost: { Args: { p_batch_id: string; p_unit_cost: number; p_notes: string; p_expected_revision: number }; Returns: undefined }
+      set_inventory_accounting_mode: { Args: { p_owner_id: string; p_mode: string }; Returns: undefined }
       merge_preorder_product: {
         Args: {
           p_owner_id: string
