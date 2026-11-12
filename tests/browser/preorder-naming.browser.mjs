@@ -91,6 +91,14 @@ try {
     await page.addInitScript(() => {
       window.confirm = () => true;
     });
+    await page.route("**/api/inventory-costs**", (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: { mode: "period_total", batches: [], unitCost: null },
+        },
+      }),
+    );
     await page.goto(url);
     await page
       .getByRole("button", { name: "建立預購商品", exact: true })

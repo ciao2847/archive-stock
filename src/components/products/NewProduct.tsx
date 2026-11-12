@@ -1,6 +1,7 @@
 "use client";
 
-import { InventoryCostHint } from "./InventoryCostHint";
+import { useProductCostDraft } from "@/hooks/useProductCostDraft";
+import { ProductCostFields } from "./ProductCostFields";
 import { CloseButton } from "@/components/ui/CloseButton";
 
 import { useDirtyBack } from "@/components/navigation/BackNavigation";
@@ -59,6 +60,7 @@ export function NewProduct({
   initialWorkName?: string;
   requireItemName?: boolean;
 }) {
+  const costDraft = useProductCostDraft(ownerId);
   const [locationOptions, setLocationOptions] = useState<
     Array<{ code: string; name: string }>
   >([]);
@@ -163,6 +165,7 @@ export function NewProduct({
     setSubmitError("");
     const imagePaths: string[] = [];
     try {
+      const costInput = costDraft.input();
       if (image) {
         const variants = await createProductImageVariants(image);
         const uploaded = await uploadProductImages(
@@ -196,6 +199,7 @@ export function NewProduct({
             ? 0
             : toNumber(values.stock, DEFAULT_VALUES.productStock),
           price: toNumber(values.price),
+          ...costInput,
           imagePaths,
           format:
             values.category === POSTER_CATEGORY ? values.format || "" : "",
@@ -307,6 +311,7 @@ export function NewProduct({
                     required
                   />
                 </Field>
+                <ProductCostFields draft={costDraft} />
               </>
             ) : (
               <>
@@ -340,6 +345,7 @@ export function NewProduct({
                     required
                   />
                 </Field>
+                <ProductCostFields draft={costDraft} />
                 <Field
                   label="存放格位（選填）"
                   error={errors.location?.message}
@@ -408,7 +414,6 @@ export function NewProduct({
               </>
             )}
           </div>
-          <InventoryCostHint ownerId={ownerId} />
           {submitError && (
             <p className="upload-error">儲存失敗：{submitError}</p>
           )}
@@ -421,7 +426,7 @@ export function NewProduct({
             >
               取消
             </button>
-            <button className="primary" disabled={saving}>
+            <button className="primary" disabled={saving || costDraft.loading}>
               {saving ? "儲存中…" : preorderOnly ? "建立預購商品" : "儲存商品"}
             </button>
           </div>

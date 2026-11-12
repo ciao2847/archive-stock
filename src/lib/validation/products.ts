@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { unitCostSchema } from "@/lib/inventory-costs";
 
 import { buildPreorderProductName } from "@/lib/preorder-product-name";
 import { COUNTRIES, LOCATION_CODE_PATTERN } from "@/constants";
@@ -12,6 +13,7 @@ const productBaseSchema = z.object({
   location: z.string().regex(LOCATION_CODE_PATTERN),
   stock: z.number().int().min(0).max(1000),
   price: z.number().nonnegative(),
+  unitCost: unitCostSchema.optional(),
   format: z.string().max(100),
   size: z.string().max(100),
   description: z
@@ -59,11 +61,25 @@ export const createProductSchema = productBaseSchema
 export const updateProductSchema = productBaseSchema
   .extend({
     work: z.string().trim().min(1).max(300).optional(),
+    costBatchId: z.string().uuid().optional(),
+    expectedCostRevision: z.number().int().positive().optional(),
     crafts: z.array(z.string().max(100)).max(30).optional(),
     imagePaths: z.array(z.string().min(1).max(1000)).max(2).optional(),
     location: z.union([z.string().regex(LOCATION_CODE_PATTERN), z.literal("")]),
   })
-  .superRefine(validatePreorderNaming);
+  .superRefine((product, context) => {
+    validatePreorderNaming(product, context);
+    if (
+      (product.costBatchId === undefined) !==
+        (product.expectedCostRevision === undefined) ||
+      (product.costBatchId !== undefined && product.unitCost === undefined)
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["unitCost"],
+        message: "請重新載入商品批次成本",
+      });
+  });
 
 function validatePreorderNaming(
   product: { work?: string; country: string; preorderItemName?: string },

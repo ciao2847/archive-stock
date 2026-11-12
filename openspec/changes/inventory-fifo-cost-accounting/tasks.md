@@ -20,3 +20,8 @@
 ## 4. Confirmed inventory names
 - [x] 4.1 Add an owner-run follow-up migration for the confirmed NN佛系海報代購 name, preserving 海報小天地 and existing batches; verify activation after the original migration, SQL Editor without JWT, repeat execution and permission rejection in PGlite.
 - Follow-up repair verified with SQL Editor-style empty auth context, existing unsettled sales, retained entered costs, repeated execution, restricted caller rejection, and missing/duplicate name rejection.
+
+## 5. Direct per-poster cost entry
+- [x] 5.1 Add a nullable poster unit cost and atomic product/cost save RPC; verify create, zero-stock, new receipts, existing batches, revision rollback and tenant access with SQL tests.
+- [x] 5.2 Add direct cost fields to product creation/editing and validated API routing; verify browser tests for FIFO and manual inventories plus API validation.
+- [ ] 5.3 Run checks, apply the prepared migration if connection access is available, and synchronize GitHub and deployment; report the verified release state.

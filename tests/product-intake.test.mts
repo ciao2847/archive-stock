@@ -64,3 +64,31 @@ test("separate preorder workflow remains available without images or country", (
     false,
   );
 });
+
+test("poster unit cost accepts zero, validates cents, and requires an existing batch revision", () => {
+  assert.equal(
+    createProductSchema.safeParse({ ...input, unitCost: 0 }).success,
+    true,
+  );
+  for (const unitCost of [-1, 0.001, Infinity, null])
+    assert.equal(
+      createProductSchema.safeParse({ ...input, unitCost }).success,
+      false,
+    );
+  assert.equal(
+    updateProductSchema.safeParse({
+      ...input,
+      unitCost: 180,
+      costBatchId: "00000000-0000-4000-8000-000000000001",
+      expectedCostRevision: 1,
+    }).success,
+    true,
+  );
+  assert.equal(
+    updateProductSchema.safeParse({
+      ...input,
+      costBatchId: "00000000-0000-4000-8000-000000000001",
+    }).success,
+    false,
+  );
+});

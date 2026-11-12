@@ -1,6 +1,7 @@
 "use client";
 
-import { InventoryCostHint } from "./InventoryCostHint";
+import { useProductCostDraft } from "@/hooks/useProductCostDraft";
+import { ProductCostFields } from "./ProductCostFields";
 import { CloseButton } from "@/components/ui/CloseButton";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { Spinner } from "@/components/ui/Spinner";
@@ -44,6 +45,7 @@ export function EditProduct({
   onUpdated: () => void | Promise<void>;
   preorderOnly?: boolean;
 }) {
+  const costDraft = useProductCostDraft(product.ownerId, product.dbId);
   const namedPreorder = product.preorderItemName !== undefined;
   const [form, setForm] = useState({
     work: product.work,
@@ -117,7 +119,9 @@ export function EditProduct({
           await uploadProductImages(variants.main, variants.thumbnail)
         ).paths;
       }
+      const costInput = costDraft.input(nextStock - product.stock);
       await updateProduct(product.dbId, {
+        ...costInput,
         crafts: form.category === POSTER_CATEGORY ? crafts : [],
         imagePaths,
         name: displayName.trim(),
@@ -430,7 +434,7 @@ export function EditProduct({
                       onChange={(e) => change("stock", e.target.value)}
                     />
                   </Field>
-                  <Field label="會員價（每件，定價另加 150）" wide>
+                  <Field label="會員價（每件，定價另加 150）">
                     <input
                       type="number"
                       min="0"
@@ -438,6 +442,10 @@ export function EditProduct({
                       onChange={(e) => change("price", e.target.value)}
                     />
                   </Field>
+                  <ProductCostFields
+                    draft={costDraft}
+                    stockIncrease={Number(form.stock) - product.stock}
+                  />
                 </div>
               </section>
               {form.category === POSTER_CATEGORY && (
@@ -502,7 +510,6 @@ export function EditProduct({
                   <p className="upload-error">功能描述最多 2,000 字元</p>
                 )}
               </section>
-              <InventoryCostHint ownerId={product.ownerId} />
               {error && (
                 <ErrorMessage className="upload-error">
                   更新失敗：{error}
@@ -519,7 +526,11 @@ export function EditProduct({
             >
               取消
             </button>
-            <button type="submit" className="primary" disabled={saving}>
+            <button
+              type="submit"
+              className="primary"
+              disabled={saving || costDraft.loading}
+            >
               {saving ? <Spinner size={17} /> : <Save size={17} />}
               {saving ? "儲存中…" : "儲存修改"}
             </button>

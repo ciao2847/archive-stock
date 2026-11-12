@@ -1,18 +1,19 @@
 import { z } from "zod";
 export const accountingModeSchema = z.enum(["period_total", "product_fifo"]);
 export type AccountingMode = z.infer<typeof accountingModeSchema>;
+export const unitCostSchema = z
+  .number()
+  .finite()
+  .min(0)
+  .max(9_999_999_999.99)
+  .refine(
+    (value) => Math.abs(value * 100 - Math.round(value * 100)) < 0.001,
+    "成本最多兩位小數",
+  );
 export const batchCostSchema = z
   .object({
     batchId: z.string().uuid(),
-    unitCost: z
-      .number()
-      .finite()
-      .min(0)
-      .max(9_999_999_999.99)
-      .refine(
-        (value) => Math.abs(value * 100 - Math.round(value * 100)) < 0.001,
-        "成本最多兩位小數",
-      ),
+    unitCost: unitCostSchema,
     notes: z.string().trim().max(1000),
     expectedRevision: z.number().int().positive(),
   })
@@ -28,7 +29,11 @@ export type CostBatch = {
   revision: number;
   locked: boolean;
 };
-export type ProductBatchCosts = { mode: AccountingMode; batches: CostBatch[] };
+export type ProductBatchCosts = {
+  mode: AccountingMode;
+  unitCost?: number | null;
+  batches: CostBatch[];
+};
 export type ProductCostDetail = {
   batchId: string;
   orderId: string;

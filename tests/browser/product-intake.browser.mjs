@@ -112,6 +112,14 @@ await page.route("**/api/locations**", (route) =>
   }),
 );
 try {
+  await page.route("**/api/inventory-costs**", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: { mode: "period_total", batches: [], unitCost: null },
+      },
+    }),
+  );
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   assert.equal(await page.getByText("作品名稱", { exact: true }).count(), 0);
   await page.getByLabel("名稱（必填）").fill("測試海報");

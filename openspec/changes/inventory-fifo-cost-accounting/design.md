@@ -21,3 +21,6 @@ Non-Goals: 外幣換算、法定財務報表、已結算歷史重算。
 
 ## Migration Plan
 先套用新 migration，再部署程式。原始遷移以簡稱「佛系代購」初始化；後續修復遷移依使用者確認的完整名稱「NN佛系海報代購」定位唯一庫藏，再使用既有啟用流程建立期初批次。修復使用資料庫擁有者執行，交易內採用現有管理員身分並立即恢復，不變更任何 RLS 或授權。海報小天地維持帳期成本。修復可重複執行而不重建批次或覆蓋成本。先備份後回滾，已有結算時不移除帳務資料。
+
+## Direct poster cost input
+Add products.purchase_unit_cost as a nullable default for each poster, including zero-stock preorders. New receipts inherit this default, while previously received lots remain independent. The existing product-cost read RPC returns this default alongside batches. A checked private wrapper with an invoker public entry point saves ordinary or named product metadata, stock, the per-poster default, and any selected batch cost in one transaction. Existing product RPCs remain available for manual inventories and clients that omit cost. A new receipt's price never overwrites old batches; edits to existing batches require their revision and reject locked settled lots. Product forms load accounting mode and costs without requiring an additional query provider, show a direct unit-cost field beside price, and allow an explicit batch choice when several editable lots exist.

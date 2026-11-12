@@ -38,3 +38,18 @@ The system SHALL use the same product-plus-expense cost totals in preview, profi
 #### Scenario: Export
 - **WHEN** a FIFO accounting report is exported
 - **THEN** it includes sold batch costs and separate additional expenses with matching profit
+
+### Requirement: Direct per-poster cost entry
+The system SHALL display a per-poster unit-cost field alongside selling price in FIFO inventory product creation and editing, save product data and costs atomically, and retain a default unit cost for zero-stock preorders and later receipts. Manual-accounting inventories SHALL retain their existing forms.
+#### Scenario: Create a poster with cost
+- **WHEN** a FIFO inventory user creates a poster with a unit cost
+- **THEN** the poster and initial receipt cost are saved together, with explicit zero accepted
+#### Scenario: Edit an existing opening batch
+- **WHEN** a user enters cost for a poster with one editable receipt batch
+- **THEN** saving the poster updates that batch and its default unit cost together
+#### Scenario: Receive a new batch at a different price
+- **WHEN** stock is increased with a new unit cost
+- **THEN** only the new batch receives that cost and earlier batch costs remain unchanged
+#### Scenario: Choose an existing batch
+- **WHEN** a poster has multiple editable batches
+- **THEN** the user explicitly selects the batch to edit and a revision conflict rejects the entire save

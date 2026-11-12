@@ -391,3 +391,222 @@ test("name repair rejects missing and ambiguous targets before changing any inve
     await db.close();
   }
 });
+
+async function setupDirectCosts() {
+  const db = await setup();
+  await db.exec(`reset role;
+create role service_role;
+create type public.user_role as enum('admin','staff');
+create type public.product_status as enum('in_stock','reserved','packing','packed','shipped');
+create table public.works(id uuid primary key default gen_random_uuid(),title_zh text,created_at timestamptz default now());
+create table public.locations(id uuid primary key default gen_random_uuid(),owner_id uuid,code text,cabinet text,shelf int,bin int);
+create table public.product_qr_labels(id uuid primary key default gen_random_uuid(),product_id uuid,batch_code text,status text default 'active',created_at timestamptz default now());
+alter table public.products alter id set default gen_random_uuid(),alter sku set default ('A'||left(gen_random_uuid()::text,8)),
+add category text,add work_id uuid,add country text,add source text,add location_id uuid,add status public.product_status default 'in_stock',
+add price numeric default 0,add cost numeric default 0,add image_paths text[],add poster_format text,add poster_size text,add poster_crafts text[],add identifying_features text,add description text,add created_by uuid,add updated_at timestamptz default now();
+`);
+  const hardened = await read(
+    "supabase/migrations/20260903001511_harden_rls_and_rpc_privileges.sql",
+  );
+  const a = hardened.indexOf(
+    "create or replace function public.adjust_product_stock(",
+  );
+  const b = hardened.indexOf("\n$$;", a) + 4;
+  await db.exec(hardened.slice(a, b));
+  await db.exec(
+    await read(
+      "supabase/migrations/20261008020858_simplify_product_intake.sql",
+    ),
+  );
+  const description = await read(
+    "supabase/migrations/20260907064534_add_product_description.sql",
+  );
+  const update = description.indexOf(
+    "create or replace function public.update_inventory_product(",
+  );
+  await db.exec(
+    description.slice(
+      update,
+      description.indexOf("-- Keep the existing token-gated", update),
+    ),
+  );
+  const naming = await read(
+    "supabase/migrations/20261019003454_add_preorder_product_naming.sql",
+  );
+  await db.exec(
+    naming.slice(
+      naming.indexOf("alter table public.products"),
+      naming.indexOf("create function private.enforce_preorder_product_name()"),
+    ),
+  );
+  await db.exec(
+    await read(
+      "supabase/migrations/20261112024350_product_unit_cost_entry.sql",
+    ),
+  );
+  await db.exec("set role authenticated");
+  return db;
+}
+const productInput = (patch: Record<string, unknown> = {}) => ({
+  name: "海報",
+  category: "海報",
+  country: "韓國",
+  source: "",
+  location: "",
+  stock: 10,
+  price: 300,
+  format: "",
+  size: "A3",
+  crafts: [],
+  feature: "",
+  description: "",
+  imagePaths: ["poster.webp"],
+  unitCost: 180,
+  ...patch,
+});
+async function saveDirect(
+  db: PGlite,
+  input: Record<string, unknown>,
+  productId: string | null = null,
+  owner = uid(1),
+) {
+  return (
+    await db.query<{ id: string }>(
+      "select public.save_inventory_product_with_cost($1::jsonb,$2,$3) id",
+      [JSON.stringify(input), owner, productId],
+    )
+  ).rows[0].id;
+}
+test("direct poster costs create products atomically, retain zero-stock preorder costs, and use new prices only for new receipts", async () => {
+  const db = await setupDirectCosts();
+  try {
+    const created = await saveDirect(db, productInput());
+    const readProduct = () =>
+      db.query<{
+        r: {
+          mode: string;
+          unitCost: number;
+          batches: Array<{ quantity: number; unit_cost: number }>;
+        };
+      }>("select public.get_inventory_product_costs($1) r", [created]);
+    assert.equal((await readProduct()).rows[0].r.unitCost, 180);
+    assert.equal((await readProduct()).rows[0].r.batches[0].unit_cost, 180);
+    await saveDirect(db, productInput({ stock: 15, unitCost: 200 }), created);
+    assert.deepEqual(
+      (await readProduct()).rows[0].r.batches.map((b) => [
+        b.quantity,
+        b.unit_cost,
+      ]),
+      [
+        [10, 180],
+        [5, 200],
+      ],
+    );
+    const preorder = await saveDirect(
+      db,
+      productInput({
+        stock: 0,
+        unitCost: 0,
+        work: "作品",
+        preorderItemName: "A款",
+        imagePaths: [],
+      }),
+    );
+    assert.equal(
+      (
+        await db.query<{ purchase_unit_cost: string }>(
+          "select purchase_unit_cost from public.products where id=$1",
+          [preorder],
+        )
+      ).rows[0].purchase_unit_cost,
+      "0.00",
+    );
+    await db.query("update public.products set stock=3 where id=$1", [
+      preorder,
+    ]);
+    const receipt = await db.query<{ unit_cost: string }>(
+      "select unit_cost from public.inventory_cost_batches where product_id=$1",
+      [preorder],
+    );
+    assert.equal(Number(receipt.rows[0].unit_cost), 0);
+    await assert.rejects(
+      saveDirect(db, productInput(), null, uid(9)),
+      /owner access required/,
+    );
+    await assert.rejects(
+      saveDirect(db, productInput({ unitCost: 0.001 })),
+      /invalid product unit cost/,
+    );
+  } finally {
+    await db.close();
+  }
+});
+test("direct existing-batch edits reject stale revisions and settled costs without partially changing product data", async () => {
+  const db = await setupDirectCosts();
+  try {
+    const opening = (await batches(db))[0];
+    await saveDirect(
+      db,
+      productInput({
+        unitCost: 180,
+        costBatchId: opening.id,
+        expectedCostRevision: 1,
+      }),
+      uid(10),
+    );
+    assert.equal((await batches(db))[0].unit_cost, 180);
+    await assert.rejects(
+      saveDirect(
+        db,
+        productInput({
+          name: "不可儲存",
+          price: 999,
+          unitCost: 190,
+          costBatchId: opening.id,
+          expectedCostRevision: 1,
+        }),
+        uid(10),
+      ),
+      /changed; reload/,
+    );
+    assert.equal(
+      (
+        await db.query<{ name: string }>(
+          "select name from public.products where id=$1",
+          [uid(10)],
+        )
+      ).rows[0].name,
+      "海報",
+    );
+    await sell(db, 2);
+    await db.exec(
+      `select public.save_financial_period_details('${uid(1)}','2026-11-01','2026-12-31','[]','[]','',0);select public.create_financial_settlement('${uid(1)}','2026-11-01','2026-12-31')`,
+    );
+    await assert.rejects(
+      saveDirect(
+        db,
+        productInput({
+          stock: 8,
+          price: 999,
+          unitCost: 200,
+          costBatchId: opening.id,
+          expectedCostRevision: 2,
+        }),
+        uid(10),
+      ),
+      /settled batch cost is locked/,
+    );
+    const persisted = await db.query<{
+      price: string;
+      purchase_unit_cost: string;
+    }>("select price,purchase_unit_cost from public.products where id=$1", [
+      uid(10),
+    ]);
+    assert.equal(Number(persisted.rows[0].price), 300);
+    assert.equal(Number(persisted.rows[0].purchase_unit_cost), 180);
+    await saveDirect(db, productInput({ stock: 8, unitCost: 210 }), uid(10));
+    assert.equal((await preview(db)).product_cost, 360);
+  } finally {
+    await db.close();
+  }
+});

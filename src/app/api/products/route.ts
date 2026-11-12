@@ -1,3 +1,4 @@
+import { productCostFailure } from "@/lib/api/product-costs-server";
 import { readActiveProducts } from "@/lib/api/active-products";
 import { z } from "zod";
 import {
@@ -149,6 +150,15 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
+    if (input.unitCost !== undefined) {
+      const { data, error } = await auth.supabase.rpc(
+        "save_inventory_product_with_cost",
+        { p_owner_id: parsedOwner.data, p_input: input },
+      );
+      if (error) return productCostFailure(error);
+      return apiSuccess({ productId: String(data) }, 201);
+    }
+
     if (input.preorderItemName !== undefined) {
       const { data, error } = await auth.supabase.rpc(
         "save_named_inventory_product",

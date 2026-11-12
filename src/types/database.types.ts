@@ -1294,6 +1294,7 @@ export type Database = {
       }
       products: {
         Row: {
+          purchase_unit_cost: number | null
           category: string
           cinema: string | null
           cost: number | null
@@ -1328,6 +1329,7 @@ export type Database = {
           work_id: string | null
         }
         Insert: {
+          purchase_unit_cost?: number | null
           category: string
           cinema?: string | null
           cost?: number | null
@@ -1362,6 +1364,7 @@ export type Database = {
           work_id?: string | null
         }
         Update: {
+          purchase_unit_cost?: number | null
           category?: string
           cinema?: string | null
           cost?: number | null
@@ -1657,6 +1660,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_inventory_product_with_cost: { Args: {p_input: Json; p_owner_id?: string; p_product_id?: string}; Returns: string }
       get_manual_financial_period_preview: { Args: { p_owner_id: string; p_start: string; p_end: string }; Returns: Json }
       get_inventory_product_costs: { Args: { p_product_id: string }; Returns: Json }
       get_financial_product_costs: { Args: { p_owner_id: string; p_start: string; p_end: string }; Returns: Json }

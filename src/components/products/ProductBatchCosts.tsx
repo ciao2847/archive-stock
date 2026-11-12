@@ -43,7 +43,7 @@ export function ProductBatchCosts({ productId }: { productId: string }) {
       <h3>進貨批次與成本</h3>
       {notice && <p role="status">{notice}</p>}
       <p>
-        售出時先扣較早進貨的批次。新增商品或增加庫存後，請在這裡補上該批單件成本。
+        每張海報的成本可在「新增／編輯商品」直接填寫。這裡可查看及調整各進貨批次的成本。
       </p>
       <p>
         成本已包含的運費，請勿在結算時重複列入額外費用。期初批次可填確認過的平均單件成本。
