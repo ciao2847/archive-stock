@@ -82,7 +82,7 @@ test("complete procurement aggregate counts only fully paid units and follows pa
       ).rows[0].r.product_totals;
     await db.exec("set role authenticated");
     let rows = await totals();
-    let product = rows.find((p) => p.sku === "A000001")!;
+    const product = rows.find((p) => p.sku === "A000001")!;
     assert.equal(product.quantity, 30);
     assert.equal(product.paid_quantity, 22);
     assert.equal(product.customer_count, 2);

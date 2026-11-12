@@ -7,7 +7,6 @@ import { resolve } from "node:path";
 import { build } from "esbuild";
 import { compile } from "sass";
 import { chromium } from "playwright";
-const ownerId = "00000000-0000-4000-8000-000000000001";
 const bundle = await build({
   outfile: "/tmp/poster-stall-browser.js",
   plugins: [
