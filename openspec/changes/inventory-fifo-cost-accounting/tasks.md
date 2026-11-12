@@ -45,3 +45,13 @@
 - Production migration 20261112032729 applied and recorded atomically. The 60 existing batches, 11 allocation quantities and existing settlement records were preserved; exact-cost backfill checks found no mismatches.
 - Live authenticated product-cost and financial-cost RPC reads passed. Security advisors retained 0 errors and the same 19 pre-existing warnings, with no new findings.
 - Code commit ca327990a5ff0ba185e799577994dbb77ca6c152 pushed to main and deployed as dpl_2XLz57pbiHLq1Uaygd7RoZX5GXqu. Production alias archive-stock.vercel.app resolves to this READY deployment; login returns 200 and unauthenticated cost API returns 401.
+
+## 7. Public order submission compatibility
+- [x] 7.1 Restrict deferred FIFO reconciliation to fulfillment changes; verify anonymous and unrelated signed-in customer submissions using real public submission and fulfillment functions, while preserving stock, batch costs and management permissions.
+- [ ] 7.2 Run checks, apply the verified fix, synchronize GitHub and production, and repeat a rollback-only public submission on the hosted database.
+
+### Public submission fix verification
+- Reproduced the production failure as anon: the deferred order trigger raised `owner access required` in `private.sync_product_fifo` after a valid public submission. All reproduction data was rolled back.
+- 152 tests passed, including actual public submission/fulfillment integration, anonymous and cross-inventory signed-in customers, retry idempotency, later packing/cancellation and management denial. Typecheck, ESLint, changed-file formatting and strict OpenSpec validation passed.
+- Production migration 20261112065254 applied and recorded atomically; the manager-only reconciliation function was unchanged. A rollback-only anonymous submission on an NN form from the failed request logs created one pending order, retried safely and left product stock, batches and costs unchanged. No test submission remained after rollback.
+- Production security advisors retained the same 19 pre-existing warnings and no new findings.

@@ -68,3 +68,15 @@ The system SHALL let FIFO inventory users enter multiple batches with quantity, 
 #### Scenario: Same-date batch splitting
 - **WHEN** the earliest of multiple equal-date receipts is split, including repeated splitting
 - **THEN** its children retain its FIFO position and their displayed order, ahead of later receipts
+
+### Requirement: Public unfulfilled orders remain available
+The system SHALL allow token-validated public order submissions without requiring inventory management membership. Creating or editing an order with no packed quantities or cost allocations SHALL NOT invoke privileged cost reconciliation. Packing, cancelling packed orders and inventory changes SHALL retain FIFO reconciliation and tenant authorization.
+#### Scenario: Anonymous customer places an order
+- **WHEN** a customer submits an enabled product on an open FIFO inventory form without an employee session
+- **THEN** the submission and pending fulfillment order are created atomically, with stock, batches and cost allocations unchanged
+#### Scenario: Signed-in customer from another inventory
+- **WHEN** a customer with an unrelated account submits the public form
+- **THEN** the pending public order is accepted without granting access to the target inventory's costs
+#### Scenario: Later packing and cancellation
+- **WHEN** an authorized employee packs or cancels a packed public order
+- **THEN** normal FIFO allocation or return applies and unauthorized cost writes remain rejected

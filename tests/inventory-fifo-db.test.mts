@@ -619,6 +619,11 @@ async function setupBatchTotals() {
       "supabase/migrations/20261112032729_batch_total_costs_and_product_batches.sql",
     ),
   );
+  await db.exec(
+    await read(
+      "supabase/migrations/20261112065254_skip_fifo_for_unfulfilled_public_orders.sql",
+    ),
+  );
   await db.exec("set role authenticated");
   return db;
 }
@@ -898,6 +903,176 @@ test("multi-batch save preserves closed snapshots, rejects changed inventory and
       )
     ).rows[0].id;
     assert.equal((await productBatches(db, named))[0].total_cost, 75);
+  } finally {
+    await db.close();
+  }
+});
+
+async function setupPublicClaims() {
+  const db = await setupBatchTotals();
+  await db.exec(`reset role;
+    alter table public.profiles add inventory_owner_id uuid,add created_at timestamptz default now();
+    update public.profiles set inventory_owner_id='${uid(1)}';
+    insert into public.profiles(id,role,inventory_owner_id) values('${uid(4)}','staff','${uid(9)}');
+    create or replace function private.current_inventory_owner_id() returns uuid language sql security definer set search_path='' as $$select inventory_owner_id from public.profiles where id=auth.uid()$$;
+    alter table public.customers alter id set default gen_random_uuid(),add owner_id uuid,add contact text,add created_by uuid;
+    create type public.order_status as enum ('pending','packed','shipped','cancelled');
+    create table public.claim_forms(id bigint primary key generated always as identity,owner_id uuid,public_token uuid unique,is_open boolean default true,closes_at timestamptz);
+    create table public.claim_form_products(form_id bigint references public.claim_forms,product_id uuid references public.products,is_enabled boolean default true,max_quantity_per_customer integer default 99,display_name text,unit_price numeric,primary key(form_id,product_id));
+    create table public.claim_submissions(id bigint primary key generated always as identity,form_id bigint references public.claim_forms,request_id uuid,confirmation_code text default gen_random_uuid()::text,nickname text,phone text,phone_normalized text,notes text,payment_status text default 'pending',created_at timestamptz default now(),unique(form_id,request_id));
+    create table public.claim_submission_items(id bigint primary key generated always as identity,submission_id bigint references public.claim_submissions on delete cascade,product_id uuid references public.products,product_sku text,product_name text,quantity integer,unit_price numeric);
+    create table public.bundle_claim_orders(id bigint primary key generated always as identity,owner_id uuid,confirmation_code text,customer_nickname text,customer_phone text,customer_notes text,confirmed_at timestamptz,total_amount numeric,status text,outbound_checked_at timestamptz);
+    create table public.bundle_claim_payments(id bigint primary key generated always as identity,order_id bigint references public.bundle_claim_orders,amount numeric);
+    create table public.bundle_fulfillment_items(bundle_order_id bigint references public.bundle_claim_orders,product_id uuid references public.products,quantity integer,unit_price numeric);
+    create table public.packing_package_items(order_id uuid);
+    alter table public.orders alter id set default gen_random_uuid(),add payment_status text,add notes text,add created_by uuid,add updated_at timestamptz,add claim_submission_id bigint unique references public.claim_submissions on delete cascade,add bundle_claim_order_id bigint unique references public.bundle_claim_orders;
+    alter table public.order_items alter id set default gen_random_uuid(),add scanned_quantity integer default 0,add unique(order_id,product_id);
+    insert into public.claim_forms(owner_id,public_token) values('${uid(1)}','${uid(60)}');
+    insert into public.claim_form_products(form_id,product_id,display_name,unit_price) values(1,'${uid(10)}','海報',300);
+  `);
+  const fulfillment = await read(
+    "supabase/migrations/20261020033449_connect_claims_to_packing.sql",
+  );
+  await db.exec(
+    fulfillment.slice(
+      fulfillment.indexOf("create function private.sync_claim_fulfillment("),
+      fulfillment.indexOf("-- A source can be removed"),
+    ),
+  );
+  const submit = await read(
+    "supabase/migrations/20261002001346_add_inventory_line_and_claim_product_availability.sql",
+  );
+  await db.exec(
+    submit.slice(
+      submit.indexOf("create or replace function public.submit_public_claim("),
+      submit.indexOf("notify pgrst"),
+    ),
+  );
+  return db;
+}
+async function submitPublicClaim(db: PGlite, requestId: string) {
+  return db.query<{ confirmation_code: string }>(
+    "select * from public.submit_public_claim($1,'顧客','0912345678','',$2,$3)",
+    [
+      uid(60),
+      requestId,
+      JSON.stringify([{ product_id: uid(10), quantity: 2 }]),
+    ],
+  );
+}
+test("anonymous public claims create pending fulfillment atomically without changing FIFO stock or requiring employee access", async () => {
+  const db = await setupPublicClaims();
+  try {
+    await db.exec(
+      `select set_config('request.jwt.claim.sub','',false);set role anon`,
+    );
+    await db.exec("begin");
+    const submitted = await submitPublicClaim(db, uid(61));
+    await db.exec("set constraints all immediate;commit");
+    assert.ok(submitted.rows[0].confirmation_code);
+    assert.equal(
+      (await submitPublicClaim(db, uid(61))).rows[0].confirmation_code,
+      submitted.rows[0].confirmation_code,
+    );
+    await assert.rejects(
+      db.query("select private.sync_product_fifo($1)", [uid(10)]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("select * from public.inventory_cost_batches"),
+      /permission denied/,
+    );
+    await db.exec("reset role");
+    const state = await db.query<{
+      submissions: number;
+      orders: number;
+      stock: number;
+      receipts: number;
+      allocations: number;
+      packed: number;
+    }>(
+      `select (select count(*)::int from public.claim_submissions) submissions,(select count(*)::int from public.orders) orders,(select stock from public.products where id='${uid(10)}') stock,(select count(*)::int from public.inventory_cost_batches where product_id='${uid(10)}') receipts,(select count(*)::int from public.inventory_cost_allocations) allocations,(select coalesce(sum(packed_quantity),0)::int from public.order_items) packed`,
+    );
+    assert.deepEqual(state.rows[0], {
+      submissions: 1,
+      orders: 1,
+      stock: 10,
+      receipts: 1,
+      allocations: 0,
+      packed: 0,
+    });
+    assert.equal(
+      (await db.query<{ status: string }>("select status from public.orders"))
+        .rows[0].status,
+      "pending",
+    );
+    // Later staff packing and cancellation still reach the same FIFO reconciler.
+    await db.exec(
+      `select set_config('request.jwt.claim.sub','${uid(2)}',false);set role authenticated`,
+    );
+    const batch = (await productBatches(db, uid(10)))[0];
+    await db.query("select public.save_inventory_batch_total($1,1800,'',1)", [
+      batch.id,
+    ]);
+    await db.exec(
+      `begin;update public.order_items set packed_quantity=2;update public.orders set status='packed',packed_at='2026-11-12';update public.products set stock=8 where id='${uid(10)}';commit`,
+    );
+    assert.equal((await preview(db)).product_cost, 360);
+    await db.exec(
+      `begin;update public.orders set status='cancelled';update public.products set stock=10 where id='${uid(10)}';commit`,
+    );
+    assert.equal((await productBatches(db, uid(10)))[0].remaining, 10);
+    assert.equal((await preview(db)).product_cost, 0);
+  } finally {
+    await db.close();
+  }
+});
+test("an unrelated signed-in customer can place a public FIFO order while cost and stock management stay tenant-restricted", async () => {
+  const db = await setupPublicClaims();
+  try {
+    await db.exec(
+      `select set_config('request.jwt.claim.sub','${uid(4)}',false);set role authenticated`,
+    );
+    assert.ok((await submitPublicClaim(db, uid(62))).rows[0].confirmation_code);
+    await assert.rejects(
+      db.query("select public.get_inventory_product_costs($1)", [uid(10)]),
+      /owner access required/,
+    );
+    await assert.rejects(
+      db.query("update public.products set stock=11 where id=$1", [uid(10)]),
+      /owner access required/,
+    );
+    await db.exec(
+      `reset role;select set_config('request.jwt.claim.sub','${uid(2)}',false);set role authenticated`,
+    );
+    const batch = (await productBatches(db, uid(10)))[0];
+    assert.equal(batch.remaining, 10);
+    await db.exec(
+      `select set_config('request.jwt.claim.sub','${uid(4)}',false)`,
+    );
+    await assert.rejects(
+      db.query("select public.save_inventory_batch_total($1,1,'',1)", [
+        batch.id,
+      ]),
+      /owner access required/,
+    );
+    await db.exec("reset role");
+    assert.equal(
+      (
+        await db.query<{ count: number }>(
+          "select count(*)::int count from public.claim_submissions",
+        )
+      ).rows[0].count,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query<{ count: number }>(
+          "select count(*)::int count from public.inventory_cost_allocations",
+        )
+      ).rows[0].count,
+      0,
+    );
   } finally {
     await db.close();
   }
