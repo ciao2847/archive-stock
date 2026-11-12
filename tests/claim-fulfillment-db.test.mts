@@ -69,6 +69,68 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001'
       ),
     );
     await db.exec(await read("supabase/tests/claim_fulfillment.test.sql"));
+    // Receipt uses the real product creation RPC, source projection and packing
+    // functions, with only Storage metadata bootstrapped locally.
+    await db.exec(`
+      create schema storage;
+      create table storage.objects(bucket_id text, name text, unique(bucket_id,name));
+      alter table public.products add description text;
+      alter table public.locations add owner_id uuid;
+      alter table public.product_qr_labels add batch_code text;
+      alter table public.bundle_claim_orders add title text default '十月份客訂', add updated_at timestamptz default now();
+      create table public.bundle_claim_order_images(
+        id bigint primary key generated always as identity,
+        order_id bigint not null references public.bundle_claim_orders(id) on delete cascade,
+        sort_order integer default 0, storage_path text not null,
+        product_name text, product_amount numeric(12,2)
+      );
+    `);
+    const bundleMigration = await read(
+      "supabase/migrations/20261005055252_add_single_poster_bundle_claims.sql",
+    );
+    await db.exec(
+      bundleMigration.slice(
+        bundleMigration.indexOf(
+          "create or replace function private.can_manage_bundle_inventory(",
+        ),
+        bundleMigration.indexOf(
+          'create policy "inventory members read bundle claim orders"',
+        ),
+      ),
+    );
+    await db.exec(
+      bundleMigration.slice(
+        bundleMigration.indexOf(
+          "create or replace function private.assert_bundle_inventory_access(",
+        ),
+        bundleMigration.indexOf(
+          "create or replace function private.create_bundle_claim_order(",
+        ),
+      ),
+    );
+    await db.exec(
+      bundleMigration.slice(
+        bundleMigration.indexOf(
+          "create or replace function private.set_bundle_claim_receiving_check(",
+        ),
+        bundleMigration.indexOf(
+          "create or replace function private.set_bundle_claim_outbound_check(",
+        ),
+      ),
+    );
+    await db.exec(
+      await read(
+        "supabase/migrations/20261008020858_simplify_product_intake.sql",
+      ),
+    );
+    await db.exec(
+      await read(
+        "supabase/migrations/20261102090000_receive_bundle_products_into_inventory.sql",
+      ),
+    );
+    await db.exec(
+      await read("supabase/tests/bundle_receiving_inventory.test.sql"),
+    );
   } finally {
     await db.close();
   }

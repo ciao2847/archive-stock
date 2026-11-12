@@ -153,7 +153,7 @@ export function FulfillmentActions({
   return (
     <section
       aria-label="包貨進度"
-      className="mt-4 rounded-[10px] border border-line bg-light p-4 text-[13px]"
+      className="mt-4 rounded-[8px] border border-line bg-light p-4 text-[13px]"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -39,7 +39,7 @@ export async function generateMetadata({
 function Unavailable({ loadFailed }: { loadFailed: boolean }) {
   return (
     <main className="min-h-screen bg-[#f3f7fb] px-4 py-8 text-dark md:py-12">
-      <section className="mx-auto max-w-[560px] rounded-[12px] border border-black/5 bg-white px-6 py-14 text-center md:px-10">
+      <section className="mx-auto max-w-[560px] rounded-[8px] border border-black/5 bg-white px-6 py-14 text-center md:px-10">
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-danger-soft text-danger">
           <AlertCircle size={28} />
         </span>

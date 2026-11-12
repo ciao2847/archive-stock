@@ -31,7 +31,7 @@ const bundle = await build({
   stdin: {
     resolveDir: process.cwd(),
     loader: "tsx",
-    contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StallCheckout} from './src/components/checkout/StallCheckout';createRoot(document.getElementById('root')).render(<StallCheckout ownerId='${ownerId}' onCompleted={()=>{window.completed=true;}} onBack={()=>{}}/>);`,
+    contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StallCheckout} from './src/components/checkout/StallCheckout';import {StallSalesSummary} from './src/components/checkout/StallSalesSummary';createRoot(document.getElementById('root')).render(location.pathname === '/summary' ? <StallSalesSummary ownerId='${ownerId}'/> : <StallCheckout ownerId='${ownerId}' onCompleted={()=>{window.completed=true;}} onBack={()=>{}}/>);`,
   },
 });
 const css =
@@ -88,7 +88,9 @@ await page.route("**/api/checkout**", async (route) => {
         success: true,
         data: {
           date: "2026-10-14",
-          revenue: checkoutPayload && !rejectCheckout ? 700 : 0,
+          revenue: checkoutPayload && !rejectCheckout ? 650 : 0,
+          discount: 50,
+          payments: { transfer: { revenue: 650, orderCount: 1 } },
           orderCount: checkoutPayload && !rejectCheckout ? 1 : 0,
           itemCount: checkoutPayload && !rejectCheckout ? 2 : 0,
         },
@@ -149,7 +151,14 @@ await page.route("**/api/checkout**", async (route) => {
         : {
             json: {
               success: true,
-              data: { orderId: "sale", orderNo: "ORDER-000001", total: 700 },
+              data: {
+                orderId: "sale",
+                orderNo: "ORDER-000001",
+                total: 650,
+                subtotal: 700,
+                discount: 50,
+                paymentMethod: "transfer",
+              },
             },
           },
     );
@@ -179,7 +188,7 @@ try {
     path: "/tmp/poster-stall-checkout-mobile-layout.png",
     fullPage: true,
   });
-  const input = page.getByRole("textbox", { name: "手動輸入商品編號" });
+  const input = page.getByRole("textbox", { name: "商品編號", exact: true });
   const add = page.getByRole("button", { name: "加入商品", exact: true });
   const checkout = page.getByRole("button", { name: /確認已收款並結帳/ });
   assert.equal(await checkout.isDisabled(), true);
@@ -200,14 +209,23 @@ try {
     await page.getByRole("button", { name: "移除 A000001" }).count(),
     2,
   );
-  const cash = page.getByLabel("現金實收（選填，用於計算找零）");
+  const cash = page.getByLabel("現金實收（選填）");
   await cash.fill("600");
   await page.getByText("實收金額不足", { exact: true }).waitFor();
   assert.equal(await checkout.isDisabled(), true);
   await cash.fill("1000");
   await page.getByText("找零 NT$ 300", { exact: true }).waitFor();
+  const discount = page.getByLabel("整筆折抵金額");
+  await discount.fill("701");
+  assert.equal(await checkout.isDisabled(), true);
+  await discount.fill("50");
+  await page.getByText("找零 NT$ 350", { exact: true }).waitFor();
+  await page.getByLabel("收款方式").selectOption("transfer");
+  assert.equal(await cash.count(), 0);
   await checkout.click();
   await page.getByRole("alert").filter({ hasText: "商品庫存已變動" }).waitFor();
+  assert.equal(await discount.inputValue(), "50");
+  assert.equal(await page.getByLabel("收款方式").inputValue(), "transfer");
   assert.equal(
     await page.getByRole("button", { name: "移除 A000001" }).count(),
     2,
@@ -219,8 +237,15 @@ try {
     ownerId,
     tokens: [token1, token2],
     expectedTotal: 700,
+    discount: 50,
+    paymentMethod: "transfer",
   });
   assert.equal(await page.evaluate(() => window.completed), true);
+  await page
+    .getByText("轉帳收款 NT$ 650，庫存已扣除。", { exact: true })
+    .waitFor();
+  assert.equal(await discount.inputValue(), "");
+  assert.equal(await page.getByLabel("收款方式").inputValue(), "cash");
   assert.equal(
     await page.getByRole("region", { name: "今日攤位營收" }).count(),
     0,
@@ -246,6 +271,17 @@ try {
     path: "/tmp/poster-stall-checkout-mobile.png",
     fullPage: true,
   });
+  await page.goto(`http://127.0.0.1:${server.address().port}/summary`);
+  await page.getByRole("table", { name: "今日各收款方式對帳" }).waitFor();
+  await page.getByRole("cell", { name: "NT$ 650", exact: true }).waitFor();
+  await page.getByText("今日折抵合計：NT$ 50", { exact: true }).waitFor();
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  assert.deepEqual(errors, []);
   console.log(
     "Checkout browser passed: manual SKU via Enter/button, repeated SKU with distinct units, exhausted stock, QR URL/legacy scan, duplicate prevention, cash change, failure preservation and paid receipt on mobile.",
   );

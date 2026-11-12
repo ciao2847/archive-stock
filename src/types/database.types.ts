@@ -85,6 +85,7 @@ export type Database = {
           original_filename: string
           product_amount: number | null
           product_name: string | null
+          received_product_id: string | null
           sort_order: number
           storage_path: string
         }
@@ -97,6 +98,7 @@ export type Database = {
           original_filename: string
           product_amount?: number | null
           product_name?: string | null
+          received_product_id?: string | null
           sort_order?: number
           storage_path: string
         }
@@ -109,6 +111,7 @@ export type Database = {
           original_filename?: string
           product_amount?: number | null
           product_name?: string | null
+          received_product_id?: string | null
           sort_order?: number
           storage_path?: string
         }
@@ -118,6 +121,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "bundle_claim_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_claim_order_images_received_product_id_fkey"
+            columns: ["received_product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -887,6 +897,7 @@ export type Database = {
           customer_id: string | null
           deleted_at: string | null
           deleted_by: string | null
+          stall_payment_method: string
           discount: number
           id: string
           notes: string | null
@@ -913,6 +924,7 @@ export type Database = {
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          stall_payment_method?: string
           discount?: number
           id?: string
           notes?: string | null
@@ -939,6 +951,7 @@ export type Database = {
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          stall_payment_method?: string
           discount?: number
           id?: string
           notes?: string | null
@@ -1278,6 +1291,9 @@ export type Database = {
           identifying_features: string | null
           image_paths: string[] | null
           is_art_set: boolean | null
+          merged_into_product_id: string | null
+          merged_at: string | null
+          merged_by: string | null
           location_id: string | null
           name: string
           preorder_item_name: string | null
@@ -1309,6 +1325,9 @@ export type Database = {
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
+          merged_into_product_id?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
           location_id?: string | null
           name: string
           preorder_item_name?: string | null
@@ -1340,6 +1359,9 @@ export type Database = {
           identifying_features?: string | null
           image_paths?: string[] | null
           is_art_set?: boolean | null
+          merged_into_product_id?: string | null
+          merged_at?: string | null
+          merged_by?: string | null
           location_id?: string | null
           name?: string
           preorder_item_name?: string | null
@@ -1359,6 +1381,20 @@ export type Database = {
           work_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_merged_into_product_id_fkey"
+            columns: ["merged_into_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_merged_by_fkey"
+            columns: ["merged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_created_by_fkey"
             columns: ["created_by"]
@@ -1597,6 +1633,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      merge_preorder_product: {
+        Args: {
+          p_owner_id: string
+          p_source_id: string
+          p_target_id: string
+          p_apply?: boolean
+          p_expected_token?: string
+        }
+        Returns: Json
+      }
       map_bundle_fulfillment: {
         Args: { p_owner_id: string; p_order_id: number; p_items: Json }
         Returns: string
@@ -1607,12 +1653,16 @@ export type Database = {
         Returns: Json
       }
       manage_stall_order: {
-        Args: { p_owner_id: string; p_order_id: string; p_expected_revision: number; p_action: string; p_items?: Json; p_note?: string }
+        Args: { p_owner_id: string; p_order_id: string; p_expected_revision: number; p_action: string; p_items?: Json; p_note?: string; p_discount?: number; p_payment_method?: string }
         Returns: Json
       }
 
+      update_order_customer_name: {
+        Args: { p_owner_id: string; p_source: string; p_record_id: string; p_expected_name: string; p_name: string }
+        Returns: boolean
+      }
       checkout_stall_labels: {
-        Args: { p_owner_id: string; p_tokens: string[]; p_expected_total: number }
+        Args: { p_owner_id: string; p_tokens: string[]; p_expected_total: number; p_discount?: number; p_payment_method?: string }
         Returns: Json
       }
       add_bundle_claim_order_image: {

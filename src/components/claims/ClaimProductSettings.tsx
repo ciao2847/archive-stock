@@ -13,6 +13,7 @@ import {
   Filter,
   ImageIcon,
   Link2,
+  Merge,
   PackagePlus,
   Pencil,
   Plus,
@@ -23,6 +24,8 @@ import {
 } from "lucide-react";
 
 import { PreorderTextImport } from "./preorder-import/PreorderTextImport";
+import { MergePreorderDialog } from "@/components/products/MergePreorderDialog";
+import type { ProductMergePreview } from "@/lib/product-merge";
 import { EditProduct } from "@/components/products/EditProduct";
 import { suggestPreorderWorkName } from "@/lib/preorder-product-name";
 import { NewProduct } from "@/components/products/NewProduct";
@@ -78,6 +81,7 @@ export interface ClaimProductSettingsProps {
   onSave: () => Promise<void>;
   publicPath: string;
   onReloadProducts?: () => Promise<void>;
+  onProductsMerged?: () => Promise<void>;
   onNavigateToSubmissions?: () => void;
   onDeleteForm?: () => void;
   deletingForm?: boolean;
@@ -107,6 +111,7 @@ export function ClaimProductSettings({
   onSave,
   publicPath,
   onReloadProducts,
+  onProductsMerged,
   onNavigateToSubmissions,
   onDeleteForm,
   deletingForm = false,
@@ -124,6 +129,48 @@ export function ClaimProductSettings({
   const [batchMessage, setBatchMessage] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [copied, setCopied] = useState(false);
+  const [mergingProduct, setMergingProduct] = useState<Product | null>(null);
+  const hasUnsavedProducts =
+    !form ||
+    form.products.length !== selectedIds.size ||
+    form.products.some((listing) => {
+      const draft = productDrafts[listing.productId];
+      return (
+        !selectedIds.has(listing.productId) ||
+        (draft &&
+          (draft.name !== listing.name ||
+            Number(draft.price) !== listing.price ||
+            Number(draft.maxQuantity) !== listing.maxQuantity ||
+            draft.isEnabled !== listing.isEnabled))
+      );
+    });
+  async function finishMerge(result: ProductMergePreview) {
+    const listing = result.forms.find(
+      (entry) => entry.id === form?.id,
+    )?.listing;
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.delete(result.source.id) && listing) next.add(result.target.id);
+      return next;
+    });
+    setProductDrafts((current) => {
+      const next = { ...current };
+      delete next[result.source.id];
+      if (listing)
+        next[result.target.id] = {
+          name: listing.name,
+          price: String(listing.price),
+          maxQuantity: String(listing.maxQuantity),
+          isEnabled: listing.isEnabled,
+        };
+      return next;
+    });
+    await onReloadProducts?.();
+    await onProductsMerged?.();
+    setBatchMessage(
+      `已將 ${result.source.sku} 合併至 ${result.target.sku}，庫存數量不變。`,
+    );
+  }
 
   // Map products by their dbId for quick lookup
   const productMap = useMemo(() => {
@@ -673,6 +720,19 @@ export function ClaimProductSettings({
             {batchMessage}
           </p>
         )}
+        {hasUnsavedProducts &&
+          onProductsMerged &&
+          selectedProductList.some(
+            ({ product }) =>
+              product.stock === 0 &&
+              !product.hasInventoryHistory &&
+              !product.primaryLocationCode &&
+              product.location === "未指定",
+          ) && (
+            <p className="mt-3 text-[13px] text-muted">
+              若要將重複預售商品合併至庫存，請先儲存商品設定。
+            </p>
+          )}
         {/* Selected Products Table / Cards */}
         {selectedProductList.length === 0 ? (
           <div className="rounded-[8px] bg-light p-8 text-center text-muted">
@@ -796,6 +856,26 @@ export function ClaimProductSettings({
                             onClick={() => setEditingProduct(product)}
                           >
                             <Pencil size={15} />
+                          </button>
+                        )}
+                      {product.stock === 0 &&
+                        !product.hasInventoryHistory &&
+                        !product.primaryLocationCode &&
+                        product.location === "未指定" &&
+                        onProductsMerged && (
+                          <button
+                            type="button"
+                            className="outline size-9 p-0"
+                            disabled={saving || hasUnsavedProducts}
+                            title={
+                              hasUnsavedProducts
+                                ? "請先儲存商品設定，再進行合併"
+                                : "合併至庫存商品"
+                            }
+                            aria-label={`將 ${product.name} 合併至庫存商品`}
+                            onClick={() => setMergingProduct(product)}
+                          >
+                            <Merge size={15} />
                           </button>
                         )}
                       {isModified && (
@@ -1126,6 +1206,15 @@ export function ClaimProductSettings({
               `已建立並加入 ${ids.length} 個共用圖片的款式，請儲存商品設定或發佈訂購頁。`,
             );
           }}
+        />
+      )}
+      {mergingProduct && (
+        <MergePreorderDialog
+          source={mergingProduct}
+          products={products}
+          ownerId={ownerId}
+          onClose={() => setMergingProduct(null)}
+          onMerged={finishMerge}
         />
       )}
       {editingProduct && (

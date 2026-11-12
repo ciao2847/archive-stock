@@ -8,7 +8,7 @@
   max-width: 1120px;
   max-height: min(90dvh, 900px);
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--color-white);
 
   > header {
@@ -203,7 +203,7 @@
     position: relative;
     height: 91dvh;
     max-height: 91dvh;
-    border-radius: 22px 22px 0 0;
+    border-radius: 8px;
 
     &::before {
       content: "";

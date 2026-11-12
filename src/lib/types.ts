@@ -7,6 +7,7 @@ export type Product = {
   ownerId: string;
   work: string;
   preorderItemName?: string;
+  hasInventoryHistory?: boolean;
   category: string;
   country: string;
   source: string;

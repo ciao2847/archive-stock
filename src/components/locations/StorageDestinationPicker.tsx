@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import type { StorageData } from "@/lib/location-storage";
 import styles from "../../../styles/components/locations/StorageDestinationPicker.module.scss";
@@ -21,6 +21,24 @@ export function StorageDestinationPicker({
   const id = useId();
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
+  useEffect(() => {
+    function closeOutside(event: PointerEvent | FocusEvent) {
+      if (
+        event.target instanceof Node &&
+        !details.current?.contains(event.target)
+      ) {
+        if (details.current) details.current.open = false;
+      }
+    }
+    // A label can blur the summary before its click activates the radio.
+    // Only close for an actual outside interaction, not that intermediate blur.
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("focusin", closeOutside);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("focusin", closeOutside);
+    };
+  }, []);
   const label = source ? "搬移至" : "目的庫位";
   const options = data.slots
     .filter((slot) => slot.id !== source)
@@ -43,9 +61,6 @@ export function StorageDestinationPicker({
       <details
         ref={details}
         className={styles.picker}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) close();
-        }}
         onKeyDown={(event) => {
           if (event.key === "Escape" && details.current?.open) {
             event.preventDefault();

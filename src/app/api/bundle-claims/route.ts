@@ -21,8 +21,18 @@ import {
   type BundleClaimOrder,
 } from "@/lib/bundle-claims";
 import { createServiceClient } from "@/utils/supabase/service";
+import { prepareBundleReceivingImages } from "@/lib/api/bundle-receiving";
+
+import { TAIWAN_MOBILE_PHONE_PATTERN } from "@/lib/claims";
 
 const actionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("update_phone"),
+    ownerId: z.string().uuid(),
+    orderId: z.number().int().positive(),
+    phone: z.string().trim().regex(TAIWAN_MOBILE_PHONE_PATTERN),
+    expectedUpdatedAt: z.string().datetime({ offset: true }),
+  }),
   z.object({
     action: z.literal("set_products"),
     ownerId: z.string().uuid(),
@@ -130,6 +140,12 @@ function matchesSearch(order: BundleClaimOrder, search: string) {
 
 function mutationError(error: { message: string; code?: string }) {
   const known: Record<string, string> = {
+    "bundle receiving requires product details":
+      "請先補齊配單的商品名稱與單價，再完成入庫核對",
+    "bundle receiving image not prepared":
+      "商品圖片尚未準備完成，請重新入庫核對",
+    "fulfillment total mismatch":
+      "商品明細合計與配單總額不符，請先確認商品金額",
     "invalid bundle claim products": "請確認每張商品的名稱與金額完整且沒有重複",
     "invalid bundle campaign": "找不到這個庫藏的大禮包活動",
     "bundle claim draft not found": "找不到可編輯的草稿",
@@ -329,6 +345,26 @@ export async function PATCH(request: Request) {
       return apiFailure("無法操作這個庫藏的喊單", 403);
     }
 
+    if (input.action === "update_phone") {
+      const { data, error } = await createServiceClient()
+        .from("bundle_claim_orders")
+        .update({
+          customer_phone: input.phone,
+          customer_phone_normalized: input.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("owner_id", input.ownerId)
+        .eq("id", input.orderId)
+        .eq("status", "confirmed")
+        .eq("updated_at", input.expectedUpdatedAt)
+        .select("id")
+        .maybeSingle();
+      if (error) return apiFailure("電話更新失敗，請稍後再試。", 400);
+      if (!data)
+        return apiFailure("配單已變更或尚未確認，請重新整理後再試。", 409);
+      return apiSuccess({ orderId: input.orderId, action: input.action });
+    }
+
     const supabase = asUntypedSupabase(auth.supabase);
     let rpcName = "";
     let rpcInput: Record<string, unknown> = {
@@ -346,6 +382,20 @@ export async function PATCH(request: Request) {
       rpcName = "delete_bundle_claim_payment";
     }
     if (input.action === "set_receiving") {
+      if (input.checked) {
+        try {
+          await prepareBundleReceivingImages(
+            supabase,
+            input.ownerId,
+            input.orderId,
+          );
+        } catch (error) {
+          return apiFailure(
+            error instanceof Error ? error.message : "入庫準備失敗",
+            400,
+          );
+        }
+      }
       rpcName = "set_bundle_claim_receiving_check";
       rpcInput = { ...rpcInput, p_checked: input.checked };
     }

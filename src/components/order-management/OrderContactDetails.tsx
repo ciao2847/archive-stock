@@ -4,14 +4,18 @@ import { Copy, Check } from "lucide-react";
 
 export function OrderContactDetails({
   name,
+  nameActions,
   phone,
+  phoneActions,
   notes,
   metadata,
   actions,
   badge,
 }: {
   name: string;
+  nameActions?: ReactNode;
   phone?: string;
+  phoneActions?: ReactNode;
   notes?: string;
   metadata: ReactNode;
   actions?: ReactNode;
@@ -34,23 +38,33 @@ export function OrderContactDetails({
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           {badge}
           <strong className="break-words text-[18px] text-dark">{name}</strong>
+          {nameActions}
         </div>
-        {phone && (
+        {(phone || phoneActions) && (
           <span className="inline-flex items-center gap-2">
-            <a
-              href={`tel:${phone}`}
-              className="text-[13px] font-semibold text-primary no-underline hover:underline"
-            >
-              {phone}
-            </a>
-            <button
-              type="button"
-              className="icon-btn size-7"
-              aria-label="複製手機號碼"
-              onClick={() => void copyPhone()}
-            >
-              {copiedPhone === phone ? <Check size={13} /> : <Copy size={13} />}
-            </button>
+            {phone && (
+              <>
+                <a
+                  href={`tel:${phone}`}
+                  className="text-[13px] font-semibold text-primary no-underline hover:underline"
+                >
+                  {phone}
+                </a>
+                <button
+                  type="button"
+                  className="icon-btn size-7"
+                  aria-label="複製手機號碼"
+                  onClick={() => void copyPhone()}
+                >
+                  {copiedPhone === phone ? (
+                    <Check size={13} />
+                  ) : (
+                    <Copy size={13} />
+                  )}
+                </button>
+              </>
+            )}
+            {phoneActions}
           </span>
         )}
       </div>

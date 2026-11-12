@@ -173,7 +173,7 @@ export function BundleMenuControl({
   return (
     <>
       <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:items-stretch">
-        <section className="card min-w-0 rounded-[20px]! p-6 [@media(max-width:380px)]:p-5">
+        <section className="card min-w-0 rounded-[8px]! p-6 [@media(max-width:380px)]:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <label className="grid min-w-0 gap-4 text-[16px] font-bold text-dark">
               <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
@@ -218,7 +218,7 @@ export function BundleMenuControl({
           )}
         </section>
         {activeCampaign ? (
-          <section className="card min-w-0 rounded-[20px]! p-6 [@media(max-width:380px)]:p-5 lg:relative">
+          <section className="card min-w-0 rounded-[8px]! p-6 [@media(max-width:380px)]:p-5 lg:relative">
             <div className="flex items-start justify-between gap-4 lg:pr-[94px]">
               <div className="flex gap-1 min-w-0">
                 <h3 className="m-0 break-words text-[18px] font-bold leading-normal">
@@ -244,7 +244,7 @@ export function BundleMenuControl({
                 )}
               </div>
             </div>
-            <div className="mt-4 lg:absolute lg:right-6 lg:top-6 lg:mt-0 [&>div]:rounded-[12px] [&>div]:border-0 [&>div]:bg-light [&>div]:p-4 [&>div>div>span:first-child]:mr-auto lg:[&>div]:bg-transparent lg:[&>div]:p-0 lg:[&>div>div]:gap-1.5 lg:[&>div>div>span:first-child]:hidden lg:[&>div>p]:sr-only">
+            <div className="mt-4 lg:absolute lg:right-6 lg:top-6 lg:mt-0 [&>div]:rounded-[8px] [&>div]:border-0 [&>div]:bg-light [&>div]:p-4 [&>div>div>span:first-child]:mr-auto lg:[&>div]:bg-transparent lg:[&>div]:p-0 lg:[&>div>div]:gap-1.5 lg:[&>div>div>span:first-child]:hidden lg:[&>div>p]:sr-only">
               <AvailabilitySwitch
                 label="公開配單選單"
                 enabled={activeCampaign.enabled}
@@ -256,7 +256,7 @@ export function BundleMenuControl({
               />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 lg:mt-4 lg:gap-2.5">
-              <code className="col-span-2 min-w-0 flex-[1_1_100%] break-all rounded-[12px] bg-light p-4 text-[13px] leading-[1.6] text-dark lg:p-2.5 lg:text-[12px]">
+              <code className="col-span-2 min-w-0 flex-[1_1_100%] break-all rounded-[8px] bg-light p-4 text-[13px] leading-[1.6] text-dark lg:p-2.5 lg:text-[12px]">
                 /bundles/{activeCampaign.publicToken}
               </code>
               <button
@@ -294,7 +294,7 @@ export function BundleMenuControl({
             role="dialog"
             aria-modal="true"
             aria-labelledby="bundle-campaign-dialog-title"
-            className="max-h-[90dvh] w-full max-w-[480px] overflow-y-auto rounded-[14px] bg-white p-5 shadow-xl"
+            className="max-h-[90dvh] w-full max-w-[480px] overflow-y-auto rounded-[8px] bg-white p-5 shadow-xl"
             onKeyDown={(event) => {
               if (event.key === "Escape" && !busy) setModalOpen(false);
             }}

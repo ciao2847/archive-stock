@@ -1,4 +1,5 @@
 "use client";
+import { CustomerNameEditor } from "@/components/order-management/CustomerNameEditor";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 
@@ -45,6 +46,7 @@ import {
 import type { Order, Product } from "@/lib/types";
 
 export interface ClaimSubmissionsViewProps {
+  ownerId: string;
   fixedView?: "customers" | "procurement";
   renderFulfillment?: (submission: ClaimSubmission) => ReactNode;
   data: ClaimFormManagement;
@@ -89,6 +91,7 @@ const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
 };
 
 export function ClaimSubmissionsView({
+  ownerId,
   data,
   fixedView,
   renderFulfillment,
@@ -538,13 +541,15 @@ export function ClaimSubmissionsView({
                 各商品訂購合計
               </h3>
               <p className="mb-0 mt-1 text-[12px] leading-5 text-muted">
-                訂購截止後，依買家登記總數向車頭或廠商批次下單
+                總訂購數量供掌握需求，實際叫貨以已全額付款數量為準。
               </p>
             </div>
             <button
               type="button"
               className="outline min-h-10 w-full whitespace-nowrap px-4 text-[12px] lg:w-auto"
-              disabled={!data.productTotals.length}
+              disabled={
+                !data.productTotals.some((product) => product.paidQuantity > 0)
+              }
               onClick={onDownloadSummary}
             >
               <Download size={15} />
@@ -558,6 +563,10 @@ export function ClaimSubmissionsView({
               className="mt-0.5 shrink-0 text-primary"
               aria-hidden="true"
             />
+            <span>
+              已付款數量僅計入全額付款；未付款與付一半皆列入未結清。採購 CSV
+              僅匯出已付款商品與數量。
+            </span>
           </div>
 
           {data.productTotals.length ? (
@@ -576,7 +585,7 @@ export function ClaimSubmissionsView({
                     </small>
                   </div>
 
-                  <dl className="m-0 mt-4 grid grid-cols-2 gap-3">
+                  <dl className="m-0 mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
                     <div className="min-w-0 rounded-[8px] bg-light/70 px-3 py-3 sm:px-4">
                       <dt className="text-[10px] font-medium tracking-[0.04em] text-muted">
                         訂購人數
@@ -585,12 +594,28 @@ export function ClaimSubmissionsView({
                         {product.customerCount} 人
                       </dd>
                     </div>
+                    <div className="min-w-0 rounded-[8px] bg-light/70 px-3 py-3 sm:px-4">
+                      <dt className="text-[10px] font-medium tracking-[0.04em] text-muted">
+                        總訂購數量
+                      </dt>
+                      <dd className="m-0 mt-1 text-[16px] font-bold text-dark">
+                        {product.quantity} 件
+                      </dd>
+                    </div>
+                    <div className="min-w-0 rounded-[8px] bg-light/70 px-3 py-3 sm:px-4">
+                      <dt className="text-[10px] font-medium tracking-[0.04em] text-muted">
+                        未結清數量
+                      </dt>
+                      <dd className="m-0 mt-1 text-[16px] font-bold text-dark">
+                        {product.quantity - product.paidQuantity} 件
+                      </dd>
+                    </div>
                     <div className="min-w-0 rounded-[8px] bg-accent-soft px-3 py-3 sm:px-4">
                       <dt className="text-[10px] font-semibold tracking-[0.04em] text-accent-strong">
-                        建議叫貨數量
+                        已付款數量（叫貨依據）
                       </dt>
                       <dd className="m-0 mt-1 text-[16px] font-bold text-accent-strong">
-                        {product.quantity}
+                        {product.paidQuantity} 件
                       </dd>
                     </div>
                   </dl>
@@ -683,7 +708,7 @@ export function ClaimSubmissionsView({
         >
           <section
             aria-label="訂購明細"
-            className="min-w-0 rounded-[14px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6"
+            className="min-w-0 rounded-[8px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6"
           >
             {!selected ? (
               <p className="py-12 text-center text-[13px] text-muted">
@@ -701,6 +726,17 @@ export function ClaimSubmissionsView({
                     </span>
                   }
                   name={selected.nickname}
+                  nameActions={
+                    <CustomerNameEditor
+                      key={`name:${selected.source}:${selected.id}:${selected.nickname}`}
+                      ownerId={ownerId}
+                      source={selected.source}
+                      recordId={selected.id}
+                      name={selected.nickname}
+                      disabled={loading}
+                      onSaved={() => onReload(data.pagination.page)}
+                    />
+                  }
                   phone={selected.phone}
                   notes={selected.notes}
                   metadata={

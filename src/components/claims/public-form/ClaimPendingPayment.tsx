@@ -43,7 +43,7 @@ export function ClaimPendingPayment({
   }
 
   return (
-    <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-5">
+    <section className="rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:p-5">
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--claim-soft)] text-[var(--claim-primary)]">
           <CheckCircle2 size={17} aria-hidden="true" />
@@ -58,7 +58,7 @@ export function ClaimPendingPayment({
       </p>
 
       {result.transferAccount && (
-        <div className="mt-4 rounded-[10px] border border-[var(--claim-border)] bg-[var(--claim-soft)] p-3.5 md:p-4">
+        <div className="mt-4 rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-soft)] p-3.5 md:p-4">
           <div className="flex items-center gap-2 text-[12px] font-bold md:text-[13px]">
             <Landmark
               size={16}

@@ -91,6 +91,7 @@ export type ClaimTransferAccount = {
 };
 
 export type ClaimProductTotal = {
+  paidQuantity: number;
   productId?: string;
   sku: string;
   name: string;

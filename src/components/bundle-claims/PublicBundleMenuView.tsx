@@ -164,7 +164,7 @@ export function PublicBundleMenuView({
         aria-label="選擇專屬配單"
       >
         <div
-          className="rounded-[14px] border border-black/10 p-4 md:p-5"
+          className="rounded-[8px] border border-black/10 p-4 md:p-5"
           style={{
             backgroundColor: appearance.theme.surfaceColor,
             color: getContrastColor(appearance.theme.surfaceColor),

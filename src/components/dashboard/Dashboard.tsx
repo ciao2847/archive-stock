@@ -2,6 +2,7 @@
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import swal from "sweetalert";
 import {
   Boxes,
@@ -114,6 +115,7 @@ export function Dashboard({ authScope }: { authScope: string }) {
 }
 
 function DashboardWorkspace({ authScope }: { authScope: string }) {
+  const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const {
     data: productsData,
@@ -740,7 +742,7 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                   }
                 >
                   {printSelectionMode && (
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-line bg-white p-3">
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
@@ -929,7 +931,12 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                   inventoryName={activeInventoryName}
                   products={scopedProducts}
                   orders={scopedOrders}
-                  onReloadProducts={loadProducts}
+                  onReloadProducts={async () => {
+                    await loadAllData();
+                    await queryClient.invalidateQueries({
+                      queryKey: ["location-storage", selectedOwnerId],
+                    });
+                  }}
                   initialTab={claimInitialTab}
                 />
               )}
@@ -937,6 +944,14 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                 <BundleClaimPanel
                   key={selectedOwnerId}
                   ownerId={selectedOwnerId}
+                  onInventoryReceived={async () => {
+                    await Promise.allSettled([
+                      loadAllData(),
+                      queryClient.invalidateQueries({
+                        queryKey: ["location-storage", selectedOwnerId],
+                      }),
+                    ]);
+                  }}
                   inventoryName={activeInventoryName}
                   onOpenAppearance={() => {
                     setClaimInitialTab("appearance");

@@ -1,4 +1,5 @@
 "use client";
+import { buildPaidProcurementCsv } from "@/lib/claim-procurement";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { Spinner } from "@/components/ui/Spinner";
@@ -78,12 +79,6 @@ function toLocalDateTimeInput(iso?: string) {
   const date = new Date(iso);
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function csvCell(value: string | number) {
-  let text = String(value);
-  if (/^[=+\-@]/.test(text)) text = `'${text}`;
-  return `"${text.replaceAll('"', '""')}"`;
 }
 
 export type ClaimTab = "submissions" | "checkout" | "settings" | "appearance";
@@ -702,16 +697,7 @@ export function ClaimFormPanel({
 
   function downloadSummary() {
     if (!data) return;
-    const rows = [
-      ["商品 ID", "商品名稱", "訂購總數", "訂購人數"],
-      ...data.productTotals.map((product) => [
-        product.sku,
-        product.name,
-        product.quantity,
-        product.customerCount,
-      ]),
-    ];
-    const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
+    const csv = buildPaidProcurementCsv(data.productTotals);
     const url = URL.createObjectURL(
       new Blob([csv], { type: "text/csv;charset=utf-8" }),
     );
@@ -725,6 +711,7 @@ export function ClaimFormPanel({
   if (managementSubmissions && data) {
     return (
       <ClaimSubmissionsView
+        ownerId={ownerId}
         fixedView="customers"
         products={products}
         renderFulfillment={(submission) => (
@@ -789,6 +776,7 @@ export function ClaimFormPanel({
       <>
         {error && <ErrorMessage className="text-danger">{error}</ErrorMessage>}
         <ClaimCustomersView
+          ownerId={ownerId}
           key={searchParams.get("customer") ?? ""}
           submissions={allSubmissions}
           loading={allSubmissionsLoading || (loading && !data)}
@@ -841,7 +829,7 @@ export function ClaimFormPanel({
             {phoneSearchError}
           </ErrorMessage>
         )}
-        <div className="grid min-w-0 gap-5 rounded-[14px] border border-line bg-white p-5 md:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-center">
+        <div className="grid min-w-0 gap-5 rounded-[8px] border border-line bg-white p-5 md:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-center">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-[8px] bg-primary-soft text-primary">
               <Link2 size={19} />
@@ -1003,6 +991,7 @@ export function ClaimFormPanel({
         {/* Tab Content */}
         {activeTab === "submissions" && data && currentForm && (
           <ClaimSubmissionsView
+            ownerId={ownerId}
             fixedView="procurement"
             products={products}
             data={data}
@@ -1016,7 +1005,7 @@ export function ClaimFormPanel({
             onClearCustomerSearch={clearCustomerSearch}
             searchControls={
               <section
-                className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
+                className="min-w-0 rounded-[8px] border border-line bg-white p-4 md:p-5"
                 aria-label="訂購搜尋"
               >
                 <SearchField
@@ -1060,6 +1049,7 @@ export function ClaimFormPanel({
 
         {activeTab === "checkout" && (
           <ClaimCustomersView
+            ownerId={ownerId}
             submissions={allSubmissions}
             loading={allSubmissionsLoading}
             inventoryName={inventoryName}
@@ -1097,6 +1087,16 @@ export function ClaimFormPanel({
             onSave={() => save()}
             publicPath={publicPath}
             onReloadProducts={onReloadProducts}
+            onProductsMerged={async () => {
+              const refreshed = await load(
+                data?.pagination.page ?? 1,
+                false,
+                currentForm?.id,
+                customerPhone || undefined,
+              );
+              if (!refreshed) throw new Error("合併後訂購資料重新載入失敗");
+              setAllSubmissions([]);
+            }}
             onNavigateToSubmissions={
               currentForm ? () => setActiveTab("submissions") : undefined
             }

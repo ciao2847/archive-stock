@@ -85,6 +85,7 @@ export const adaptProduct = (raw: unknown): Product => {
       asString(data.name ?? data.title, "未命名商品"),
       asString(data.country),
     ),
+    hasInventoryHistory: data.hasInventoryHistory === true,
     ownerName: asString(data.ownerName, "未命名使用者"),
     ownerId: asString(data.ownerId ?? data.owner_id),
     work: asString(data.work ?? data.series, "未指定作品"),

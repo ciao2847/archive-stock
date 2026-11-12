@@ -1,4 +1,5 @@
 "use client";
+import styles from "../../../styles/components/checkout/StallSalesSummary.module.scss";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 
@@ -6,6 +7,7 @@ import { RefreshButton } from "@/components/ui/RefreshButton";
 
 import { useEffect, useState } from "react";
 import { readApiResponse } from "@/lib/api/http-client";
+import { stallPaymentLabel } from "@/lib/stall-payment";
 import type { StallSales } from "@/lib/stall-sales";
 
 export function StallSalesSummary({ ownerId }: { ownerId: string }) {
@@ -90,6 +92,31 @@ export function StallSalesSummary({ ownerId }: { ownerId: string }) {
           <b>{sales ? `${sales.itemCount} 件` : "—"}</b>
         </div>
       </div>
+      {sales && (
+        <div className="mt-4 text-[13px]">
+          <p>今日折抵合計：NT$ {sales.discount.toLocaleString("zh-TW")}</p>
+          <table className={styles.payments} aria-label="今日各收款方式對帳">
+            <thead>
+              <tr>
+                <th>收款方式</th>
+                <th>筆數</th>
+                <th className="text-right">實收金額</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(sales.payments).map(([method, payment]) => (
+                <tr key={method}>
+                  <td className="py-2">{stallPaymentLabel(method)}</td>
+                  <td>{payment.orderCount}</td>
+                  <td className="text-right">
+                    NT$ {payment.revenue.toLocaleString("zh-TW")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {error && (
         <ErrorMessage className="camera-error">
           {error}，請重新更新。{sales && "目前顯示上次成功更新的數字。"}

@@ -163,6 +163,7 @@ function mapProductTotals(value: unknown): ClaimProductTotal[] {
         sku: row.sku,
         name: row.name,
         quantity: numberOf(row.quantity),
+        paidQuantity: numberOf(row.paid_quantity),
         customerCount: numberOf(row.customer_count),
       },
     ];
@@ -642,6 +643,7 @@ export async function PUT(request: Request) {
         "claim form title already exists": "這個 IP 已經有訂購連結。",
         "claim form not found": "找不到這個 IP 訂購連結。",
         "claim form product is not available": "部分商品不屬於目前庫藏。",
+        "product already merged": "商品已合併，請重新整理訂購頁設定後再儲存。",
         "invalid claim form product": "請確認商品名稱、金額與數量上限。",
         "invalid claim form products": "訂購商品設定格式錯誤。",
         "invalid claim form banner image": "請重新選擇橫幅背景圖片。",

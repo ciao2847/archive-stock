@@ -385,7 +385,7 @@ function InventoryDatabaseEditor({
   }
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
+    <div className="rounded-[8px] border border-line bg-surface p-4">
       <label className="block text-[12px] font-semibold">
         資料庫名稱
         <input

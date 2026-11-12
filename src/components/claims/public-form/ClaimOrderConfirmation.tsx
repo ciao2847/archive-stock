@@ -39,7 +39,7 @@ export function ClaimOrderConfirmation({
 
   return (
     <div className="mx-auto max-w-[480px] space-y-3 md:space-y-4">
-      <section className="rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] px-4 py-5 text-center text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:px-6 md:py-6">
+      <section className="rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] px-4 py-5 text-center text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)] md:px-6 md:py-6">
         <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--claim-surface-muted)] md:text-[11px]">
           確認編號
         </span>
@@ -66,7 +66,7 @@ export function ClaimOrderConfirmation({
         </small>
       </section>
 
-      <section className="overflow-hidden rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)]">
+      <section className="overflow-hidden rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)] shadow-[0_14px_40px_rgba(5,16,32,0.08)]">
         <div className="px-4 pb-1 pt-4 md:px-5 md:pt-5">
           <h2 className="m-0 text-[11px] font-bold text-[var(--claim-surface-muted)] md:text-[12px]">
             本次訂購

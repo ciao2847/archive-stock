@@ -25,7 +25,7 @@ export function OrderItems({
   return (
     <>
       <section
-        className="mt-5 min-w-0 overflow-hidden rounded-[12px] border border-line"
+        className="mt-5 min-w-0 overflow-hidden rounded-[8px] border border-line"
         aria-label="商品明細"
       >
         <h4 className="m-0 border-b border-line px-4 py-3 text-[14px] font-bold text-dark">

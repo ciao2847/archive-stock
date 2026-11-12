@@ -28,11 +28,47 @@ test("revenue sums recorded sale prices and quantities in cents", () => {
         ],
       },
     ]),
-    { revenue: 1300.07, orderCount: 2, itemCount: 6 },
+    {
+      revenue: 1300.07,
+      orderCount: 2,
+      itemCount: 6,
+      discount: 0,
+      payments: { unspecified: { revenue: 1300.07, orderCount: 2 } },
+    },
   );
   assert.deepEqual(sumStallSales([]), {
     revenue: 0,
     orderCount: 0,
     itemCount: 0,
+    discount: 0,
+    payments: {},
+  });
+});
+
+test("reconciliation groups net receipts by method and keeps historical unknowns separate", () => {
+  const result = sumStallSales([
+    {
+      discount: 50,
+      stall_payment_method: "cash",
+      order_items: [{ quantity: 2, unit_price: 350 }],
+    },
+    {
+      discount: 0.1,
+      stall_payment_method: "transfer",
+      order_items: [{ quantity: 1, unit_price: 100.1 }],
+    },
+    {
+      discount: 350,
+      stall_payment_method: "cash",
+      order_items: [{ quantity: 1, unit_price: 350 }],
+    },
+    { order_items: [{ quantity: 1, unit_price: 25 }] },
+  ]);
+  assert.equal(result.revenue, 775);
+  assert.equal(result.discount, 400.1);
+  assert.deepEqual(result.payments, {
+    cash: { revenue: 650, orderCount: 2 },
+    transfer: { revenue: 100, orderCount: 1 },
+    unspecified: { revenue: 25, orderCount: 1 },
   });
 });

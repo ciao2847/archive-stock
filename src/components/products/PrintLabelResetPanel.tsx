@@ -38,7 +38,7 @@ export function PrintLabelResetPanel({
 
   return (
     <div id="product-print-reset">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-line bg-white p-3">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"

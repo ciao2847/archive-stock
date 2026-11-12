@@ -104,7 +104,7 @@ export function ClaimContactForm({
     <section
       id="order-contact"
       aria-label="訂購聯絡資料"
-      className="min-w-0 scroll-mt-5 self-start rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] lg:sticky lg:top-5 md:p-5"
+      className="min-w-0 scroll-mt-5 self-start rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)] lg:sticky lg:top-5 md:p-5"
     >
       <div className="flex items-center gap-2.5">
         <span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-[var(--claim-soft)] text-[var(--claim-primary)]">

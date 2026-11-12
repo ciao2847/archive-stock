@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
-import { getTaipeiDay, sumStallSales } from "@/lib/stall-sales";
+import {
+  getTaipeiDay,
+  sumStallSales,
+  type StallSales,
+} from "@/lib/stall-sales";
 
 export async function GET(request: Request) {
   const auth = await requireApiUser();
@@ -14,12 +18,20 @@ export async function GET(request: Request) {
     return apiFailure("權限不足", 403);
   const day = getTaipeiDay();
   let cursor: string | undefined;
-  const totals = { revenue: 0, orderCount: 0, itemCount: 0 };
+  const totals: Omit<StallSales, "date"> = {
+    revenue: 0,
+    orderCount: 0,
+    itemCount: 0,
+    discount: 0,
+    payments: {},
+  };
   // Page by ID so a busy day cannot be silently truncated by the Data API's row limit.
   for (;;) {
     let query = auth.supabase
       .from("orders")
-      .select("id,order_items(quantity,unit_price)")
+      .select(
+        "id,discount,stall_payment_method,order_items(quantity,unit_price)",
+      )
       .eq("owner_id", ownerId.data)
       .eq("notes", "攤位掃碼結帳")
       .eq("payment_status", "paid")
@@ -35,6 +47,14 @@ export async function GET(request: Request) {
     if (!data?.length) break;
     const page = sumStallSales(data);
     totals.revenue = Math.round((totals.revenue + page.revenue) * 100) / 100;
+    totals.discount = Math.round((totals.discount + page.discount) * 100) / 100;
+    for (const [method, payment] of Object.entries(page.payments)) {
+      const current = totals.payments[method] ?? { revenue: 0, orderCount: 0 };
+      totals.payments[method] = {
+        revenue: Math.round((current.revenue + payment.revenue) * 100) / 100,
+        orderCount: current.orderCount + payment.orderCount,
+      };
+    }
     totals.orderCount += page.orderCount;
     totals.itemCount += page.itemCount;
     cursor = data[data.length - 1].id;

@@ -41,7 +41,7 @@ export function ClaimProductSelection({
     <>
       <section
         aria-label="商品與訂購總額"
-        className="min-w-0 self-start overflow-hidden rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)]"
+        className="min-w-0 self-start overflow-hidden rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] text-[var(--claim-surface-text)]"
       >
         <div className="p-4 md:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">

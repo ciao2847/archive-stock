@@ -32,7 +32,7 @@ const globals = globalThis as typeof globalThis & {
   checkoutAuth: unknown;
   checkoutRoles: unknown;
 };
-function request(owner: string) {
+function request(owner: string, extra: Record<string, unknown> = {}) {
   return new Request("https://example.com/api/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +40,7 @@ function request(owner: string) {
       ownerId: owner,
       tokens: [token],
       expectedTotal: 350,
+      ...extra,
     }),
   });
 }
@@ -55,6 +56,8 @@ test("staff can complete checkout in their own inventory", async () => {
           p_owner_id: ownerId,
           p_tokens: [token],
           p_expected_total: 350,
+          p_discount: 0,
+          p_payment_method: "cash",
         });
         return { data: { orderId: "sale", total: 350 }, error: null };
       },
@@ -232,4 +235,39 @@ test("QR URL and legacy content continue to resolve the scanned unit", async () 
       ),
     );
   }
+});
+
+test("discount and chosen method reach the atomic RPC, while invalid amounts never do", async () => {
+  let calls = 0;
+  globals.checkoutAuth = {
+    ok: true,
+    role: "staff",
+    inventoryOwnerId: ownerId,
+    supabase: {
+      async rpc(name: string, args: Record<string, unknown>) {
+        calls++;
+        assert.equal(name, "checkout_stall_labels");
+        assert.equal(args.p_discount, 50);
+        assert.equal(args.p_payment_method, "line_pay");
+        return {
+          data: { total: 300, discount: 50, paymentMethod: "line_pay" },
+          error: null,
+        };
+      },
+    },
+  };
+  assert.equal(
+    (await POST(request(ownerId, { discount: 50, paymentMethod: "line_pay" })))
+      .status,
+    200,
+  );
+  for (const extra of [
+    { discount: 351 },
+    { discount: -1 },
+    { discount: 0.001 },
+    { paymentMethod: "invalid" },
+  ]) {
+    assert.equal((await POST(request(ownerId, extra))).status, 400);
+  }
+  assert.equal(calls, 1);
 });

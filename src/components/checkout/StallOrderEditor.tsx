@@ -1,4 +1,5 @@
 "use client";
+import { STALL_PAYMENT_METHODS } from "@/lib/stall-payment";
 
 import { CloseButton } from "@/components/ui/CloseButton";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
@@ -30,6 +31,10 @@ export function StallOrderEditor({
   const [items, setItems] = useState(() =>
     order.items.map((item) => ({ ...item })),
   );
+  const [discount, setDiscount] = useState(order.discount ?? 0);
+  const [paymentMethod, setPaymentMethod] = useState(
+    order.paymentMethod ?? "unspecified",
+  );
   const [note, setNote] = useState(order.note);
   const [sku, setSku] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +43,9 @@ export function StallOrderEditor({
     items.reduce(
       (sum, item) => sum + Math.round(item.unitPrice * 100) * item.quantity,
       0,
-    ) / 100;
+    ) /
+      100 -
+    discount;
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -98,10 +105,12 @@ export function StallOrderEditor({
       ownerId,
       revision: order.revision,
       note,
+      discount,
+      paymentMethod,
       items,
     });
-    if (!parsed.success) {
-      setError("請確認商品數量與單價，最多 100 件，單價最多兩位小數。");
+    if (!parsed.success || total < 0) {
+      setError("請確認商品數量、單價與折抵金額，折抵不可超過商品小計。");
       return;
     }
     if (
@@ -135,6 +144,8 @@ export function StallOrderEditor({
     hideButton: true,
     busy: busy,
     dirty:
+      discount !== (order.discount ?? 0) ||
+      paymentMethod !== (order.paymentMethod ?? "unspecified") ||
       note !== order.note ||
       JSON.stringify(items) !== JSON.stringify(order.items),
   });
@@ -255,6 +266,34 @@ export function StallOrderEditor({
                 </div>
               </div>
             ))}
+            <label className="field">
+              <span>整筆折抵金額</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={discount}
+                required
+                onChange={(event) => setDiscount(Number(event.target.value))}
+              />
+            </label>
+            <label className="field">
+              <span>收款方式</span>
+              <select
+                value={paymentMethod}
+                onChange={(event) => setPaymentMethod(event.target.value)}
+              >
+                {order.paymentMethod === "unspecified" ||
+                !order.paymentMethod ? (
+                  <option value="unspecified">未記錄</option>
+                ) : null}
+                {Object.entries(STALL_PAYMENT_METHODS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="field">
               <span>訂單備註</span>
               <textarea

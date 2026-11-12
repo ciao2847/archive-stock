@@ -43,6 +43,12 @@ async function manage(
       ...(edit
         ? {
             p_note: edit.note,
+            ...(edit.discount !== undefined
+              ? {
+                  p_discount: edit.discount,
+                  p_payment_method: edit.paymentMethod ?? "unspecified",
+                }
+              : {}),
             p_items: edit.items.map((item) => ({
               product_id: item.productId,
               quantity: item.quantity,

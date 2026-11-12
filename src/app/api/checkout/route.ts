@@ -1,3 +1,7 @@
+import {
+  stallDiscountSchema,
+  stallPaymentMethodSchema,
+} from "@/lib/stall-payment";
 import { z } from "zod";
 import { apiFailure, apiSuccess, requireApiUser } from "@/lib/api/server-auth";
 import { extractQrToken } from "@/lib/public-qr";
@@ -13,6 +17,8 @@ const checkoutSchema = z.object({
   ownerId: z.string().uuid(),
   tokens: z.array(z.string().uuid()).min(1).max(100),
   expectedTotal: z.number().finite().nonnegative(),
+  discount: stallDiscountSchema.default(0),
+  paymentMethod: stallPaymentMethodSchema.default("cash"),
 });
 
 export async function GET(request: Request) {
@@ -112,13 +118,19 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiFailure("結帳資料格式錯誤", 400);
   if (auth.role !== "admin" && parsed.data.ownerId !== auth.inventoryOwnerId)
     return apiFailure("權限不足", 403);
+  if (parsed.data.discount > parsed.data.expectedTotal)
+    return apiFailure("折抵金額不可超過商品小計", 400);
   const { data, error } = await auth.supabase.rpc("checkout_stall_labels", {
     p_owner_id: parsed.data.ownerId,
     p_tokens: parsed.data.tokens,
     p_expected_total: parsed.data.expectedTotal,
+    p_discount: parsed.data.discount,
+    p_payment_method: parsed.data.paymentMethod,
   });
   if (error) {
     const messages: Record<string, string> = {
+      "invalid checkout discount": "請確認折抵金額，不可超過商品小計。",
+      "invalid checkout payment method": "請選擇收款方式。",
       "checkout label not found": "商品碼不存在或不屬於目前庫藏。",
       "checkout label unavailable":
         "其中一張商品碼已結帳或已失效，請移除後重試。",

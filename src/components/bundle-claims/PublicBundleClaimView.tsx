@@ -222,7 +222,7 @@ export function PublicBundleClaimView({
         style={themeStyle}
       >
         <div className="mx-auto max-w-[480px] space-y-3 md:space-y-4">
-          <section className="rounded-[14px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] px-4 py-5 text-center text-[var(--bundle-surface-text)] md:px-6 md:py-6">
+          <section className="rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] px-4 py-5 text-center text-[var(--bundle-surface-text)] md:px-6 md:py-6">
             <span className="text-[10px] font-semibold tracking-[0.14em] text-[var(--bundle-muted)] md:text-[11px]">
               確認編號
             </span>
@@ -250,7 +250,7 @@ export function PublicBundleClaimView({
             </small>
           </section>
 
-          <section className="overflow-hidden rounded-[14px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] text-[var(--bundle-surface-text)]">
+          <section className="overflow-hidden rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] text-[var(--bundle-surface-text)]">
             <div className="px-4 pb-1 pt-4 md:px-5 md:pt-5">
               <h2 className="m-0 text-[11px] font-bold text-[var(--bundle-muted)] md:text-[12px]">
                 本次配單
@@ -306,7 +306,7 @@ export function PublicBundleClaimView({
             </div>
           </section>
 
-          <section className="rounded-[14px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] p-4 text-[var(--bundle-surface-text)] md:p-5">
+          <section className="rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] p-4 text-[var(--bundle-surface-text)] md:p-5">
             <div className="flex items-center gap-2.5">
               <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bundle-soft)] text-[var(--bundle-primary)]">
                 <CheckCircle2 size={17} />
@@ -320,7 +320,7 @@ export function PublicBundleClaimView({
             </p>
 
             {confirmation.transferAccount && (
-              <div className="mt-4 rounded-[10px] border border-[var(--bundle-border)] bg-[var(--bundle-soft)] p-3.5">
+              <div className="mt-4 rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-soft)] p-3.5">
                 <div className="flex items-center gap-2 text-[12px] font-bold">
                   <Landmark
                     size={16}
@@ -395,7 +395,7 @@ export function PublicBundleClaimView({
                   前往官方 LINE 查看明細與結帳
                   <ExternalLink size={14} />
                 </a>
-                <div className="mt-4 rounded-[10px] border border-[var(--bundle-border)] bg-[var(--bundle-soft)] p-3.5 text-center">
+                <div className="mt-4 rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-soft)] p-3.5 text-center">
                   <h2 className="m-0 text-[13px] font-bold">用手機掃碼聯絡</h2>
 
                   <div className="mx-auto mt-3 w-fit max-w-full overflow-hidden rounded-[8px] bg-white">
@@ -492,7 +492,7 @@ export function PublicBundleClaimView({
 
       <div className="mx-auto grid max-w-[1040px] gap-4 px-4 pt-5 lg:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)] md:gap-5 md:px-8 md:pt-8">
         <section className="min-w-0 space-y-4">
-          <div className="overflow-hidden rounded-[14px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] text-[var(--bundle-surface-text)]">
+          <div className="overflow-hidden rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] text-[var(--bundle-surface-text)]">
             <div className="p-4 md:p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -598,7 +598,7 @@ export function PublicBundleClaimView({
           </div>
         </section>
 
-        <section className="min-w-0 self-start rounded-[14px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] p-4 text-[var(--bundle-surface-text)] lg:sticky lg:top-5 md:p-5">
+        <section className="min-w-0 self-start rounded-[8px] border border-[var(--bundle-border)] bg-[var(--bundle-surface)] p-4 text-[var(--bundle-surface-text)] lg:sticky lg:top-5 md:p-5">
           <div className="flex items-center gap-2.5">
             <span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-[var(--bundle-soft)] text-[var(--bundle-primary)]">
               <ShieldCheck size={19} />

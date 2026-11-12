@@ -1,4 +1,5 @@
 "use client";
+import { stallPaymentLabel } from "@/lib/stall-payment";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 
@@ -276,6 +277,10 @@ export function StallOrderHistory({
                     ))}
                   </ul>
                 </details>
+                <p className={styles.text}>
+                  收款方式：{stallPaymentLabel(order.paymentMethod)} · 折抵：
+                  {money(order.discount ?? 0)}
+                </p>
                 {order.note && (
                   <p className={styles.text}>備註：{order.note}</p>
                 )}

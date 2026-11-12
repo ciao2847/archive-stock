@@ -36,7 +36,7 @@ export function CustomerList({
             onSelect(row.key);
             openDetails(row.key);
           }}
-          className={`min-w-0 rounded-[10px] border p-4 text-left transition ${selectedKey === row.key ? "border-primary bg-primary-soft/55" : "border-line bg-white hover:border-primary/50"}`}
+          className={`min-w-0 rounded-[8px] border p-4 text-left transition ${selectedKey === row.key ? "border-primary bg-primary-soft/55" : "border-line bg-white hover:border-primary/50"}`}
         >
           <div className="flex min-w-0 items-center justify-between gap-3">
             <strong className="min-w-0 break-words text-[15px] text-dark">

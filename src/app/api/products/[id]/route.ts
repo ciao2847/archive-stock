@@ -34,7 +34,14 @@ export async function PATCH(
           p_input: input,
         },
       );
-      if (error) return apiFailure(error.message, 400, error.code);
+      if (error)
+        return apiFailure(
+          error.message === "product already merged"
+            ? "商品已合併，請重新整理後編輯庫存商品"
+            : error.message,
+          error.message === "product already merged" ? 409 : 400,
+          error.code,
+        );
       if (data !== parsedId.data)
         return apiFailure("商品未更新，請重新整理後再試", 409);
       return apiSuccess({ updated: true });
@@ -61,7 +68,14 @@ export async function PATCH(
         p_image_paths: input.imagePaths,
       },
     );
-    if (error) return apiFailure(error.message, 400, error.code);
+    if (error)
+      return apiFailure(
+        error.message === "product already merged"
+          ? "商品已合併，請重新整理後編輯庫存商品"
+          : error.message,
+        error.message === "product already merged" ? 409 : 400,
+        error.code,
+      );
     if (data !== true) return apiFailure("商品未更新，請重新整理後再試", 409);
     return apiSuccess({ updated: true });
   });

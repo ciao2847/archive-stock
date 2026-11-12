@@ -1,4 +1,7 @@
 "use client";
+import { CustomerNameEditor } from "@/components/order-management/CustomerNameEditor";
+
+import { BundlePhoneEditor } from "./BundlePhoneEditor";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { CloseButton } from "@/components/ui/CloseButton";
@@ -131,10 +134,12 @@ function PendingImage({ file }: { file: File }) {
 export function BundleClaimPanel({
   ownerId,
   onOpenAppearance,
+  onInventoryReceived,
 }: {
   ownerId: string;
   inventoryName: string;
   onOpenAppearance: () => void;
+  onInventoryReceived?: () => Promise<void>;
 }) {
   const ownerRef = useRef(ownerId);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -579,6 +584,9 @@ export function BundleClaimPanel({
     setMessage("");
     try {
       await performBundleClaimAction({ ownerId, ...input });
+      if (input.action === "set_receiving" && input.checked) {
+        await Promise.allSettled([onInventoryReceived?.()]);
+      }
       setMessage(successMessage);
       await load(preferredId);
       return true;
@@ -786,7 +794,7 @@ export function BundleClaimPanel({
       )}
 
       {editorOpen && (
-        <section className="min-w-0 rounded-[12px] border border-primary/35 bg-white p-4 md:p-6">
+        <section className="min-w-0 rounded-[8px] border border-primary/35 bg-white p-4 md:p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
               <span className="text-[11px] font-bold text-primary">
@@ -890,7 +898,7 @@ export function BundleClaimPanel({
               </label>
             </div>
 
-            <div className="mt-5 rounded-[10px] border border-line bg-light/55 p-3.5 md:p-4">
+            <div className="mt-5 rounded-[8px] border border-line bg-light/55 p-3.5 md:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h4 className="m-0 text-[14px] text-dark">商品截圖</h4>
@@ -1013,7 +1021,7 @@ export function BundleClaimPanel({
       )}
 
       <section
-        className="min-w-0 rounded-[12px] border border-line bg-white p-4 md:p-5"
+        className="min-w-0 rounded-[8px] border border-line bg-white p-4 md:p-5"
         aria-label="配單搜尋"
       >
         <SearchField
@@ -1068,7 +1076,7 @@ export function BundleClaimPanel({
             {loading ? (
               <LoadingState text="正在讀取配單…" />
             ) : orders.length === 0 ? (
-              <div className="rounded-[10px] border border-dashed border-line px-5 py-12 text-center">
+              <div className="rounded-[8px] border border-dashed border-line px-5 py-12 text-center">
                 <Images className="mx-auto text-muted" size={28} />
                 <p className="mb-0 mt-3 text-[13px] text-muted">
                   {search || filter !== "all"
@@ -1137,7 +1145,7 @@ export function BundleClaimPanel({
           </section>
         }
       >
-        <section className="min-w-0 rounded-[14px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6">
+        <section className="min-w-0 rounded-[8px] border border-line bg-white p-5 lg:sticky lg:top-4 md:p-6">
           {!selected ? (
             <div className="grid min-h-64 place-items-center text-center text-[13px] text-muted">
               <div>
@@ -1159,6 +1167,41 @@ export function BundleClaimPanel({
                   selected.customerNickname ||
                   selected.customerHint ||
                   "尚未指定顧客"
+                }
+                nameActions={
+                  selected.status === "confirmed" ? (
+                    <CustomerNameEditor
+                      key={`name:${selected.id}:${selected.updatedAt}`}
+                      ownerId={ownerId}
+                      source="bundle"
+                      recordId={selected.id}
+                      name={selected.customerNickname ?? ""}
+                      disabled={working}
+                      onSaved={async () => {
+                        await load(selected.id);
+                      }}
+                    />
+                  ) : undefined
+                }
+                phoneActions={
+                  selected.status === "confirmed" ? (
+                    <BundlePhoneEditor
+                      key={`${selected.id}:${selected.updatedAt}`}
+                      phone={selected.customerPhone ?? ""}
+                      disabled={working}
+                      onSave={(phone) =>
+                        runAction(
+                          {
+                            action: "update_phone",
+                            orderId: selected.id,
+                            expectedUpdatedAt: selected.updatedAt,
+                            phone,
+                          },
+                          "顧客電話已更新",
+                        )
+                      }
+                    />
+                  ) : undefined
                 }
                 phone={selected.customerPhone}
                 notes={selected.customerNotes}
@@ -1307,11 +1350,16 @@ export function BundleClaimPanel({
                   </PaymentSection>
                   <section
                     aria-label="入出庫核對"
-                    className="mt-4 rounded-[9px] border border-line px-3.5 pt-3.5"
+                    className="mt-4 rounded-[8px] border border-line px-3.5 pt-3.5"
                   >
                     <h4 className="m-0 text-[13px] font-bold text-dark">
                       入出庫核對
                     </h4>
+                    <p className="mb-0 mt-2 text-[11px] leading-5 text-muted">
+                      首次入庫核對會依商品明細新增商品，每件庫存 1
+                      張，並帶入品名、售價與圖片。
+                      撤銷核對會保留已入庫商品，再次核對不會重複新增。
+                    </p>
                     <div className="divide-y divide-line">
                       <div className="flex items-center justify-between gap-3 py-3">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -1347,7 +1395,7 @@ export function BundleClaimPanel({
                               },
                               selected.receivingCheckedAt
                                 ? "已撤銷入庫核對，出貨核對也已清除。"
-                                : "已完成入庫核對。",
+                                : "已完成入庫核對，商品已連結至庫存。",
                             )
                           }
                         >

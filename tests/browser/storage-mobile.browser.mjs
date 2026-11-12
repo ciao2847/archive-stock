@@ -61,14 +61,17 @@ const server = createServer((request, response) => {
 });
 await new Promise((done) => server.listen(0, "127.0.0.1", done));
 const browser = await chromium.launch({
-  executablePath: existsSync(
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  )
-    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    : undefined,
+  executablePath:
+    process.env.POSTER_CHROME_PATH ??
+    (existsSync("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+      ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      : undefined),
   headless: true,
 });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const page = await browser.newPage({
+  viewport: { width: 390, height: 844 },
+  hasTouch: true,
+});
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 
@@ -295,9 +298,7 @@ try {
     slots.length + otherSlots.length,
   );
   await page.screenshot({ path: "/tmp/poster-destination-menu.png" });
-  await dialog
-    .getByRole("radio", { name: "日本櫃／B 格 1（B-01-01）", exact: true })
-    .check();
+  await dialog.getByText("日本櫃／B 格 1（B-01-01）", { exact: true }).click();
   await dialog
     .getByRole("spinbutton", { name: "待整理海報 放入數量" })
     .fill("2");
@@ -382,9 +383,49 @@ try {
     .getByRole("dialog")
     .getByRole("button", { name: "關閉", exact: true })
     .click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "庫位", exact: true }).click();
+  await page
+    .locator(".storage-location-details")
+    .getByRole("button", { name: "搬移", exact: true })
+    .first()
+    .click();
+  await dialog.locator("summary").tap();
+  assert.equal(
+    await dialog.getByRole("radio").count(),
+    slots.length + otherSlots.length - 1,
+  );
+  await dialog.getByText("日本櫃／B 格 2（B-01-02）", { exact: true }).tap();
+  await dialog
+    .locator("summary")
+    .filter({ hasText: "日本櫃／B 格 2" })
+    .waitFor();
+  assert.equal(await dialog.locator("details").getAttribute("open"), null);
+  await dialog.locator("summary").tap();
+  await dialog
+    .getByRole("radio", { name: "日本櫃／B 格 3（B-01-03）", exact: true })
+    .tap();
+  await dialog
+    .locator("summary")
+    .filter({ hasText: "日本櫃／B 格 3" })
+    .waitFor();
+  await dialog.getByRole("button", { name: "確認搬移", exact: true }).tap();
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(actions.at(-1).locationId, otherSlots[2].id);
+  assert.deepEqual(actions.at(-1).items, [
+    {
+      productId: uid(501),
+      quantity: 2,
+      fromLocationId: slots[0].id,
+    },
+  ]);
+  assert.equal(
+    products[1].allocations.some((a) => a.location_id === slots[0].id),
+    false,
+  );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: mobile tabs, SKU/name search, cross-cabinet putaway and quantity, preserved filter, desktop layout",
+    "PASS: mobile tabs, SKU/name search, cross-cabinet putaway and move via touch labels/radios, quantity, preserved filter, desktop layout",
   );
 } catch (error) {
   console.error(await page.locator("body").innerText());

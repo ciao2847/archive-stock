@@ -1,3 +1,4 @@
+import { readActiveProducts } from "@/lib/api/active-products";
 import { z } from "zod";
 import {
   apiFailure,
@@ -32,6 +33,8 @@ type ProductRow = {
     | { display_name: string | null }
     | { display_name: string | null }[]
     | null;
+  product_qr_labels?: { count: number }[];
+  location_movements?: { count: number }[];
   works: { title_zh: string | null } | { title_zh: string | null }[] | null;
   locations: { code: string | null } | { code: string | null }[] | null;
 };
@@ -44,12 +47,16 @@ export async function GET() {
   if (!auth.ok) return auth.response;
 
   // The allocation table adds another path to locations; select the primary-location FK explicitly.
-  const { data, error } = await auth.supabase
-    .from("products")
-    .select(
-      "id,owner_id,sku,name,preorder_item_name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,works(title_zh),locations!products_location_id_fkey(code),owner:profiles!products_owner_id_fkey(display_name)",
-    )
-    .order("created_at", { ascending: false });
+  const { data, error } = await readActiveProducts((filterMerged) => {
+    const query = auth.supabase
+      .from("products")
+      .select(
+        "id,owner_id,sku,name,preorder_item_name,category,country,source,stock,status,price,image_paths,poster_format,poster_size,poster_crafts,identifying_features,description,product_qr_labels(count),location_movements(count),works(title_zh),locations!products_location_id_fkey(code),owner:profiles!products_owner_id_fkey(display_name)",
+      );
+    return (
+      filterMerged ? query.is("merged_into_product_id", null) : query
+    ).order("created_at", { ascending: false });
+  });
   if (error) return apiFailure(error.message, 400, error.code);
 
   const rows = (data ?? []) as unknown as ProductRow[];
@@ -91,6 +98,11 @@ export async function GET() {
       row.preorder_item_name === undefined
         ? {}
         : { preorderItemName: row.preorder_item_name }),
+      hasInventoryHistory:
+        row.stock > 0 ||
+        Boolean(primaryCode) ||
+        (row.product_qr_labels?.[0]?.count ?? 0) > 0 ||
+        (row.location_movements?.[0]?.count ?? 0) > 0,
       ownerId: row.owner_id,
       ownerName: firstRelation(row.owner)?.display_name || "未命名使用者",
       work: firstRelation(row.works)?.title_zh || "未指定作品",

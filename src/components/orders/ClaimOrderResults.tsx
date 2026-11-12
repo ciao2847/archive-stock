@@ -30,7 +30,7 @@ export function ClaimOrderResults({
         return (
           <article
             key={`${row.source}:${row.id}`}
-            className="rounded-[12px] border border-line bg-white p-4"
+            className="rounded-[8px] border border-line bg-white p-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">

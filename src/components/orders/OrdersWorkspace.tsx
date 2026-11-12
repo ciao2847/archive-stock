@@ -186,6 +186,7 @@ export function OrdersWorkspace({
           >
             {showRegular && filtered.length > 0 && (
               <OrderTable
+                onChanged={onChanged}
                 orders={filtered}
                 onPack={onPack}
                 onEditAmount={onEditAmount}

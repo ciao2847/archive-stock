@@ -1,0 +1,22 @@
+.payments {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  text-align: left;
+
+  th,
+  td {
+    padding: 8px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  th:nth-child(2) {
+    width: 20%;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: right;
+  }
+}

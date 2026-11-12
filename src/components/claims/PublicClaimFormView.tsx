@@ -129,7 +129,7 @@ export function PublicClaimFormView({
           <ClaimFormHeader form={form} />
           <div className="mx-auto max-w-[1040px] px-4 pt-5 md:px-8 md:pt-8">
             {!form.isOpen && (
-              <section className="mb-4 rounded-[14px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)]">
+              <section className="mb-4 rounded-[8px] border border-[var(--claim-border)] bg-[var(--claim-surface)] p-4 text-[var(--claim-surface-text)]">
                 <h2 className="m-0 text-[16px]">這次訂購已經截止</h2>
                 <p className="mb-0 mt-2 text-[13px] text-[var(--claim-surface-muted)]">
                   商品仍可查看，目前不能送出訂購。後續消息請留意群組公告。

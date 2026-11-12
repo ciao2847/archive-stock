@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { build } from "esbuild";
-import {
-  stallOrderEditSchema,
-  stallOrderSearchSchema,
-} from "../src/lib/stall-orders.ts";
+const schemaBundle = await build({
+  entryPoints: ["src/lib/stall-orders.ts"],
+  bundle: true,
+  write: false,
+  platform: "node",
+  format: "esm",
+});
+const { stallOrderEditSchema, stallOrderSearchSchema } = await import(
+  `data:text/javascript;base64,${Buffer.from(schemaBundle.outputFiles[0].text).toString("base64")}`
+);
 
 const owner = "00000000-0000-4000-8000-000000000001";
 const other = "00000000-0000-4000-8000-000000000002";

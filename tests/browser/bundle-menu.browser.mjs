@@ -231,9 +231,9 @@ const result = await build({
       },
     },
   ],
-  define: { "process.env.NODE_ENV": '"development"' },
+  define: { "process.env": "{}", "process.env.NODE_ENV": '"development"' },
   stdin: {
-    contents: `import React from 'react'; ${adminFixtureCode} import {createRoot} from 'react-dom/client'; import {PublicBundleMenuView} from './src/components/bundle-claims/PublicBundleMenuView'; import {BundleClaimPanel} from './src/components/bundle-claims/BundleClaimPanel'; import {ClaimFormPanel} from './src/components/claims/ClaimFormPanel'; import {PublicClaimFormView} from './src/components/claims/PublicClaimFormView'; createRoot(document.getElementById('root')).render(['/management','/settlement'].includes(location.pathname) ? <SharedAdminFixture/> : location.pathname === '/search-management' ? <ClaimFormPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' products={[]} orders={[]}/> : location.pathname === '/admin' ? <BundleClaimPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' onOpenAppearance={() => {}}/> : location.pathname.startsWith('/order') ? <PublicClaimFormView form={{...${JSON.stringify(orderForm)}, isOpen: location.pathname !== '/order-closed', ...(location.search.includes('catalogChanged') ? {products: [], title: '已修改的活動'} : {})}} token='${token}' turnstileSiteKey='test-site-key'/> : <PublicBundleMenuView menu={${JSON.stringify(menu)}} token='${token}' turnstileSiteKey='test-site-key'/>);`,
+    contents: `import React from 'react'; ${adminFixtureCode} import {createRoot} from 'react-dom/client'; import {PublicBundleMenuView} from './src/components/bundle-claims/PublicBundleMenuView'; import {BundleClaimPanel} from './src/components/bundle-claims/BundleClaimPanel'; import {ClaimFormPanel} from './src/components/claims/ClaimFormPanel'; import {PublicClaimFormView} from './src/components/claims/PublicClaimFormView'; createRoot(document.getElementById('root')).render(['/management','/settlement'].includes(location.pathname) ? <SharedAdminFixture/> : location.pathname === '/search-management' ? <ClaimFormPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' products={[]} orders={[]}/> : location.pathname === '/admin' ? <BundleClaimPanel ownerId='00000000-0000-4000-8000-000000000003' inventoryName='測試庫藏' onOpenAppearance={() => {}} onInventoryReceived={async () => {window.testInventoryRefreshes=(window.testInventoryRefreshes??0)+1;}}/> : location.pathname.startsWith('/order') ? <PublicClaimFormView form={{...${JSON.stringify(orderForm)}, isOpen: location.pathname !== '/order-closed', ...(location.search.includes('catalogChanged') ? {products: [], title: '已修改的活動'} : {})}} token='${token}' turnstileSiteKey='test-site-key'/> : <PublicBundleMenuView menu={${JSON.stringify(menu)}} token='${token}' turnstileSiteKey='test-site-key'/>);`,
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -1232,8 +1232,17 @@ try {
     );
     await page.close();
   }
-  for (const width of suiteWidths("admin", [375, 1440])) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
+  for (const width of suiteWidths(
+    suiteFilter === "receiving" ? "receiving" : "admin",
+    [375, 1440],
+  )) {
+    const page = await browser.newPage({
+      viewport: { width, height: 900 },
+      hasTouch: true,
+    });
+    page.on("pageerror", (error) =>
+      console.error("Admin browser error:", error.message),
+    );
     await page.addInitScript(() => {
       window.confirm = (message) => {
         window.testConfirmations ??= [];
@@ -1478,7 +1487,14 @@ try {
       name: "配單活動",
       exact: true,
     });
-    await page.getByRole("heading", { name: "第一批", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "第一批", exact: true })
+      .waitFor()
+      .catch(async (error) => {
+        console.error(await page.locator("body").innerText());
+        await page.screenshot({ path: "/tmp/poster-bundle-admin-failure.png" });
+        throw error;
+      });
     assert.equal(await selector.inputValue(), "11");
     await page.screenshot({
       path: `/tmp/poster-bundle-layout-${width}.png`,
@@ -1490,6 +1506,52 @@ try {
         .getAttribute("href"),
       `/bundles/${token}`,
     );
+    if (suiteFilter === "receiving") {
+      Object.assign(orders[0], {
+        status: "confirmed",
+        customerNickname: "入庫測試",
+        customerPhone: "0912345678",
+        confirmedAt: "2026-11-02T00:00:00Z",
+      });
+      await page.getByRole("button", { name: "重新整理", exact: true }).click();
+      await page
+        .getByRole("button", { name: "查看 入庫測試 的明細", exact: true })
+        .click();
+      const receiving = page.getByRole("region", { name: "入出庫核對" });
+      await receiving.getByText(/首次入庫核對會依商品明細新增商品/).waitFor();
+      await receiving
+        .getByRole("button", { name: "完成核對", exact: true })
+        .first()
+        .tap();
+      await page
+        .getByText("已完成入庫核對，商品已連結至庫存。", { exact: true })
+        .waitFor();
+      assert.equal(await page.evaluate(() => window.testInventoryRefreshes), 1);
+      assert.equal(writes.at(-1).input.action, "set_receiving");
+      assert.equal(writes.at(-1).input.checked, true);
+      await receiving.getByRole("button", { name: "撤銷", exact: true }).tap();
+      await page
+        .getByText("已撤銷入庫核對，出貨核對也已清除。", { exact: true })
+        .waitFor();
+      assert.equal(await page.evaluate(() => window.testInventoryRefreshes), 1);
+      await receiving
+        .getByRole("button", { name: "完成核對", exact: true })
+        .first()
+        .tap();
+      await page
+        .getByText("已完成入庫核對，商品已連結至庫存。", { exact: true })
+        .waitFor();
+      assert.equal(await page.evaluate(() => window.testInventoryRefreshes), 2);
+      await page.screenshot({
+        path: `/tmp/poster-bundle-receiving-${width}.png`,
+        fullPage: true,
+      });
+      console.log(
+        `PASS ${width}px: receiving checklist, touch action, inventory refresh, reversal and recheck`,
+      );
+      await page.close();
+      continue;
+    }
     await page.getByRole("button", { name: "編輯草稿", exact: true }).click();
     assert.equal(
       await page.getByRole("textbox", { name: /品項名稱/ }).count(),
@@ -1528,7 +1590,14 @@ try {
       0,
     );
     await selector.selectOption("11");
-    await page.getByRole("heading", { name: "第一批", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "第一批", exact: true })
+      .waitFor()
+      .catch(async (error) => {
+        console.error(await page.locator("body").innerText());
+        await page.screenshot({ path: "/tmp/poster-bundle-admin-failure.png" });
+        throw error;
+      });
     assert.equal(
       await page.getByRole("button", { name: "儲存草稿", exact: true }).count(),
       0,
@@ -1720,7 +1789,10 @@ try {
       .getByRole("button", { name: "完成核對", exact: true })
       .first()
       .click();
-    await page.getByText("已完成入庫核對。", { exact: true }).waitFor();
+    await page
+      .getByText("已完成入庫核對，商品已連結至庫存。", { exact: true })
+      .waitFor();
+    assert.equal(await page.evaluate(() => window.testInventoryRefreshes), 1);
     await checks.getByRole("button", { name: "完成核對", exact: true }).click();
     await page.getByText("已完成出貨核對。", { exact: true }).waitFor();
     assert.equal(

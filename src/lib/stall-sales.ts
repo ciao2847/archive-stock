@@ -14,18 +14,41 @@ export type StallSales = {
   revenue: number;
   orderCount: number;
   itemCount: number;
+  discount: number;
+  payments: Record<string, { revenue: number; orderCount: number }>;
 };
 export function sumStallSales(
   orders: Array<{
+    discount?: number | null;
+    stall_payment_method?: string;
     order_items: Array<{ quantity: number; unit_price: number }>;
   }>,
 ) {
   let cents = 0;
   let itemCount = 0;
-  for (const order of orders)
+  let discount = 0;
+  const payments: StallSales["payments"] = {};
+  for (const order of orders) {
+    let subtotal = 0;
     for (const item of order.order_items) {
-      cents += Math.round(Number(item.unit_price) * 100) * item.quantity;
+      subtotal += Math.round(Number(item.unit_price) * 100) * item.quantity;
       itemCount += item.quantity;
     }
-  return { revenue: cents / 100, orderCount: orders.length, itemCount };
+    const reduction = Math.round(Number(order.discount ?? 0) * 100);
+    discount += reduction;
+    cents += subtotal - reduction;
+    const method = order.stall_payment_method || "unspecified";
+    const payment = payments[method] ?? { revenue: 0, orderCount: 0 };
+    payment.revenue =
+      Math.round(payment.revenue * 100 + subtotal - reduction) / 100;
+    payment.orderCount++;
+    payments[method] = payment;
+  }
+  return {
+    revenue: cents / 100,
+    orderCount: orders.length,
+    itemCount,
+    discount: discount / 100,
+    payments,
+  };
 }

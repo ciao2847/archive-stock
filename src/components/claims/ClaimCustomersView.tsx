@@ -1,4 +1,5 @@
 "use client";
+import { CustomerNameEditor } from "@/components/order-management/CustomerNameEditor";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { Spinner } from "@/components/ui/Spinner";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/claims";
 
 export interface ClaimCustomersViewProps {
+  ownerId: string;
   submissions: ClaimSubmission[];
   loading: boolean;
   inventoryName: string;
@@ -68,6 +70,7 @@ function localDateTimeInputValue(date = new Date()) {
 }
 
 export function ClaimCustomersView({
+  ownerId,
   submissions,
   loading,
   inventoryName,
@@ -526,6 +529,18 @@ export function ClaimCustomersView({
                               </span>
                               <span className="rounded-[6px] border border-line bg-white px-2 py-0.5 text-[10px] font-bold text-muted">
                                 {sub.source === "bundle" ? "配單" : "商品訂購"}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-dark">
+                                {sub.nickname}
+                                <CustomerNameEditor
+                                  key={`name:${sub.source}:${sub.id}:${sub.nickname}`}
+                                  ownerId={ownerId}
+                                  source={sub.source}
+                                  recordId={sub.id}
+                                  name={sub.nickname}
+                                  disabled={loading}
+                                  onSaved={onReload}
+                                />
                               </span>
                               <span className="font-mono text-[10px] text-muted">
                                 #{sub.confirmationCode}

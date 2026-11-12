@@ -23,7 +23,7 @@ export function AvailabilitySwitch({
 }) {
   const descriptionId = useId();
   return (
-    <div className="min-w-0 rounded-[10px] border border-line bg-white p-3">
+    <div className="min-w-0 rounded-[8px] border border-line bg-white p-3">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-[13px] font-semibold text-dark">{label}</span>
         <button

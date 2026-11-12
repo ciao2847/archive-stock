@@ -1,3 +1,4 @@
+import { stallDiscountSchema, stallPaymentMethodSchema } from "./stall-payment";
 import { z } from "zod";
 
 const dateSchema = z
@@ -27,6 +28,10 @@ export const stallOrderActionSchema = z.object({
 export const stallOrderEditSchema = stallOrderActionSchema
   .extend({
     note: z.string().trim().max(2000),
+    discount: stallDiscountSchema.optional(),
+    paymentMethod: z
+      .union([stallPaymentMethodSchema, z.literal("unspecified")])
+      .optional(),
     items: z
       .array(
         z.object({
@@ -71,6 +76,8 @@ export type StallOrder = {
   note: string;
   settled: boolean;
   total: number;
+  discount?: number;
+  paymentMethod?: string;
   items: StallOrderItem[];
 };
 export type StallOrderPage = {
@@ -82,6 +89,8 @@ export type StallOrderPage = {
 
 export function stallOrderError(message: string) {
   const messages: Record<string, string> = {
+    "invalid checkout discount": "折抵金額不可超過商品小計，最多兩位小數。",
+    "invalid checkout payment method": "請確認收款方式。",
     "stall order not found": "找不到這筆攤位訂單，或無權存取。",
     "owner access required": "只能操作所屬庫藏的訂單。",
     "stall order changed": "這筆訂單已被更新，請重新查找後再編輯。",

@@ -19,6 +19,12 @@ import {
 import { readApiResponse } from "@/lib/api/http-client";
 import { extractQrToken } from "@/lib/public-qr";
 
+import {
+  STALL_PAYMENT_METHODS,
+  stallPaymentLabel,
+  type StallPaymentMethod,
+} from "@/lib/stall-payment";
+
 type CartItem = {
   token: string;
   productId: string;
@@ -27,7 +33,14 @@ type CartItem = {
   listPrice: number;
   stock: number;
 };
-type Receipt = { orderId: string; orderNo: string; total: number };
+type Receipt = {
+  orderId: string;
+  orderNo: string;
+  total: number;
+  subtotal: number;
+  discount: number;
+  paymentMethod: string;
+};
 const money = (amount: number) => `NT$ ${amount.toLocaleString("zh-TW")}`;
 
 export function StallCheckout({
@@ -42,6 +55,9 @@ export function StallCheckout({
   const productInputId = useId();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [input, setInput] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [paymentMethod, setPaymentMethod] =
+    useState<StallPaymentMethod>("cash");
   const [cash, setCash] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
@@ -52,10 +68,19 @@ export function StallCheckout({
   const videoRef = useRef<HTMLVideoElement>(null);
   const busyRef = useRef(false);
   const scanRef = useRef<(raw: string) => Promise<void>>(async () => {});
-  const total =
+  const subtotal =
     Math.round(cart.reduce((sum, item) => sum + item.listPrice, 0) * 100) / 100;
+  const discountAmount = discount.trim() === "" ? 0 : Number(discount);
+  const validDiscount =
+    Number.isFinite(discountAmount) &&
+    discountAmount >= 0 &&
+    discountAmount <= subtotal &&
+    Math.abs(discountAmount * 100 - Math.round(discountAmount * 100)) < 0.00001;
+  const total = Math.round((subtotal - discountAmount) * 100) / 100;
   const received = cash.trim() === "" ? total : Number(cash);
-  const enoughCash = Number.isFinite(received) && received >= total;
+  const enoughCash =
+    paymentMethod !== "cash" ||
+    (Number.isFinite(received) && received >= total);
 
   useBackAction({
     enabled: Boolean(onBack),
@@ -169,7 +194,8 @@ export function StallCheckout({
   }, [cameraOpen]);
 
   async function checkout() {
-    if (busyRef.current || !cart.length || !enoughCash) return;
+    if (busyRef.current || !cart.length || !enoughCash || !validDiscount)
+      return;
     busyRef.current = true;
     setBusy(true);
     setCameraOpen(false);
@@ -182,13 +208,17 @@ export function StallCheckout({
         body: JSON.stringify({
           ownerId,
           tokens: cart.map((item) => item.token),
-          expectedTotal: total,
+          expectedTotal: subtotal,
+          discount: discountAmount,
+          paymentMethod,
         }),
       });
       const result = await readApiResponse<Receipt>(response);
       setReceipt(result);
       setCart([]);
       setCash("");
+      setDiscount("");
+      setPaymentMethod("cash");
       onCompleted();
     } catch (error) {
       setMessage(
@@ -218,7 +248,16 @@ export function StallCheckout({
           <CheckCircle2 size={20} />
           <div>
             <b>結帳完成 · {receipt.orderNo}</b>
-            <p>已收款 {money(receipt.total)}，庫存已扣除。</p>
+            <p>
+              {stallPaymentLabel(receipt.paymentMethod)}收款{" "}
+              {money(receipt.total)}，庫存已扣除。
+            </p>
+            {receipt.discount > 0 && (
+              <p>
+                商品小計 {money(receipt.subtotal)} · 折抵{" "}
+                {money(receipt.discount)}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -392,23 +431,59 @@ export function StallCheckout({
             ))}
           </ul>
           <div className="stall-payment">
+            <p>商品小計 {money(subtotal)}</p>
+            <label className="field mt-4">
+              <span>整筆折抵金額</span>
+              <input
+                type="number"
+                min="0"
+                max={subtotal}
+                step="0.01"
+                value={discount}
+                disabled={busy}
+                placeholder="0"
+                onChange={(event) => setDiscount(event.target.value)}
+              />
+            </label>
+            {!validDiscount && (
+              <p role="alert">折抵金額需為 0 至商品小計之間，最多兩位小數。</p>
+            )}
+            <label className="field mt-4">
+              <span>收款方式</span>
+              <select
+                value={paymentMethod}
+                disabled={busy}
+                onChange={(event) => {
+                  setPaymentMethod(event.target.value as StallPaymentMethod);
+                  setCash("");
+                }}
+              >
+                {Object.entries(STALL_PAYMENT_METHODS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="stall-total">
               <span>共 {cart.length} 件 · 應收總額</span>
               <strong>{money(total)}</strong>
             </div>
-            <label className="field mt-4">
-              <span>現金實收（選填）</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={cash}
-                disabled={busy}
-                onChange={(event) => setCash(event.target.value)}
-                placeholder={String(total)}
-              />
-            </label>
-            {cash !== "" && (
+            {paymentMethod === "cash" && (
+              <label className="field mt-4">
+                <span>現金實收（選填）</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cash}
+                  disabled={busy}
+                  onChange={(event) => setCash(event.target.value)}
+                  placeholder={String(total)}
+                />
+              </label>
+            )}
+            {paymentMethod === "cash" && cash !== "" && (
               <p aria-live="polite">
                 {enoughCash
                   ? `找零 ${money(Math.round((received - total) * 100) / 100)}`
@@ -418,7 +493,7 @@ export function StallCheckout({
             <button
               type="button"
               className="primary stall-pay-button"
-              disabled={busy || !cart.length || !enoughCash}
+              disabled={busy || !cart.length || !enoughCash || !validDiscount}
               onClick={() => void checkout()}
             >
               <ShoppingBag size={18} />

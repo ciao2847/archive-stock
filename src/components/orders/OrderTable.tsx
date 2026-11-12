@@ -1,4 +1,5 @@
 "use client";
+import { CustomerNameEditor } from "@/components/order-management/CustomerNameEditor";
 
 import { useEffect, useState } from "react";
 import {
@@ -43,8 +44,10 @@ export function OrderTable({
   onEditAmount,
   onDelete,
   onManageStall,
+  onChanged,
 }: {
   orders: Order[];
+  onChanged?: () => void;
   onPack: (order: Order) => void;
   onEditAmount?: (order: Order) => void;
   onDelete?: (order: Order) => void | Promise<void>;
@@ -106,9 +109,31 @@ export function OrderTable({
             </span>
           </td>
           <td className="max-md:col-start-1 max-md:col-end-4 max-md:row-start-1 max-md:min-w-0 max-md:self-center max-md:!border-0 max-md:!p-0">
-            <b className="max-md:block max-md:truncate max-md:text-[15px]">
-              {order.customer}
-            </b>
+            <div className="flex min-w-0 items-center gap-2">
+              <b className="min-w-0 max-md:truncate max-md:text-[15px]">
+                {order.customer}
+              </b>
+              {onChanged && (
+                <CustomerNameEditor
+                  key={`name:${order.dbId}:${order.customer}`}
+                  ownerId={order.ownerId}
+                  source={
+                    order.claimSubmissionId
+                      ? "claim"
+                      : order.bundleClaimOrderId
+                        ? "bundle"
+                        : "order"
+                  }
+                  recordId={
+                    order.claimSubmissionId ??
+                    order.bundleClaimOrderId ??
+                    order.dbId
+                  }
+                  name={order.customer}
+                  onSaved={onChanged}
+                />
+              )}
+            </div>
             <code className="mt-1 hidden text-[10px] text-muted max-md:block">
               {order.id}
             </code>

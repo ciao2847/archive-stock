@@ -1,3 +1,4 @@
+import { readActiveProducts } from "@/lib/api/active-products";
 import { storageActionSchema } from "@/lib/location-storage";
 import { getSignedImageUrls } from "@/lib/product-images";
 import { z } from "zod";
@@ -71,11 +72,15 @@ export async function GET(request: Request) {
       .eq("owner_id", owner.data)
       .order("shelf")
       .order("bin"),
-    db
-      .from("products")
-      .select("id,sku,name,country,price,stock,image_paths")
-      .eq("owner_id", owner.data)
-      .order("created_at", { ascending: false }),
+    readActiveProducts((filterMerged) => {
+      const query = db
+        .from("products")
+        .select("id,sku,name,country,price,stock,image_paths")
+        .eq("owner_id", owner.data);
+      return (
+        filterMerged ? query.is("merged_into_product_id", null) : query
+      ).order("created_at", { ascending: false });
+    }),
     db
       .from("product_location_stocks")
       .select("product_id,location_id,quantity")

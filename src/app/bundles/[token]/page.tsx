@@ -31,7 +31,7 @@ export default async function BundleMenuPage({ params }: Props) {
   if (!menu)
     return (
       <main className="min-h-screen bg-[#f3f7fb] px-4 py-12 text-dark">
-        <section className="mx-auto max-w-[560px] rounded-[12px] bg-white p-8 text-center">
+        <section className="mx-auto max-w-[560px] rounded-[8px] bg-white p-8 text-center">
           <h1 className="text-[23px]">目前無法開啟共同選單</h1>
           <p className="text-[14px] leading-7 text-muted">
             {failed

@@ -360,7 +360,7 @@ export function NewProduct({
                     ))}
                   </select>
                 </Field>
-                <details className="col-span-full mt-2 rounded-xl border border-line p-4">
+                <details className="col-span-full mt-2 rounded-[8px] border border-line p-4">
                   <summary className="cursor-pointer text-sm font-semibold">
                     更多資訊（選填）
                   </summary>
