@@ -48,10 +48,11 @@
 
 ## 7. Public order submission compatibility
 - [x] 7.1 Restrict deferred FIFO reconciliation to fulfillment changes; verify anonymous and unrelated signed-in customer submissions using real public submission and fulfillment functions, while preserving stock, batch costs and management permissions.
-- [ ] 7.2 Run checks, apply the verified fix, synchronize GitHub and production, and repeat a rollback-only public submission on the hosted database.
+- [x] 7.2 Run checks, apply the verified fix, synchronize GitHub and production, and repeat a rollback-only public submission on the hosted database.
 
 ### Public submission fix verification
 - Reproduced the production failure as anon: the deferred order trigger raised `owner access required` in `private.sync_product_fifo` after a valid public submission. All reproduction data was rolled back.
 - 152 tests passed, including actual public submission/fulfillment integration, anonymous and cross-inventory signed-in customers, retry idempotency, later packing/cancellation and management denial. Typecheck, ESLint, changed-file formatting and strict OpenSpec validation passed.
 - Production migration 20261112065254 applied and recorded atomically; the manager-only reconciliation function was unchanged. A rollback-only anonymous submission on an NN form from the failed request logs created one pending order, retried safely and left product stock, batches and costs unchanged. No test submission remained after rollback.
 - Production security advisors retained the same 19 pre-existing warnings and no new findings.
+- Fix commit e25510e474532f55b09e506dd767b7b424e86f56 pushed to main and deployed as dpl_6H9TtQRr9M1H2RtG28J4h8Kkk8Cs. Production alias is READY; NN public form renders correctly, login returns 200 and protected costs require authentication (401).
