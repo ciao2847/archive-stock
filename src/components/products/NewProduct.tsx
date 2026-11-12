@@ -60,7 +60,11 @@ export function NewProduct({
   initialWorkName?: string;
   requireItemName?: boolean;
 }) {
-  const costDraft = useProductCostDraft(ownerId);
+  const costDraft = useProductCostDraft(
+    ownerId,
+    undefined,
+    preorderOnly ? 0 : (initialStock ?? DEFAULT_VALUES.productStock),
+  );
   const [locationOptions, setLocationOptions] = useState<
     Array<{ code: string; name: string }>
   >([]);
@@ -109,6 +113,11 @@ export function NewProduct({
       feature: preorderOnly ? "" : undefined,
     },
   });
+
+  useEffect(() => {
+    if (costDraft.mode === "product_fifo")
+      setValue("stock", costDraft.stock, { shouldValidate: true });
+  }, [costDraft.mode, costDraft.stock, setValue]);
 
   const [preorderWork, preorderItem, preorderCountry] = useWatch({
     control,
@@ -195,9 +204,10 @@ export function NewProduct({
           country: values.country,
           source: values.source,
           location: preorderOnly ? "" : values.location,
-          stock: preorderOnly
-            ? 0
-            : toNumber(values.stock, DEFAULT_VALUES.productStock),
+          stock:
+            preorderOnly && costDraft.mode !== "product_fifo"
+              ? 0
+              : toNumber(values.stock, DEFAULT_VALUES.productStock),
           price: toNumber(values.price),
           ...costInput,
           imagePaths,
@@ -393,7 +403,11 @@ export function NewProduct({
                       />
                     </Field>
                     <Field label="庫存數量">
-                      <input type="number" {...register("stock")} />
+                      <input
+                        type="number"
+                        {...register("stock")}
+                        readOnly={costDraft.mode === "product_fifo"}
+                      />
                     </Field>
                     {poster && <PosterSpecFields register={register} />}
                     <Field
@@ -427,7 +441,13 @@ export function NewProduct({
               取消
             </button>
             <button className="primary" disabled={saving || costDraft.loading}>
-              {saving ? "儲存中…" : preorderOnly ? "建立預購商品" : "儲存商品"}
+              {saving
+                ? "儲存中…"
+                : preorderOnly
+                  ? costDraft.stock > 0 && costDraft.mode === "product_fifo"
+                    ? "建立商品與進貨批次"
+                    : "建立預購商品"
+                  : "儲存商品"}
             </button>
           </div>
         </form>

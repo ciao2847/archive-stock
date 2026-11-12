@@ -31,3 +31,16 @@
 - Live product-cost read RPC and execute permissions verified; security advisors retained 0 errors and the same 19 pre-existing warnings.
 - 145 tests, typecheck, lint, production build and direct-cost browser scenarios passed; existing intake and preorder browser checks passed.
 - Product form code commit 87d46d59802cf1f55defb5e3f430c01f65bc7a78 pushed to main and deployed to production as dpl_EGQgnef5jSssC3Z4ewPHJza3tHGv.
+
+## 6. Multiple batch totals
+- [x] 6.1 Store batch total and exact allocated costs, preserving legacy APIs and closed snapshots; test non-divisible totals, returns, adjustments and settlement totals in SQL.
+- [x] 6.2 Add atomic multi-batch save and unsettled batch splitting; test quantity conservation, no duplicate receipts, stale revisions and tenant isolation.
+- [x] 6.3 Replace product cost fields with a batch row editor and derived stock, and use total costs in batch panels; verify API validation and mobile/desktop browser flows.
+- [ ] 6.4 Run checks, apply the verified migration, sync GitHub and deploy; record release verification.
+
+### Multiple batch total verification
+- 150 tests passed, including exact cent allocation, repeated same-date splits, named product receipts, immutable settlements and rollback checks.
+- Product batch create/edit/receipt/split/manual browser flows passed at 390 and 1280px; accounting passed at 320, 390, 768 and 1280px. Existing product intake and preorder naming browser checks passed.
+- Typecheck, ESLint, formatting of changed source files, production build and strict OpenSpec validation passed.
+- Production migration 20261112032729 applied and recorded atomically. The 60 existing batches, 11 allocation quantities and existing settlement records were preserved; exact-cost backfill checks found no mismatches.
+- Live authenticated product-cost and financial-cost RPC reads passed. Security advisors retained 0 errors and the same 19 pre-existing warnings, with no new findings.

@@ -150,6 +150,15 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
+    if (input.costBatches !== undefined) {
+      const { data, error } = await auth.supabase.rpc(
+        "save_inventory_product_batches",
+        { p_owner_id: parsedOwner.data, p_input: input },
+      );
+      if (error) return productCostFailure(error);
+
+      return apiSuccess({ productId: String(data) }, 201);
+    }
     if (input.unitCost !== undefined) {
       const { data, error } = await auth.supabase.rpc(
         "save_inventory_product_with_cost",

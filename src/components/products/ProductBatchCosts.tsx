@@ -43,10 +43,10 @@ export function ProductBatchCosts({ productId }: { productId: string }) {
       <h3>進貨批次與成本</h3>
       {notice && <p role="status">{notice}</p>}
       <p>
-        每張海報的成本可在「新增／編輯商品」直接填寫。這裡可查看及調整各進貨批次的成本。
+        可在「新增／編輯商品」分批輸入張數與整批總成本，系統自動計算平均每張成本。這裡也可調整各批次總成本。
       </p>
       <p>
-        成本已包含的運費，請勿在結算時重複列入額外費用。期初批次可填確認過的平均單件成本。
+        已包含在批次總成本的運費，結算時不需再列入額外費用。期初庫存有不同進貨成本時，可在編輯商品中拆分批次。
       </p>
       {!query.data.batches.length && <p>尚無進貨批次；有庫存後會自動建立。</p>}
       {query.data.batches.map((batch, index) => (
@@ -70,7 +70,13 @@ function BatchEditor({
   onSaved: () => Promise<void>;
 }) {
   const [cost, setCost] = useState(
-    batch.unit_cost === null ? "" : String(batch.unit_cost),
+    batch.total_cost === null ||
+      (batch.total_cost === undefined && batch.unit_cost === null)
+      ? ""
+      : String(
+          batch.total_cost ??
+            Math.round(batch.unit_cost! * batch.quantity * 100) / 100,
+        ),
   );
   const [notes, setNotes] = useState(batch.notes);
   const [busy, setBusy] = useState(false);
@@ -79,12 +85,12 @@ function BatchEditor({
   async function save() {
     const parsed = batchCostSchema.safeParse({
       batchId: batch.id,
-      unitCost: cost.trim() ? Number(cost) : NaN,
+      totalCost: cost.trim() ? Number(cost) : NaN,
       notes,
       expectedRevision: batch.revision,
     });
     if (!parsed.success) {
-      setError("請填寫有效的單件成本，最多兩位小數；零成本請填 0");
+      setError("請填寫有效的整批總成本，最多兩位小數；零成本請填 0");
       return;
     }
     setBusy(true);
@@ -116,7 +122,7 @@ function BatchEditor({
         <p className="text-danger-strong">尚未填寫成本，相關銷售無法結算</p>
       )}
       <label className="field">
-        <span>第 {index} 批單件成本（TWD）</span>
+        <span>第 {index} 批總成本（TWD）</span>
         <input
           type="number"
           min="0"
@@ -131,6 +137,12 @@ function BatchEditor({
           }}
         />
       </label>
+      <p>
+        平均每張成本：
+        {cost.trim()
+          ? `NT$ ${(Number(cost) / batch.quantity).toLocaleString("zh-TW", { maximumFractionDigits: 6 })}`
+          : "待填"}
+      </p>
       <label className="field">
         <span>第 {index} 批成本備註</span>
         <textarea

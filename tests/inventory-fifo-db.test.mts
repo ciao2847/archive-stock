@@ -610,3 +610,295 @@ test("direct existing-batch edits reject stale revisions and settled costs witho
     await db.close();
   }
 });
+
+async function setupBatchTotals() {
+  const db = await setupDirectCosts();
+  await db.exec("reset role");
+  await db.exec(
+    await read(
+      "supabase/migrations/20261112032729_batch_total_costs_and_product_batches.sql",
+    ),
+  );
+  await db.exec("set role authenticated");
+  return db;
+}
+const batchRow = (
+  quantity: number,
+  totalCost: number | null,
+  patch: Record<string, unknown> = {},
+) => ({ quantity, totalCost, date: "2026-11-01", notes: "", ...patch });
+async function saveRows(
+  db: PGlite,
+  rows: unknown[],
+  stock: number,
+  id: string | null = null,
+  owner = uid(1),
+) {
+  return (
+    await db.query<{ id: string }>(
+      "select public.save_inventory_product_batches($1,$2,$3) id",
+      [
+        JSON.stringify(
+          productInput({ stock, unitCost: undefined, costBatches: rows }),
+        ),
+        owner,
+        id,
+      ],
+    )
+  ).rows[0].id;
+}
+async function productBatches(db: PGlite, id: string) {
+  return (
+    await db.query<{
+      r: {
+        batches: Array<{
+          id: string;
+          quantity: number;
+          remaining: number;
+          total_cost: number | null;
+          received_at: string;
+          unit_cost: number | null;
+          revision: number;
+        }>;
+      };
+    }>("select public.get_inventory_product_costs($1) r", [id])
+  ).rows[0].r.batches;
+}
+test("batch totals create multiple receipts once and split opening stock without changing physical quantity", async () => {
+  const db = await setupBatchTotals();
+  try {
+    const id = await saveRows(db, [batchRow(10, 1800), batchRow(5, 1000)], 15);
+    const created = await productBatches(db, id);
+    assert.deepEqual(
+      created.map((b) => [b.quantity, b.total_cost, b.unit_cost]),
+      [
+        [10, 1800, 180],
+        [5, 1000, 200],
+      ],
+    );
+    assert.equal(
+      (
+        await db.query<{ stock: number }>(
+          "select stock from public.products where id=$1",
+          [id],
+        )
+      ).rows[0].stock,
+      15,
+    );
+    const opening = (await productBatches(db, uid(10)))[0];
+    await sell(db, 2);
+    await saveRows(
+      db,
+      [
+        batchRow(4, 400, { sourceBatchId: opening.id, expectedRevision: 1 }),
+        batchRow(6, 1200, { sourceBatchId: opening.id, expectedRevision: 1 }),
+      ],
+      8,
+      uid(10),
+    );
+    const split = await productBatches(db, uid(10));
+    assert.equal(split.length, 2);
+    assert.equal(
+      split.reduce((n, b) => n + b.remaining, 0),
+      8,
+    );
+    assert.equal((await preview(db)).product_cost, 200);
+    const snapshots = split.map((b) =>
+      batchRow(b.quantity, b.total_cost, {
+        id: b.id,
+        expectedRevision: b.revision,
+      }),
+    );
+    await saveRows(db, [...snapshots, batchRow(3, 300)], 11, uid(10));
+    assert.equal((await productBatches(db, uid(10))).length, 3);
+    await assert.rejects(
+      saveRows(db, [...snapshots, batchRow(1, 100)], 9, uid(10)),
+      /cost batch list changed|inventory changed/,
+    );
+  } finally {
+    await db.close();
+  }
+});
+test("splitting equal-date receipts preserves FIFO order through repeated splits", async () => {
+  const db = await setupBatchTotals();
+  try {
+    const id = await saveRows(db, [batchRow(4, 40), batchRow(2, 200)], 6);
+    let receipts = await productBatches(db, id);
+    const saved = (b: (typeof receipts)[number]) =>
+      batchRow(b.quantity, b.total_cost, {
+        id: b.id,
+        expectedRevision: b.revision,
+      });
+    await saveRows(
+      db,
+      [
+        batchRow(1, 10, { sourceBatchId: receipts[0].id, expectedRevision: 1 }),
+        batchRow(3, 30, { sourceBatchId: receipts[0].id, expectedRevision: 1 }),
+        saved(receipts[1]),
+      ],
+      6,
+      id,
+    );
+    receipts = await productBatches(db, id);
+    assert.deepEqual(
+      receipts.map((b) => b.quantity),
+      [1, 3, 2],
+    );
+    await saveRows(
+      db,
+      [
+        saved(receipts[0]),
+        batchRow(1, 10, { sourceBatchId: receipts[1].id, expectedRevision: 1 }),
+        batchRow(2, 20, { sourceBatchId: receipts[1].id, expectedRevision: 1 }),
+        saved(receipts[2]),
+      ],
+      6,
+      id,
+    );
+    assert.deepEqual(
+      (await productBatches(db, id)).map((b) => b.quantity),
+      [1, 1, 2, 2],
+    );
+    await db.exec(
+      `begin;insert into public.orders(id,owner_id,order_no,status,packed_at) values('${uid(45)}','${uid(1)}','FIFO-SPLIT','packed','2026-11-12');insert into public.order_items values('${uid(145)}','${uid(45)}','${id}',5,5,100);update public.products set stock=1 where id='${id}';commit;`,
+    );
+    assert.equal((await preview(db)).product_cost, 140);
+    assert.deepEqual(
+      (await productBatches(db, id)).map((b) => b.remaining),
+      [0, 0, 0, 1],
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("non-divisible batch totals reconcile exactly across separate sales, partial returns and inventory adjustments", async () => {
+  const db = await setupBatchTotals();
+  try {
+    const opening = (await productBatches(db, uid(10)))[0];
+    await db.query("select public.save_inventory_batch_total($1,100,'',1)", [
+      opening.id,
+    ]);
+    // Existing opening quantity is ten; use a new three-unit product for the fraction case.
+    const id = await saveRows(db, [batchRow(3, 100)], 3);
+    async function sale(n: number) {
+      await db.exec(
+        `begin;insert into public.orders(id,owner_id,order_no,status,packed_at) values('${uid(n)}','${uid(1)}','F-${n}','packed','2026-11-12');insert into public.order_items values('${uid(n + 100)}','${uid(n)}','${id}',1,1,100);update public.products set stock=stock-1 where id='${id}';commit;`,
+      );
+    }
+    await sale(31);
+    await sale(32);
+    await sale(33);
+    const amounts = await db.query<{ cost_amount: string }>(
+      "select a.cost_amount from public.inventory_cost_allocations a join public.inventory_cost_batches b on b.id=a.batch_id where b.product_id=$1 order by a.order_item_id",
+      [id],
+    );
+    assert.equal(
+      amounts.rows.reduce(
+        (n, r) => n + Math.round(Number(r.cost_amount) * 100),
+        0,
+      ),
+      10000,
+    );
+    await db.exec(
+      `begin;update public.products set stock=stock+1 where id='${id}';update public.order_items set packed_quantity=0 where order_id='${uid(32)}';update public.orders set status='cancelled' where id='${uid(32)}';commit;`,
+    );
+    await sale(34);
+    const total = await db.query<{ cost: string }>(
+      "select sum(a.cost_amount) cost from public.inventory_cost_allocations a join public.inventory_cost_batches b on b.id=a.batch_id where b.product_id=$1",
+      [id],
+    );
+    assert.equal(Number(total.rows[0].cost), 100);
+    const adjusted = await saveRows(db, [batchRow(3, 100)], 3);
+    await db.query("update public.products set stock=0 where id=$1", [
+      adjusted,
+    ]);
+    const off = await db.query<{ written_off_cost: string }>(
+      "select written_off_cost from public.inventory_cost_batches where product_id=$1",
+      [adjusted],
+    );
+    assert.equal(Number(off.rows[0].written_off_cost), 100);
+    await db.exec(
+      `select public.save_financial_period_details('${uid(1)}','2026-11-01','2026-12-31','[]','[]','',0);select public.create_financial_settlement('${uid(1)}','2026-11-01','2026-12-31')`,
+    );
+    assert.equal((await preview(db)).product_cost, 100);
+  } finally {
+    await db.close();
+  }
+});
+
+test("multi-batch save preserves closed snapshots, rejects changed inventory and rolls back all rows on a locked-cost edit", async () => {
+  const db = await setupBatchTotals();
+  try {
+    const opening = (await productBatches(db, uid(10)))[0];
+    await db.query("select public.save_inventory_batch_total($1,1000,'',1)", [
+      opening.id,
+    ]);
+    await sell(db, 2);
+    await db.exec(
+      `select public.save_financial_period_details('${uid(1)}','2026-11-01','2026-12-31','[]','[]','',0);select public.create_financial_settlement('${uid(1)}','2026-11-01','2026-12-31')`,
+    );
+    const frozen = await preview(db);
+    const rows = [
+      batchRow(1, 100),
+      batchRow(10, 1100, {
+        id: opening.id,
+        expectedRevision: 2,
+        date: new Date().toLocaleDateString("sv-SE", {
+          timeZone: "Asia/Taipei",
+        }),
+      }),
+    ];
+    await assert.rejects(
+      saveRows(db, rows, 9, uid(10)),
+      /settled batch cost is locked/,
+    );
+    assert.equal((await productBatches(db, uid(10))).length, 1);
+    assert.equal(
+      (
+        await db.query<{ stock: number }>(
+          "select stock from public.products where id=$1",
+          [uid(10)],
+        )
+      ).rows[0].stock,
+      8,
+    );
+    await assert.rejects(
+      saveRows(
+        db,
+        [
+          batchRow(4, 400, { sourceBatchId: opening.id, expectedRevision: 2 }),
+          batchRow(6, 600, { sourceBatchId: opening.id, expectedRevision: 2 }),
+        ],
+        8,
+        uid(10),
+      ),
+      /settled batch cost is locked/,
+    );
+    assert.deepEqual(await preview(db), frozen);
+    await assert.rejects(
+      saveRows(db, [], 0, null, uid(9)),
+      /owner access required/,
+    );
+    const named = (
+      await db.query<{ id: string }>(
+        "select public.save_inventory_product_batches($1,$2,null) id",
+        [
+          JSON.stringify(
+            productInput({
+              stock: 2,
+              unitCost: undefined,
+              work: "作品",
+              preorderItemName: "A款",
+              costBatches: [batchRow(2, 75)],
+            }),
+          ),
+          uid(1),
+        ],
+      )
+    ).rows[0].id;
+    assert.equal((await productBatches(db, named))[0].total_cost, 75);
+  } finally {
+    await db.close();
+  }
+});

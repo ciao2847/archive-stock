@@ -648,15 +648,15 @@ export type Database = {
         ]
       }
       inventory_cost_batches: {
-        Row: { id: string; owner_id: string; product_id: string; quantity: number; written_off: number; unit_cost: number | null; received_at: string; notes: string; revision: number; updated_at: string }
-        Insert: { id?: string; owner_id: string; product_id: string; quantity: number; written_off?: number; unit_cost?: number | null; received_at?: string; notes?: string; revision?: number; updated_at?: string }
-        Update: { unit_cost?: number | null; notes?: string; revision?: number; written_off?: number }
+        Row: { id: string; owner_id: string; product_id: string; quantity: number; written_off: number; unit_cost: number | null; total_cost: number | null; written_off_cost: number | null; fifo_position: number; fifo_path: number[]; received_at: string; notes: string; revision: number; updated_at: string }
+        Insert: { id?: string; owner_id: string; product_id: string; quantity: number; written_off?: number; unit_cost?: number | null; total_cost?: number | null; written_off_cost?: number | null; received_at?: string; notes?: string; revision?: number; updated_at?: string }
+        Update: { unit_cost?: number | null; total_cost?: number | null; notes?: string; revision?: number; written_off?: number }
         Relationships: []
       }
       inventory_cost_allocations: {
-        Row: { batch_id: string; order_item_id: string; quantity: number }
-        Insert: { batch_id: string; order_item_id: string; quantity: number }
-        Update: { quantity?: number }
+        Row: { batch_id: string; order_item_id: string; quantity: number; cost_amount: number | null }
+        Insert: { batch_id: string; order_item_id: string; quantity: number; cost_amount?: number | null }
+        Update: { quantity?: number; cost_amount?: number | null }
         Relationships: []
       }
       inventory_databases: {
@@ -1660,6 +1660,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_inventory_product_batches: { Args: {p_input: Json; p_owner_id?: string; p_product_id?: string}; Returns: string }
+      save_inventory_batch_total: { Args: {p_batch_id: string; p_total: number | null; p_notes: string; p_expected_revision: number}; Returns: undefined }
       save_inventory_product_with_cost: { Args: {p_input: Json; p_owner_id?: string; p_product_id?: string}; Returns: string }
       get_manual_financial_period_preview: { Args: { p_owner_id: string; p_start: string; p_end: string }; Returns: Json }
       get_inventory_product_costs: { Args: { p_product_id: string }; Returns: Json }

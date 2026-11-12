@@ -73,18 +73,18 @@ const browser = await chromium.launch({
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 });
 try {
-  for (const width of [390, 1280])
-    for (const scenario of ["new", "edit", "receive", "manual"]) {
+  for (const width of [390, 1280]) {
+    for (const scenario of ["new", "edit", "receive", "split", "manual"]) {
       const page = await browser.newPage({ viewport: { width, height: 1000 } });
       const errors = [];
-      page.on("pageerror", (e) => errors.push(e.message));
-      await page.route("**/api/locations**", (r) =>
-        r.fulfill({
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.route("**/api/locations**", (route) =>
+        route.fulfill({
           json: { success: true, data: { slots: [], cabinets: [] } },
         }),
       );
-      await page.route("**/api/inventory-costs**", (r) =>
-        r.fulfill({
+      await page.route("**/api/inventory-costs**", (route) =>
+        route.fulfill({
           json: {
             success: true,
             data: {
@@ -100,7 +100,8 @@ try {
                         remaining: 10,
                         written_off: 0,
                         unit_cost: null,
-                        received_at: "2026-11-12T00:00:00Z",
+                        total_cost: null,
+                        received_at: "2026-11-01T00:00:00Z",
                         notes: "",
                         revision: 1,
                         locked: false,
@@ -117,16 +118,34 @@ try {
       );
       await page.getByText("正在載入成本設定…").waitFor({ state: "hidden" });
       if (scenario === "manual")
-        assert.equal(await page.getByLabel("每張成本（TWD）").count(), 0);
+        assert.equal(
+          await page.getByRole("region", { name: "進貨批次與總成本" }).count(),
+          0,
+        );
       else {
-        await page.getByLabel("每張成本（TWD）").waitFor();
-        if (scenario === "receive") {
-          await page.getByLabel("庫存數量", { exact: true }).fill("15");
-          await page.getByLabel("本次進貨每張成本（TWD）").fill("200");
-        } else
+        await page.getByRole("region", { name: "進貨批次與總成本" }).waitFor();
+        if (scenario === "new") {
+          await page.getByRole("button", { name: "＋新增進貨批次" }).click();
+          await page.getByLabel("第 1 批張數", { exact: true }).fill("10");
+          await page.getByLabel("第 1 批總成本（TWD）").fill("1800");
+          await page.getByRole("button", { name: "＋新增進貨批次" }).click();
+          await page.getByLabel("第 2 批張數", { exact: true }).fill("5");
+          await page.getByLabel("第 2 批總成本（TWD）").fill("1000");
+          await page.getByText("NT$ 180", { exact: true }).waitFor();
+          await page.getByText("NT$ 200", { exact: true }).waitFor();
+        } else if (scenario === "receive") {
+          await page.getByRole("button", { name: "＋新增進貨批次" }).click();
+          await page.getByLabel("第 2 批張數", { exact: true }).fill("5");
+          await page.getByLabel("第 2 批總成本（TWD）").fill("1000");
+        } else if (scenario === "split") {
           await page
-            .getByLabel("每張成本（TWD）")
-            .fill(scenario === "new" ? "0" : "180");
+            .getByRole("button", { name: "拆分批次", exact: true })
+            .click();
+          await page.getByLabel("第 1 批張數", { exact: true }).fill("4");
+          await page.getByLabel("第 2 批張數", { exact: true }).fill("6");
+          await page.getByLabel("第 1 批總成本（TWD）").fill("400");
+          await page.getByLabel("第 2 批總成本（TWD）").fill("1200");
+        } else await page.getByLabel("第 1 批總成本（TWD）").fill("1800");
       }
       if (scenario === "new") {
         await page
@@ -135,40 +154,56 @@ try {
         await page.getByRole("spinbutton", { name: /會員價/ }).fill("300");
       }
       await page.screenshot({
-        path: "/tmp/poster-direct-cost-" + scenario + "-" + width + ".png",
+        path: "/tmp/poster-batch-total-" + scenario + "-" + width + ".png",
         fullPage: true,
       });
       await page
         .getByRole("button", {
-          name: scenario === "new" ? "建立預購商品" : "儲存修改",
+          name: scenario === "new" ? "建立商品與進貨批次" : "儲存修改",
           exact: true,
         })
         .click();
       await page.waitForFunction(() => Boolean(window.savedProduct));
       const saved = await page.evaluate(() => window.savedProduct);
-      assert.equal(
-        saved.unitCost,
-        scenario === "manual"
-          ? undefined
-          : scenario === "new"
-            ? 0
-            : scenario === "receive"
-              ? 200
-              : 180,
-      );
-      if (scenario === "edit") {
-        assert.equal(saved.costBatchId, batchId);
-        assert.equal(saved.expectedCostRevision, 1);
-      } else assert.equal("costBatchId" in saved, false);
+      if (scenario === "manual") assert.equal("costBatches" in saved, false);
+      else {
+        assert.equal(
+          saved.costBatches.length,
+          ["new", "receive", "split"].includes(scenario) ? 2 : 1,
+        );
+        if (scenario === "new")
+          assert.deepEqual(
+            saved.costBatches.map((b) => [b.quantity, b.totalCost]),
+            [
+              [10, 1800],
+              [5, 1000],
+            ],
+          );
+        if (scenario === "edit") {
+          assert.equal(saved.costBatches[0].totalCost, 1800);
+          assert.equal(saved.costBatches[0].id, batchId);
+        }
+        if (scenario === "split")
+          assert.ok(
+            saved.costBatches.every((b) => b.sourceBatchId === batchId),
+          );
+      }
       assert.equal(
         saved.stock,
-        scenario === "new" ? 0 : scenario === "receive" ? 15 : 10,
+        ["new", "receive"].includes(scenario) ? 15 : 10,
       );
       assert.deepEqual(errors, []);
+      assert.equal(
+        await page
+          .locator("body")
+          .evaluate((el) => el.scrollWidth <= window.innerWidth + 1),
+        true,
+      );
       await page.close();
     }
+  }
   console.log(
-    "Direct poster costs pass create/edit/receipts/manual at 390 and 1280px",
+    "Batch total create/edit/receipts/split/manual pass at 390 and 1280px",
   );
 } finally {
   await browser.close();

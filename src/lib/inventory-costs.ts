@@ -10,7 +10,7 @@ export const unitCostSchema = z
     (value) => Math.abs(value * 100 - Math.round(value * 100)) < 0.001,
     "成本最多兩位小數",
   );
-export const batchCostSchema = z
+const unitBatchCostSchema = z
   .object({
     batchId: z.string().uuid(),
     unitCost: unitCostSchema,
@@ -18,12 +18,24 @@ export const batchCostSchema = z
     expectedRevision: z.number().int().positive(),
   })
   .strict();
+export const batchCostSchema = z.union([
+  unitBatchCostSchema,
+  z
+    .object({
+      batchId: z.string().uuid(),
+      totalCost: unitCostSchema.nullable(),
+      notes: z.string().trim().max(1000),
+      expectedRevision: z.number().int().positive(),
+    })
+    .strict(),
+]);
 export type CostBatch = {
   id: string;
   quantity: number;
   remaining: number;
   written_off: number;
   unit_cost: number | null;
+  total_cost?: number | null;
   received_at: string;
   notes: string;
   revision: number;
@@ -52,3 +64,24 @@ export type MissingProductCost = {
   name: string;
   quantity: number;
 };
+
+export const costBatchInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    sourceBatchId: z.string().uuid().optional(),
+    expectedRevision: z.number().int().positive().optional(),
+    quantity: z.number().int().min(1).max(1_000_000),
+    totalCost: unitCostSchema.nullable(),
+    date: z.iso.date(),
+    notes: z.string().max(1000),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      (value.id && value.sourceBatchId) ||
+      Boolean(value.id || value.sourceBatchId) !==
+        (value.expectedRevision !== undefined)
+    )
+      context.addIssue({ code: "custom", message: "請重新載入批次資料" });
+  });
+export type CostBatchInput = z.infer<typeof costBatchInputSchema>;

@@ -27,6 +27,16 @@ export async function PATCH(
     if (!parsed.success) return apiFailure("商品資料格式不正確", 400);
 
     const input = parsed.data;
+    if (input.costBatches !== undefined) {
+      const { data, error } = await auth.supabase.rpc(
+        "save_inventory_product_batches",
+        { p_product_id: parsedId.data, p_input: input },
+      );
+      if (error) return productCostFailure(error);
+      if (data !== parsedId.data)
+        return apiFailure("商品未更新，請重新整理後再試", 409);
+      return apiSuccess({ updated: true });
+    }
     if (input.unitCost !== undefined) {
       const { data, error } = await auth.supabase.rpc(
         "save_inventory_product_with_cost",

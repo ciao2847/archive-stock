@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { unitCostSchema } from "@/lib/inventory-costs";
+import { costBatchInputSchema, unitCostSchema } from "@/lib/inventory-costs";
 
 import { buildPreorderProductName } from "@/lib/preorder-product-name";
 import { COUNTRIES, LOCATION_CODE_PATTERN } from "@/constants";
@@ -14,6 +14,7 @@ const productBaseSchema = z.object({
   stock: z.number().int().min(0).max(1000),
   price: z.number().nonnegative(),
   unitCost: unitCostSchema.optional(),
+  costBatches: z.array(costBatchInputSchema).max(500).optional(),
   format: z.string().max(100),
   size: z.string().max(100),
   description: z
@@ -35,6 +36,12 @@ export const createProductSchema = productBaseSchema
   })
   .superRefine((product, context) => {
     validatePreorderNaming(product, context);
+    if (product.costBatches !== undefined && product.unitCost !== undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["costBatches"],
+        message: "請使用批次總成本輸入",
+      });
     if (!product.preorderOnly && !product.country.trim()) {
       context.addIssue({
         code: "custom",
@@ -49,7 +56,11 @@ export const createProductSchema = productBaseSchema
         message: "請上傳商品圖片",
       });
     }
-    if (product.preorderOnly && product.stock !== 0) {
+    if (
+      product.preorderOnly &&
+      product.stock !== 0 &&
+      product.costBatches === undefined
+    ) {
       context.addIssue({
         code: "custom",
         path: ["stock"],
@@ -69,6 +80,12 @@ export const updateProductSchema = productBaseSchema
   })
   .superRefine((product, context) => {
     validatePreorderNaming(product, context);
+    if (product.costBatches !== undefined && product.unitCost !== undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["costBatches"],
+        message: "請使用批次總成本輸入",
+      });
     if (
       (product.costBatchId === undefined) !==
         (product.expectedCostRevision === undefined) ||

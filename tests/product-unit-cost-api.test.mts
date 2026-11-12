@@ -156,3 +156,42 @@ test("manual accounting retains the existing product RPC, and stale costs produc
   assert.equal(response.status, 409);
   assert.match((await response.json()).error, /成本已被更新/);
 });
+
+test("product batch totals are validated and routed through the atomic multi-batch save", async () => {
+  reset();
+  const { unitCost, ...base } = input;
+  assert.equal(unitCost, 180);
+  const batches = [
+    { quantity: 10, totalCost: 1800, date: "2026-11-01", notes: "" },
+    { quantity: 5, totalCost: 1000, date: "2026-11-02", notes: "" },
+  ];
+  const response = await create.POST(
+    request("POST", { ...base, stock: 15, costBatches: batches }),
+  );
+  assert.equal(response.status, 201);
+  assert.equal(state.posterCostCalls[0].name, "save_inventory_product_batches");
+  assert.deepEqual(
+    (state.posterCostCalls[0].args.p_input as { costBatches: unknown[] })
+      .costBatches,
+    batches,
+  );
+  const count = state.posterCostCalls.length;
+  for (const patch of [
+    { quantity: 0 },
+    { quantity: 1.5 },
+    { totalCost: -1 },
+    { totalCost: 0.001 },
+  ])
+    assert.equal(
+      (
+        await create.POST(
+          request("POST", {
+            ...base,
+            costBatches: [{ ...batches[0], ...patch }],
+          }),
+        )
+      ).status,
+      400,
+    );
+  assert.equal(state.posterCostCalls.length, count);
+});

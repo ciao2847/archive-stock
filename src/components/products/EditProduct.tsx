@@ -45,7 +45,11 @@ export function EditProduct({
   onUpdated: () => void | Promise<void>;
   preorderOnly?: boolean;
 }) {
-  const costDraft = useProductCostDraft(product.ownerId, product.dbId);
+  const costDraft = useProductCostDraft(
+    product.ownerId,
+    product.dbId,
+    product.stock,
+  );
   const namedPreorder = product.preorderItemName !== undefined;
   const [form, setForm] = useState({
     work: product.work,
@@ -109,7 +113,10 @@ export function EditProduct({
         if (!LOCATION_CODE_PATTERN.test(code))
           throw new Error("庫位格式需為 A-03-02");
       }
-      const nextStock = Number(form.stock);
+      const nextStock =
+        costDraft.mode === "product_fifo"
+          ? costDraft.stock
+          : Number(form.stock);
       if (!Number.isInteger(nextStock) || nextStock < 0)
         throw new Error("庫存數量必須是 0 以上的整數");
       let imagePaths: string[] | undefined = removeImage ? [] : undefined;
@@ -119,7 +126,7 @@ export function EditProduct({
           await uploadProductImages(variants.main, variants.thumbnail)
         ).paths;
       }
-      const costInput = costDraft.input(nextStock - product.stock);
+      const costInput = costDraft.input();
       await updateProduct(product.dbId, {
         ...costInput,
         crafts: form.category === POSTER_CATEGORY ? crafts : [],
@@ -430,7 +437,12 @@ export function EditProduct({
                       min="0"
                       step="1"
                       required
-                      value={form.stock}
+                      value={
+                        costDraft.mode === "product_fifo"
+                          ? String(costDraft.stock)
+                          : form.stock
+                      }
+                      readOnly={costDraft.mode === "product_fifo"}
                       onChange={(e) => change("stock", e.target.value)}
                     />
                   </Field>
@@ -442,10 +454,7 @@ export function EditProduct({
                       onChange={(e) => change("price", e.target.value)}
                     />
                   </Field>
-                  <ProductCostFields
-                    draft={costDraft}
-                    stockIncrease={Number(form.stock) - product.stock}
-                  />
+                  <ProductCostFields draft={costDraft} />
                 </div>
               </section>
               {form.category === POSTER_CATEGORY && (

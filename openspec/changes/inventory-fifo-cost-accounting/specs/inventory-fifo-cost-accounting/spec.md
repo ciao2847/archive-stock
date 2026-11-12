@@ -10,7 +10,7 @@ The system SHALL retain manual period accounting by default and support FIFO pro
 - **THEN** each inventory calculates costs independently and old settlements remain unchanged
 
 ### Requirement: Receipt batch cost management
-The system SHALL record receipt quantities separately with nullable unit costs, allow explicit zero costs and opening-cost entry, and expose remaining batch quantities to authorized inventory users.
+The system SHALL record receipt quantities separately with nullable total costs and derived average unit costs, allow explicit zero costs and opening-cost entry, and expose remaining batch quantities to authorized inventory users.
 #### Scenario: Missing cost
 - **WHEN** stock is received without cost
 - **THEN** a missing-cost batch is visible and sales remain possible
@@ -39,17 +39,32 @@ The system SHALL use the same product-plus-expense cost totals in preview, profi
 - **WHEN** a FIFO accounting report is exported
 - **THEN** it includes sold batch costs and separate additional expenses with matching profit
 
-### Requirement: Direct per-poster cost entry
-The system SHALL display a per-poster unit-cost field alongside selling price in FIFO inventory product creation and editing, save product data and costs atomically, and retain a default unit cost for zero-stock preorders and later receipts. Manual-accounting inventories SHALL retain their existing forms.
+### Requirement: Atomic product and batch cost entry
+The system SHALL save product metadata and all entered batch costs atomically in FIFO inventories. Blank totals SHALL remain unknown and explicit zero SHALL be accepted. Existing batch revisions and settled locks SHALL be checked before committing any changes. Manual-accounting inventories SHALL retain their existing forms.
 #### Scenario: Create a poster with cost
-- **WHEN** a FIFO inventory user creates a poster with a unit cost
-- **THEN** the poster and initial receipt cost are saved together, with explicit zero accepted
-#### Scenario: Edit an existing opening batch
-- **WHEN** a user enters cost for a poster with one editable receipt batch
-- **THEN** saving the poster updates that batch and its default unit cost together
+- **WHEN** a FIFO inventory user creates a poster with receipt quantities and total costs
+- **THEN** the poster and all receipt batches are saved together
+#### Scenario: Create a zero-stock preorder
+- **WHEN** a user creates a preorder without received batches
+- **THEN** stock is zero and no receipt is invented
 #### Scenario: Receive a new batch at a different price
-- **WHEN** stock is increased with a new unit cost
-- **THEN** only the new batch receives that cost and earlier batch costs remain unchanged
-#### Scenario: Choose an existing batch
-- **WHEN** a poster has multiple editable batches
-- **THEN** the user explicitly selects the batch to edit and a revision conflict rejects the entire save
+- **WHEN** a user adds a receipt with its own total cost
+- **THEN** physical stock increases by that receipt quantity and earlier batch costs remain unchanged
+#### Scenario: Concurrent or locked batch changes
+- **WHEN** a cost revision is stale or an edited batch has settled allocations
+- **THEN** the entire product and batch save is rejected
+
+### Requirement: Multiple batch totals in product forms
+The system SHALL let FIFO inventory users enter multiple batches with quantity, total cost, date and notes in product creation/editing. Average cost SHALL be derived from each batch total. Remaining stock SHALL be derived from batch quantities, including explicit new receipts. Existing unsettled batches SHALL support splitting while retaining original total quantity and reallocating only that batch's unsettled outbound quantities. Settled batches SHALL remain locked.
+#### Scenario: Two batches in one save
+- **WHEN** a product is created with 10 units costing 1800 and 5 units costing 1000
+- **THEN** stock is 15 with two separate receipt batches and displayed average costs of 180 and 200
+#### Scenario: Non-divisible total
+- **WHEN** a batch has 3 units and a total cost of 100 and all three units are sold across separate orders
+- **THEN** the accumulated sold costs equal exactly 100, with returns restoring the original allocated amount
+#### Scenario: Split opening inventory
+- **WHEN** an unsettled opening batch of 15 units is split into 10 and 5 units
+- **THEN** physical stock remains unchanged and existing outbound units retain their order references with costs allocated across the new child batches
+#### Scenario: Same-date batch splitting
+- **WHEN** the earliest of multiple equal-date receipts is split, including repeated splitting
+- **THEN** its children retain its FIFO position and their displayed order, ahead of later receipts

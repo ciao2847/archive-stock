@@ -62,6 +62,15 @@ export async function PATCH(request: Request) {
         400,
       );
     const input = parsed.data;
+    if ("totalCost" in input) {
+      const { error } = await auth.supabase.rpc("save_inventory_batch_total", {
+        p_batch_id: input.batchId,
+        p_total: input.totalCost,
+        p_notes: input.notes,
+        p_expected_revision: input.expectedRevision,
+      });
+      return error ? failure(error) : apiSuccess({ saved: true });
+    }
     const { error } = await auth.supabase.rpc("save_inventory_batch_cost", {
       p_batch_id: input.batchId,
       p_unit_cost: input.unitCost,

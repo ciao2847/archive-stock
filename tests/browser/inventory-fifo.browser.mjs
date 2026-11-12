@@ -85,7 +85,7 @@ try {
       if (url.pathname === "/api/inventory-costs") {
         if (request.method() === "PATCH") {
           const input = request.postDataJSON();
-          assert.equal(input.unitCost, 180);
+          assert.equal(input.totalCost, 1800);
           cost = 180;
           revision++;
           return json({ saved: true });
@@ -180,7 +180,7 @@ try {
         ? page.getByRole("region", { name: "本期售出商品成本" })
         : page.getByRole("region", { name: "商品批次成本" });
     if (width === 390) await editor.locator("summary").click();
-    await editor.getByLabel("第 1 批單件成本（TWD）").fill("180");
+    await editor.getByLabel("第 1 批總成本（TWD）").fill("1800");
     await editor.getByRole("button", { name: "儲存本批成本" }).click();
     await page
       .getByRole("heading", { name: "本期售出商品成本 · NT$ 360" })

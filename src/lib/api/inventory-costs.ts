@@ -15,12 +15,12 @@ export function getInventoryAccountingMode(
     cache: "no-store",
   }).then(readApiResponse<{ mode: AccountingMode }>);
 }
-export function saveBatchCost(input: {
-  batchId: string;
-  unitCost: number;
-  notes: string;
-  expectedRevision: number;
-}) {
+export function saveBatchCost(
+  input: { batchId: string; notes: string; expectedRevision: number } & (
+    | { unitCost: number }
+    | { totalCost: number | null }
+  ),
+) {
   return fetch("/api/inventory-costs", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
