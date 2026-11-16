@@ -68,8 +68,17 @@
   min-width: 0;
   display: grid;
   gap: 6px;
-  > p:first-child:not(:last-child) {
+  > p[data-state="ready"] {
     color: var(--color-dark);
+    font-weight: 600;
+  }
+  > p[data-state="blocked"],
+  > p[data-state="error"] {
+    color: var(--color-danger);
+    font-weight: 700;
+  }
+  > p[data-state="busy"] {
+    color: var(--color-primary);
     font-weight: 600;
   }
   button {
@@ -115,5 +124,17 @@
   .actions button {
     padding: 10px;
     font-size: 12px;
+  }
+}
+@media (max-height: 500px) {
+  .header,
+  .footer {
+    padding: 10px 16px;
+  }
+  .help > p:last-child {
+    display: none;
+  }
+  .footer {
+    gap: 8px;
   }
 }

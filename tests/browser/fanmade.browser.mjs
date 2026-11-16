@@ -808,6 +808,7 @@ try {
       exact: true,
     });
     const batchHelp = batchDialog.locator("#fanmade-batch-help");
+    const batchError = batchDialog.locator("#fanmade-batch-error");
     const createBatch = batchDialog.getByRole("button", {
       name: "建立本批飯製商品",
       exact: true,
@@ -874,10 +875,11 @@ try {
       { name: "超量一.png", mimeType: "image/png", buffer: png },
       { name: "超量二.png", mimeType: "image/png", buffer: png },
     ]);
-    await page
-      .getByRole("alert")
-      .filter({ hasText: "依工藝展開後每批最多 50 件商品" })
-      .waitFor();
+    await batchError.waitFor();
+    assert.match(
+      await batchError.innerText(),
+      /依工藝展開後每批最多 50 件商品/,
+    );
     assert.equal(await batchCount.innerText(), "0 件商品");
     assert.equal(await page.evaluate(() => window.imageUploads || 0), 0);
     await craftText.fill("亮銀龍｜10\n水波紋｜6");
@@ -1128,6 +1130,8 @@ try {
     );
     releaseBatch();
     await retryBatch.waitFor();
+    await batchError.waitFor();
+    assert.equal((await batchError.innerText()).trim().length > 0, true);
     assert.equal(await page.evaluate(() => window.imageUploads), 2);
     assert.equal(await craftText.isDisabled(), true);
     assert.equal(await mode.isDisabled(), true);
@@ -1813,6 +1817,252 @@ try {
     );
     assert.equal(await batchCount.innerText(), "0 件商品");
     await closeBatch.click();
+    // Equivalent craft text must not make a complete batch look blocked, and real errors stay beside Create.
+    await page.unroute("**/api/fanmade**");
+    const grayBatches = [],
+      grayActions = [];
+    await page.route("**/api/fanmade**", async (route) => {
+      if (route.request().method() === "GET")
+        return route.fulfill({
+          json: {
+            success: true,
+            data: {
+              price: 350,
+              forms: [{ id: 1, title: "飯製表單", token: id(2), isOpen: true }],
+              products: [],
+              total: 0,
+              variantTotal: 0,
+              legacy: [],
+            },
+          },
+        });
+      const input = route.request().postDataJSON();
+      grayActions.push(input);
+      if (input.action === "batch") {
+        grayBatches.push(input);
+        const productIds = input.items.map((_, index) => id(1000 + index));
+        return route.fulfill({
+          json: {
+            success: true,
+            data: {
+              productIds,
+              versions: Object.fromEntries(
+                productIds.map((productId) => [
+                  productId,
+                  "2026-11-16T00:00:00Z",
+                ]),
+              ),
+            },
+          },
+        });
+      }
+      return route.fulfill({ json: { success: true, data: { saved: true } } });
+    });
+    await page.goto(`${base}/admin`);
+    await procurementPanel.waitFor();
+    await settingsTab.click();
+    await openBatch.click();
+    await batchIp.fill("蜘蛛人");
+    await defaultStock.fill("5");
+    await craftText.fill("亮銀龍｜10\n水波紋｜6");
+    await batchDialog.getByLabel("批次上傳飯製圖片").setInputFiles({
+      name: "等效測試.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    const grayText = imageText("等效測試");
+    const grayStock = row("等效測試", "水波紋").getByLabel("現貨庫存", {
+      exact: true,
+    });
+    const grayVideo = row("等效測試", "水波紋").getByLabel(
+      "等效測試 水波紋實拍影片",
+      { exact: true },
+    );
+    await grayStock.fill("8");
+    await grayVideo.setInputFiles({
+      name: "equivalent-water.mov",
+      mimeType: "video/quicktime",
+      buffer: Buffer.from("equivalent-text video fixture"),
+    });
+    for (const text of [
+      "亮銀龍｜10\n水波紋｜8\n",
+      " 亮銀龍 ｜ 10 \n 水波紋 ｜ 8 ",
+      "亮銀龍、水波紋",
+      "亮銀龍, 水波紋",
+      "亮銀龍\t10\n水波紋\t8",
+    ]) {
+      await grayText.fill(text);
+      assert.equal(
+        await createBatch.isEnabled(),
+        true,
+        "whitespace, trailing newlines and equivalent separators must not block a complete batch",
+      );
+      assert.equal(await grayStock.isEnabled(), true);
+      assert.equal(await grayStock.inputValue(), "8");
+      assert.equal(
+        await grayVideo.evaluate((input) => input.files[0]?.name),
+        "equivalent-water.mov",
+      );
+    }
+    await grayText.fill("亮銀龍、水波紋\n");
+    await grayText.press("Tab");
+    await grayStock.fill("9");
+    assert.equal(
+      await createBatch.isEnabled(),
+      true,
+      "after equivalent text loses focus, editing stock must not revive a stale text draft",
+    );
+    await grayText.fill("亮銀龍｜10\n水波紋｜9");
+    await grayText.press("End");
+    await grayText.press("Enter");
+    assert.equal(await grayText.inputValue(), "亮銀龍｜10\n水波紋｜9\n");
+    assert.equal(await createBatch.isEnabled(), true);
+    await grayText.pressSequentially("雷射｜2");
+    assert.equal(await grayText.inputValue(), "亮銀龍｜10\n水波紋｜9\n雷射｜2");
+    assert.equal(await createBatch.isDisabled(), true);
+    await batchDialog
+      .getByRole("button", { name: "前往未套用的圖片", exact: true })
+      .click();
+    await page.waitForFunction(
+      (element) => element === document.activeElement,
+      await grayText.elementHandle(),
+    );
+    await applyImage("等效測試").click();
+    assert.equal(await batchCount.innerText(), "3 件商品");
+    assert.equal(await createBatch.isEnabled(), true);
+    assert.equal(await grayStock.inputValue(), "9");
+    assert.equal(
+      await grayVideo.evaluate((input) => input.files[0]?.name),
+      "equivalent-water.mov",
+    );
+    await craftText.fill("霧面｜2\n燙金｜3");
+    const longTitle = "長".repeat(201);
+    await batchDialog.getByLabel("批次上傳飯製圖片").setInputFiles({
+      name: `${longTitle}.png`,
+      mimeType: "image/png",
+      buffer: png,
+    });
+    assert.equal(await batchCount.innerText(), "5 件商品");
+    await row(longTitle, "霧面")
+      .getByLabel(`${longTitle} 霧面實拍影片`, { exact: true })
+      .setInputFiles({
+        name: "long-name-matte.mov",
+        mimeType: "video/quicktime",
+        buffer: Buffer.from("retained while fixing the shared poster name"),
+      });
+    await createBatch.click();
+    await batchError.waitFor();
+    assert.match(await batchError.innerText(), /名稱/);
+    assert.match(await batchError.innerText(), /200/);
+    assert.equal(
+      await batchError.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return (
+          bounds.top >= 0 &&
+          bounds.bottom <= innerHeight &&
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth
+        );
+      }),
+      true,
+      "validation errors must be visible beside Create without scrolling to the top",
+    );
+    await batchDialog.screenshot({
+      path: `/tmp/archive-fanmade-batch-error-${width}.png`,
+      animations: "disabled",
+    });
+    if (width === 375) {
+      await page.setViewportSize({ width, height: 420 });
+      for (const control of [
+        batchError,
+        createBatch,
+        batchDialog.getByRole("button", { name: "查看問題欄位", exact: true }),
+      ])
+        assert.equal(
+          await control.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return (
+              bounds.top >= 0 &&
+              bounds.bottom <= innerHeight &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth
+            );
+          }),
+          true,
+          "errors and corrective actions must remain visible with a short mobile viewport",
+        );
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        true,
+      );
+      await batchDialog.screenshot({
+        path: "/tmp/archive-fanmade-batch-error-short.png",
+        animations: "disabled",
+      });
+      await page.setViewportSize({ width, height: 950 });
+    }
+    assert.equal(await page.evaluate(() => window.imageUploads || 0), 0);
+    assert.equal(await page.evaluate(() => window.videoUploads || 0), 0);
+    assert.equal(grayBatches.length, 0);
+    const invalidName = ownImage(longTitle).getByLabel(`${longTitle}海報名稱`, {
+      exact: true,
+    });
+    await batchDialog
+      .getByRole("button", { name: "查看問題欄位", exact: true })
+      .click();
+    await invalidName.waitFor({ state: "visible" });
+    await page.waitForFunction(
+      (element) => element === document.activeElement,
+      await invalidName.elementHandle(),
+    );
+    assert.equal(
+      await row(longTitle, "霧面").locator("details").getAttribute("open"),
+      "",
+      "the issue action must reveal the advanced field that needs correction",
+    );
+    await invalidName.fill("修正名稱");
+    assert.equal(await row("修正名稱", "霧面").count(), 1);
+    assert.equal(await row("修正名稱", "燙金").count(), 1);
+    assert.equal(
+      await row("修正名稱", "霧面")
+        .getByLabel("修正名稱 霧面實拍影片", { exact: true })
+        .evaluate((input) => input.files[0]?.name),
+      "long-name-matte.mov",
+      "fixing a shared long poster name must retain every craft's selected video",
+    );
+    await createBatch.click();
+    await batchDialog
+      .getByRole("status")
+      .filter({ hasText: "已建立 5 件獨立飯製商品" })
+      .waitFor();
+    assert.equal(grayBatches.length, 1);
+    assert.deepEqual(
+      grayBatches[0].items.map(({ title, craft, stock }) => ({
+        title,
+        craft,
+        stock,
+      })),
+      [
+        { title: "等效測試", craft: "亮銀龍", stock: 10 },
+        { title: "等效測試", craft: "水波紋", stock: 9 },
+        { title: "等效測試", craft: "雷射", stock: 2 },
+        { title: "修正名稱", craft: "霧面", stock: 2 },
+        { title: "修正名稱", craft: "燙金", stock: 3 },
+      ],
+    );
+    assert.equal(await page.evaluate(() => window.imageUploads), 2);
+    assert.equal(await page.evaluate(() => window.videoUploads), 2);
+    assert.deepEqual(
+      grayActions
+        .filter((input) => input.action === "video")
+        .map((input) => input.productId)
+        .sort(),
+      [id(1001), id(1003)],
+    );
+    assert.equal(await batchError.isVisible(), false);
+    await closeBatch.click();
     // A new inventory can upload before creating any form, then save its shared price and first form.
     await page.unroute("**/api/fanmade**");
     let setupPrice = 350;
@@ -1919,7 +2169,29 @@ try {
       /請先在飯製管理主頁儲存統一價格/,
     );
     assert.equal(await createBatch.isDisabled(), true);
-    await closeBatch.click();
+    await batchIp.fill("蜘蛛人");
+    await batchDialog.getByLabel("批次上傳飯製圖片").setInputFiles({
+      name: "待定售價.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    const priceVideo = row("待定售價", "亮銀龍").getByLabel(
+      "待定售價 亮銀龍實拍影片",
+      { exact: true },
+    );
+    await priceVideo.setInputFiles({
+      name: "price-pending.mov",
+      mimeType: "video/quicktime",
+      buffer: Buffer.from("retained while setting unified price"),
+    });
+    const pricePreview = await row("待定售價", "亮銀龍")
+      .getByRole("img")
+      .getAttribute("src");
+    await batchDialog
+      .getByRole("button", { name: "前往設定統一售價", exact: true })
+      .click();
+    await batchDialog.waitFor({ state: "hidden" });
+    assert.equal(await uniformPrice.isVisible(), true);
     await uniformPrice.fill("350");
     await page
       .getByRole("button", { name: "儲存統一價格", exact: true })
@@ -1932,6 +2204,18 @@ try {
     );
     assert.equal(setupActions[2].action, "price");
     assert.equal(setupActions[2].price, 350);
+    await openBatch.click();
+    assert.equal(await batchCount.innerText(), "1 件商品");
+    assert.equal(
+      await row("待定售價", "亮銀龍").getByRole("img").getAttribute("src"),
+      pricePreview,
+    );
+    assert.equal(
+      await priceVideo.evaluate((input) => input.files[0]?.name),
+      "price-pending.mov",
+    );
+    assert.equal(await createBatch.isEnabled(), true);
+    await closeBatch.click();
     assert.equal(errors.length, 0, errors.join("\n"));
     await page.close();
     console.log(

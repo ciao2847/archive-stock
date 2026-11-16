@@ -33,7 +33,14 @@ import { validateProductImage } from "@/components/products/product-image-valida
 import { useDirtyBack } from "@/components/navigation/BackNavigation";
 import { SearchField } from "@/components/ui/SearchField";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { parseFanmadeCraftText } from "@/lib/fanmade/craft-text";
+import {
+  matchesFanmadeCraftText,
+  parseFanmadeCraftText,
+} from "@/lib/fanmade/craft-text";
+import {
+  validateFanmadeBatchDraft,
+  type FanmadeBatchFeedback,
+} from "@/lib/fanmade/batch-feedback";
 import { ClaimProcurementPanel } from "@/components/claims/ClaimProcurementPanel";
 import { FanmadeBatchDialog } from "./FanmadeBatchDialog";
 import { FanmadeBatchIpGroup } from "./FanmadeBatchIpGroup";
@@ -126,6 +133,9 @@ export function FanmadeManagement({
     [defaults, setDefaults] = useState({ ip: "", craft: "亮銀龍", stock: "0" });
   const [batchOpen, setBatchOpen] = useState(false);
   const [draggingImages, setDraggingImages] = useState(false);
+  const [batchIssue, setBatchIssue] = useState<FanmadeBatchFeedback | null>(
+    null,
+  );
   const [imageCraftDrafts, setImageCraftDrafts] = useState<
     Record<string, string>
   >({});
@@ -179,7 +189,11 @@ export function FanmadeManagement({
       .filter(
         ([key, items]) =>
           imageCraftDrafts[key] !== undefined &&
-          imageCraftDrafts[key] !== formatImageCrafts(items),
+          !matchesFanmadeCraftText(
+            imageCraftDrafts[key],
+            defaults.stock,
+            items,
+          ),
       )
       .map(([key]) => key),
   );
@@ -264,11 +278,23 @@ export function FanmadeManagement({
     return () => window.removeEventListener("beforeunload", handler);
   }, [rows.length, pending]);
   function change(key: string, values: Partial<Row>) {
+    if (
+      batchIssue?.rowKey === key &&
+      batchIssue.field &&
+      batchIssue.field in values
+    ) {
+      setBatchIssue(null);
+      setError("");
+    }
     setRows((old) =>
       old.map((row) => (row.key === key ? { ...row, ...values } : row)),
     );
   }
   function changeBatchIp(value: string) {
+    if (batchIssue?.field === "ip") {
+      setBatchIssue(null);
+      setError("");
+    }
     const previousIp = defaults.ip.trim();
     setDefaults((current) => ({ ...current, ip: value }));
     setRows((current) =>
@@ -301,6 +327,8 @@ export function FanmadeManagement({
     }
   }
   function changeImageCraftText(imageKey: string, text: string) {
+    setBatchIssue(null);
+    setError("");
     const source = rows.filter((row) => row.imageKey === imageKey);
     setImageCraftDrafts((current) => {
       const next = { ...current };
@@ -309,8 +337,67 @@ export function FanmadeManagement({
       return next;
     });
   }
+  function finishImageCraftText(imageKey: string) {
+    const source = rows.filter((row) => row.imageKey === imageKey);
+    setImageCraftDrafts((current) => {
+      const text = current[imageKey];
+      if (
+        text === undefined ||
+        !matchesFanmadeCraftText(text, defaults.stock, source)
+      )
+        return current;
+      const next = { ...current };
+      delete next[imageKey];
+      return next;
+    });
+  }
+  function focusImageCrafts(imageKey: string) {
+    const source = rows.find((row) => row.imageKey === imageKey);
+    const element =
+      source &&
+      document
+        .getElementById(`fanmade-batch-row-${source.key}`)
+        ?.closest("section");
+    const input = element?.querySelector("textarea");
+    input?.focus({ preventScroll: true });
+    (input || element)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function focusBatchIssue() {
+    if (!batchIssue?.rowKey) return;
+    const element = document.getElementById(
+      `fanmade-batch-row-${batchIssue.rowKey}`,
+    );
+    if (!element) return;
+    element.querySelectorAll("details").forEach((details) => {
+      details.open = true;
+    });
+    const issueRow = rows.find((row) => row.key === batchIssue.rowKey);
+    const sharedTitle =
+      batchIssue.field === "title" &&
+      issueRow &&
+      rows
+        .filter((row) => row.imageKey === issueRow.imageKey)
+        .every((row) => row.title === issueRow.title);
+    const commonTitle = sharedTitle
+      ? element
+          .closest("section")
+          ?.querySelector<HTMLInputElement>("[data-fanmade-image-title]")
+      : null;
+    const input =
+      commonTitle ||
+      element.querySelector<HTMLInputElement>(
+        `[data-fanmade-field="${batchIssue.field}"]`,
+      ) ||
+      element.querySelector("input");
+    input?.focus({ preventScroll: true });
+    (input || element).scrollIntoView({ behavior: "smooth", block: "center" });
+  }
   function changeImageTitle(imageKey: string, title: string) {
     if (locked || dirtyImageKeys.has(imageKey)) return;
+    if (batchIssue?.imageKey === imageKey && batchIssue.field === "title") {
+      setBatchIssue(null);
+      setError("");
+    }
     setRows((current) =>
       current.map((row) =>
         row.imageKey === imageKey ? { ...row, title } : row,
@@ -382,6 +469,7 @@ export function FanmadeManagement({
       return drafts;
     });
     setError("");
+    setBatchIssue(null);
     setMessage(
       `已套用「${source[0].title}」的 ${next.length} 種工藝，其他圖片保留原設定。`,
     );
@@ -439,6 +527,7 @@ export function FanmadeManagement({
     ]);
     if (!rows.length) setAppliedCraftConfig(craftConfig);
     setError("");
+    setBatchIssue(null);
   }
   function applyCraftDefaults() {
     if (locked) return;
@@ -500,6 +589,10 @@ export function FanmadeManagement({
   }
   function removeRow(row: Row) {
     if (locked || dirtyImageKeys.has(row.imageKey)) return;
+    if (batchIssue?.rowKey === row.key) {
+      setBatchIssue(null);
+      setError("");
+    }
     if (
       rows.every(
         (other) => other.key === row.key || other.imageKey !== row.imageKey,
@@ -545,28 +638,15 @@ export function FanmadeManagement({
       setError("請先套用或還原各圖片尚未完成的工藝文字，再建立本批商品。");
       return;
     }
-    if (
-      !pending &&
-      (rows.length === 0 ||
-        rows.length > 50 ||
-        rows.some(
-          (r) =>
-            !r.ip.trim() ||
-            !r.title.trim() ||
-            !r.craft.trim() ||
-            [...`🎨 ${r.ip.trim()}／${r.title.trim()}｜${r.craft.trim()}`]
-              .length > 300 ||
-            r.stock.trim() === "" ||
-            !Number.isInteger(Number(r.stock)) ||
-            Number(r.stock) < 0 ||
-            Number(r.stock) > 1000,
-        ))
-    ) {
-      setError(
-        "請填妥每列 IP、商品名稱、工藝（合計最多 300 字）及 0 至 1000 的整數庫存",
-      );
-      return;
+    if (!pending) {
+      const feedback = validateFanmadeBatchDraft(rows);
+      if (feedback) {
+        setBatchIssue(feedback);
+        setError(feedback.message);
+        return;
+      }
     }
+    setBatchIssue(null);
     mutationBusy.current = true;
     setBusy(true);
     setError("");
@@ -1454,18 +1534,73 @@ export function FanmadeManagement({
         onClose={() => setBatchOpen(false)}
         status={
           <>
-            <p id="fanmade-batch-help" role="status">
+            {error && (
+              <p id="fanmade-batch-error" role="alert" data-state="error">
+                {error}
+              </p>
+            )}
+            <p
+              id="fanmade-batch-help"
+              role="status"
+              data-state={
+                busy ? "busy" : batchBlockedReason ? "blocked" : "ready"
+              }
+            >
               {batchBlockedReason ||
-                (pending
-                  ? "已保留原批次，重試不會重複建立商品。"
-                  : `已預覽 ${rows.length} 件商品，請核對明細後建立。`)}
+                (error
+                  ? pending
+                    ? "上次結果尚未確認，重試原批次不會重複建立商品。"
+                    : "請修正上方提示的資料，再建立本批商品。"
+                  : pending
+                    ? "已保留原批次，重試不會重複建立商品。"
+                    : `已預覽 ${rows.length} 件商品，請核對明細後建立。`)}
             </p>
+            {!busy && !pending && data?.price == null && (
+              <button
+                type="button"
+                className="outline"
+                onClick={() => {
+                  setBatchOpen(false);
+                  setActiveTab("settings");
+                  setMessage(
+                    "本批圖片與影片草稿已保留，請先儲存飯製統一售價，再開啟批量上架繼續。",
+                  );
+                }}
+              >
+                前往設定統一售價
+              </button>
+            )}
+            {!busy && !pending && dirtyImageKeys.size > 0 && (
+              <button
+                type="button"
+                className="outline"
+                onClick={() => {
+                  const imageKey = dirtyImageKeys.values().next().value;
+                  if (imageKey) focusImageCrafts(imageKey);
+                }}
+              >
+                前往未套用的圖片
+              </button>
+            )}
+            {!busy && error && batchIssue?.rowKey && (
+              <button
+                type="button"
+                className="outline"
+                onClick={focusBatchIssue}
+              >
+                查看問題欄位
+              </button>
+            )}
           </>
         }
         footer={
           <button
             className="primary"
-            aria-describedby="fanmade-batch-help"
+            aria-describedby={
+              error
+                ? "fanmade-batch-error fanmade-batch-help"
+                : "fanmade-batch-help"
+            }
             disabled={
               busy ||
               (!pending && (!rows.length || dirtyImageKeys.size > 0)) ||
@@ -1482,11 +1617,7 @@ export function FanmadeManagement({
           </button>
         }
       >
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        )}
+        {error && <p className={styles.error}>{error}</p>}
         {message && (
           <p className={styles.notice} role="status">
             {message}
@@ -1724,11 +1855,13 @@ export function FanmadeManagement({
               dirty={dirtyImageKeys.has(imageKey)}
               onTitleChange={(title) => changeImageTitle(imageKey, title)}
               onTextChange={(text) => changeImageCraftText(imageKey, text)}
+              onTextBlur={() => finishImageCraftText(imageKey)}
               onApply={() => applyImageCrafts(imageKey)}
             >
               {source.map((row) => (
                 <div
                   className={styles.batchRow}
+                  id={`fanmade-batch-row-${row.key}`}
                   key={row.key}
                   role="group"
                   aria-label={`${row.title}｜${row.craft}上架資料`}
@@ -1750,6 +1883,11 @@ export function FanmadeManagement({
                           <label>
                             IP
                             <input
+                              data-fanmade-field="ip"
+                              aria-invalid={
+                                batchIssue?.rowKey === row.key &&
+                                batchIssue.field === "ip"
+                              }
                               value={row.ip}
                               onChange={(e) =>
                                 change(row.key, { ip: e.target.value })
@@ -1760,6 +1898,11 @@ export function FanmadeManagement({
                           <label>
                             商品名稱
                             <input
+                              data-fanmade-field="title"
+                              aria-invalid={
+                                batchIssue?.rowKey === row.key &&
+                                batchIssue.field === "title"
+                              }
                               value={row.title}
                               onChange={(e) =>
                                 change(row.key, { title: e.target.value })
@@ -1770,6 +1913,11 @@ export function FanmadeManagement({
                           <label>
                             工藝
                             <input
+                              data-fanmade-field="craft"
+                              aria-invalid={
+                                batchIssue?.rowKey === row.key &&
+                                batchIssue.field === "craft"
+                              }
                               value={row.craft}
                               list="fanmade-crafts"
                               onChange={(e) =>
@@ -1783,6 +1931,11 @@ export function FanmadeManagement({
                       <label>
                         現貨庫存
                         <input
+                          data-fanmade-field="stock"
+                          aria-invalid={
+                            batchIssue?.rowKey === row.key &&
+                            batchIssue.field === "stock"
+                          }
                           type="number"
                           min="0"
                           max="1000"

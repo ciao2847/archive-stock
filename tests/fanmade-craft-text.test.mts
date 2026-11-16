@@ -9,9 +9,59 @@ const bundle = await build({
   format: "esm",
   platform: "node",
 });
-const { parseFanmadeCraftText } = (await import(
+const { parseFanmadeCraftText, matchesFanmadeCraftText } = (await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 )) as typeof import("../src/lib/fanmade/craft-text.ts");
+
+test("equivalent craft formatting does not require applying the image again", () => {
+  const crafts = [
+    { craft: "亮銀龍", stock: "10" },
+    { craft: "水波紋", stock: "6" },
+  ];
+  for (const text of [
+    "亮銀龍｜10\n水波紋｜6\n",
+    " 亮銀龍 | 10 \n 水波紋 | 6 ",
+    "亮銀龍、水波紋",
+    "亮銀龍\n水波紋",
+    "亮銀龍\t10\n水波紋\t6",
+  ]) {
+    assert.equal(matchesFanmadeCraftText(text, "99", crafts), true, text);
+  }
+});
+test("actual craft, stock, order and invalid text changes still require review", () => {
+  const crafts = [
+    { craft: "亮銀龍", stock: "10" },
+    { craft: "水波紋", stock: "6" },
+  ];
+  for (const text of [
+    "亮銀龍",
+    "亮銀龍\n水波紋\n雷射",
+    "亮銀龍｜9\n水波紋｜6",
+    "水波紋\n亮銀龍",
+    "亮銀龍｜\n水波紋｜6",
+  ]) {
+    assert.equal(matchesFanmadeCraftText(text, "0", crafts), false, text);
+  }
+});
+test("equivalence checks do not convert blank stock to zero", () => {
+  assert.equal(
+    matchesFanmadeCraftText("亮銀龍｜0", "0", [{ craft: "亮銀龍", stock: "" }]),
+    false,
+  );
+  assert.equal(
+    matchesFanmadeCraftText("亮銀龍｜1", "0", [
+      { craft: "亮銀龍", stock: "01" },
+    ]),
+    true,
+  );
+});
+test("checking craft equivalence never rewrites source rows", () => {
+  const crafts = Object.freeze([
+    Object.freeze({ craft: "亮銀龍", stock: "3" }),
+  ]);
+  assert.equal(matchesFanmadeCraftText("亮銀龍\n", "8", crafts), true);
+  assert.equal(crafts[0].stock, "3");
+});
 
 test("craft text accepts one craft per line and preserves interior spaces and numbered names", () => {
   assert.deepEqual(

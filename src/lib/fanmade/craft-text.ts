@@ -4,6 +4,29 @@ export type FanmadeCraftTextResult = {
   warnings: string[];
 };
 
+/** Formatting changes alone do not require applying the image's craft list again. */
+export function matchesFanmadeCraftText(
+  text: string,
+  defaultStock: string,
+  crafts: ReadonlyArray<{ craft: string; stock: string }>,
+) {
+  const parsed = parseFanmadeCraftText(text, defaultStock, {
+    stockDefaults: Object.fromEntries(
+      crafts.map((item) => [item.craft.trim(), item.stock]),
+    ),
+  });
+  return (
+    parsed.errors.length === 0 &&
+    parsed.items.length === crafts.length &&
+    parsed.items.every(
+      (item, index) =>
+        item.craft === crafts[index].craft.trim() &&
+        crafts[index].stock.trim() !== "" &&
+        item.stock === Number(crafts[index].stock),
+    )
+  );
+}
+
 const LIST_SEPARATOR = /[、,，;；]/u;
 const COLUMN_SEPARATOR = /[|｜\t]/u;
 const NUMBER_LIKE =

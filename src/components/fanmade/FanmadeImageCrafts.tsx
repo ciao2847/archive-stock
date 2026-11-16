@@ -16,6 +16,7 @@ export function FanmadeImageCrafts({
   dirty,
   onTitleChange,
   onTextChange,
+  onTextBlur,
   onApply,
   children,
 }: {
@@ -30,6 +31,7 @@ export function FanmadeImageCrafts({
   dirty: boolean;
   onTitleChange: (title: string) => void;
   onTextChange: (text: string) => void;
+  onTextBlur: () => void;
   onApply: () => void;
   children: ReactNode;
 }) {
@@ -54,6 +56,7 @@ export function FanmadeImageCrafts({
           <label className={styles.nameField}>
             海報名稱（本圖全部工藝共用）
             <input
+              data-fanmade-image-title
               aria-label={`${title}海報名稱`}
               value={title}
               maxLength={200}
@@ -74,6 +77,7 @@ export function FanmadeImageCrafts({
             aria-invalid={invalid || overLimit}
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
+            onBlur={onTextBlur}
             disabled={disabled}
             rows={3}
             maxLength={15000}
