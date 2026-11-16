@@ -46,6 +46,7 @@ import {
 import type { Order, Product } from "@/lib/types";
 
 export interface ClaimSubmissionsViewProps {
+  procurementContent?: ReactNode;
   ownerId: string;
   fixedView?: "customers" | "procurement";
   renderFulfillment?: (submission: ClaimSubmission) => ReactNode;
@@ -91,6 +92,7 @@ const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
 };
 
 export function ClaimSubmissionsView({
+  procurementContent,
   ownerId,
   data,
   fixedView,
@@ -529,7 +531,9 @@ export function ClaimSubmissionsView({
         </section>
       )}
 
-      {view === "procurement" ? (
+      {view === "procurement" && procurementContent ? (
+        procurementContent
+      ) : view === "procurement" ? (
         <section className="min-w-0 rounded-[8px] border border-line bg-white p-4 shadow-sm sm:p-5 xl:p-6">
           <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div className="min-w-0">

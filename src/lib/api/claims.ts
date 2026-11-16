@@ -157,6 +157,8 @@ export async function deleteClaimForm(input: {
 export async function submitPublicClaim(
   token: string,
   input: {
+    formKind?: "fanmade";
+    expectedPrice?: number;
     nickname: string;
     phone: string;
     notes: string;

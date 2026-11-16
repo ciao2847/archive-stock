@@ -222,7 +222,7 @@ export async function GET(request: Request) {
       return apiFailure("無法查看這個庫藏的訂購", 403);
     }
 
-    const [{ data: forms, error: formError }, { data: inventoryData }] =
+    const [{ data: rawForms, error: formError }, { data: inventoryData }] =
       await Promise.all([
         auth.supabase
           .from("claim_forms")
@@ -242,6 +242,21 @@ export async function GET(request: Request) {
       ]);
     if (formError) return apiFailure(formError.message, 400, formError.code);
 
+    const fanmadeForms = await (
+      auth.supabase as import("@supabase/supabase-js").SupabaseClient
+    )
+      .from("fanmade_forms")
+      .select("form_id")
+      .eq("owner_id", ownerId);
+    if (
+      fanmadeForms.error &&
+      !["42P01", "PGRST205"].includes(fanmadeForms.error.code)
+    )
+      return apiFailure("飯製表單分類讀取失敗", 503);
+    const fanmadeIds = new Set(
+      (fanmadeForms.data ?? []).map((row: { form_id: number }) => row.form_id),
+    );
+    const forms = (rawForms ?? []).filter((form) => !fanmadeIds.has(form.id));
     const form = formId
       ? forms?.find((candidate) => candidate.id === formId)
       : forms?.[0];
@@ -285,13 +300,15 @@ export async function GET(request: Request) {
       },
     };
 
-    const mappedForms = (forms ?? []).map((candidate) => ({
-      id: candidate.id,
-      publicToken: candidate.public_token,
-      title: candidate.title,
-      isOpen: candidate.is_open,
-      closesAt: candidate.closes_at || undefined,
-    }));
+    const mappedForms = (scope === "all" ? (rawForms ?? []) : forms).map(
+      (candidate) => ({
+        id: candidate.id,
+        publicToken: candidate.public_token,
+        title: candidate.title,
+        isOpen: candidate.is_open,
+        closesAt: candidate.closes_at || undefined,
+      }),
+    );
     const transferAccount: ClaimTransferAccount =
       inventoryData?.claim_transfer_enabled &&
       inventoryData.claim_bank_code &&

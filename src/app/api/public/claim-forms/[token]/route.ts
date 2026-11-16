@@ -19,6 +19,8 @@ import { createClient } from "@/utils/supabase/server";
 
 const tokenSchema = z.string().uuid();
 const submissionSchema = z.object({
+  formKind: z.literal("fanmade").optional(),
+  expectedPrice: z.number().finite().nonnegative().optional(),
   nickname: z.string().trim().min(1).max(100),
   phone: z.string().regex(TAIWAN_MOBILE_PHONE_PATTERN),
   notes: z.string().trim().max(1000),
@@ -99,10 +101,11 @@ export async function POST(
     }
 
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc(
-      "submit_public_claim",
+    const { data, error } = await (supabase as import("@supabase/supabase-js").SupabaseClient).rpc(
+      input.formKind === "fanmade" ? "submit_fanmade_claim" : "submit_public_claim",
       {
         p_token: token.data,
+        ...(input.formKind === "fanmade" ? {p_expected_price:input.expectedPrice ?? null} : {}),
         p_nickname: input.nickname,
         p_phone: input.phone,
         p_notes: input.notes,
@@ -119,6 +122,8 @@ export async function POST(
         return apiFailure("喊單功能尚未啟用，請聯絡表單管理者。", 503);
       }
       const messages: Record<string, { message: string; status: number }> = {
+        "飯製統一價格已更新，請重新整理後確認": {message:"飯製統一價格已更新，請重新整理商品後確認金額。",status:409},
+        "飯製商品庫存不足，請重新整理數量": {message: "有商品已被訂走，請重新整理可售數量後再送出。", status: 409},
         "claim form not found": {
           message: "找不到這份喊單表單。",
           status: 404,

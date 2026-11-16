@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { DashboardView, Order, Product } from "@/lib/types";
 import { PrintLabelResetPanel } from "@/components/products/PrintLabelResetPanel";
+import { FanmadeManagement } from "@/components/fanmade/FanmadeManagement";
 import { ProductPanel } from "@/components/products/ProductPanel";
 import { PackingPanel } from "@/components/packing/PackingPanel";
 import { NewProduct } from "@/components/products/NewProduct";
@@ -293,27 +294,29 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
     : null;
   const filteredProducts = useMemo(
     () =>
-      scopedProducts.filter((product) =>
-        matchesSearch(query, [
-          product.id,
-          product.dbId,
-          product.name,
-          product.ownerName,
-          product.work,
-          product.category,
-          product.country,
-          product.source,
-          product.format,
-          product.size,
-          product.crafts,
-          product.location,
-          product.status,
-          product.feature,
-          product.description,
-          product.stock,
-          product.price,
-        ]),
-      ),
+      scopedProducts
+        .filter((product) => product.inventoryKind !== "fanmade")
+        .filter((product) =>
+          matchesSearch(query, [
+            product.id,
+            product.dbId,
+            product.name,
+            product.ownerName,
+            product.work,
+            product.category,
+            product.country,
+            product.source,
+            product.format,
+            product.size,
+            product.crafts,
+            product.location,
+            product.status,
+            product.feature,
+            product.description,
+            product.stock,
+            product.price,
+          ]),
+        ),
     [query, scopedProducts],
   );
   const filteredOrders = useMemo(
@@ -350,6 +353,7 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
     { id: "dashboard", label: "總覽", icon: LayoutDashboard },
     { id: "products", label: "商品庫存", icon: Boxes },
     { id: "claims", label: "訂購管理", icon: Megaphone },
+    { id: "fanmade-management", label: "飯製管理", icon: Images },
     { id: "bundle-claims", label: "配單管理", icon: Images },
     { id: "orders", label: "訂單管理", icon: ClipboardList },
     { id: "packing", label: "掃碼出貨", icon: QrCode },
@@ -516,19 +520,21 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                         ? "攤位營收"
                         : view === "products"
                           ? "商品庫存"
-                          : view === "claims"
-                            ? "訂購管理"
-                            : view === "bundle-claims"
-                              ? "配單管理"
-                              : view === "orders"
-                                ? "訂單管理"
-                                : view === "locations"
-                                  ? "庫位管理"
-                                  : view === "settlement"
-                                    ? "財務結算"
-                                    : view === "settings"
-                                      ? "系統設定"
-                                      : `${greeting}，${userName}`}
+                          : view === "fanmade-management"
+                            ? "飯製現貨管理"
+                            : view === "claims"
+                              ? "訂購管理"
+                              : view === "bundle-claims"
+                                ? "配單管理"
+                                : view === "orders"
+                                  ? "訂單管理"
+                                  : view === "locations"
+                                    ? "庫位管理"
+                                    : view === "settlement"
+                                      ? "財務結算"
+                                      : view === "settings"
+                                        ? "系統設定"
+                                        : `${greeting}，${userName}`}
                     </h1>
                     <p>
                       {view === "dashboard"
@@ -924,6 +930,13 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
                   }}
                 />
               )}
+              {view === "fanmade-management" && selectedOwnerId && (
+                <FanmadeManagement
+                  key={selectedOwnerId}
+                  ownerId={selectedOwnerId}
+                  onChanged={loadProducts}
+                />
+              )}
               {view === "claims" && selectedOwnerId && (
                 <ClaimFormPanel
                   key={`${selectedOwnerId}-${claimInitialTab}`}
@@ -1006,7 +1019,7 @@ function DashboardWorkspace({ authScope }: { authScope: string }) {
       )}{" "}
       {creatingOrder && (
         <NewOrder
-          products={scopedProducts}
+          products={scopedProducts.filter((p) => p.inventoryKind !== "fanmade")}
           productsLoading={loading}
           onClose={() => setCreatingOrder(false)}
           onCreated={() => {

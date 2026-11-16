@@ -1,0 +1,224 @@
+.panel {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.box {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--color-white);
+  min-width: 0;
+  h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 13px;
+  }
+  input,
+  select,
+  textarea {
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-size: 16px;
+  }
+}
+.batch {
+  display: grid;
+  gap: 12px;
+}
+.craftDefaults {
+  grid-column: 1 / -1;
+  min-width: 0;
+  p {
+    font-size: 13px;
+    color: var(--color-muted);
+    line-height: 1.7;
+    margin: 0 0 10px;
+  }
+  p.error {
+    color: var(--color-danger);
+  }
+}
+.craftPreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 0 0 12px;
+  list-style: none;
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 10px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  b {
+    flex-shrink: 0;
+    color: var(--color-primary);
+  }
+}
+.batchRow {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  min-width: 0;
+  img {
+    width: 72px;
+    height: 90px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+}
+.batchMeta {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.adminGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.adminDesign {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 14px;
+  > .productHeading {
+    h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+    }
+    p,
+    label {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--color-muted);
+    }
+    p {
+      margin: 0 0 6px;
+    }
+  }
+}
+.adminProduct {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+  h3 {
+    margin: 5px 0;
+    font-size: 15px;
+  }
+  p,
+  small {
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+}
+.productHeading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  img {
+    width: 72px;
+    height: 90px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+}
+.notice {
+  border: 1px solid var(--color-line);
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.error {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+.group {
+  border: 1px solid var(--claim-border);
+  background: var(--claim-surface);
+  color: var(--claim-surface-text);
+  border-radius: 12px;
+  overflow: hidden;
+  min-width: 0;
+}
+.groupToggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  span {
+    min-width: 0;
+  }
+  b {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+  small {
+    display: block;
+    margin-top: 4px;
+    color: var(--claim-surface-muted);
+    font-size: 12px;
+  }
+}
+.groupBody {
+  padding: 0 14px 16px;
+}
+@media (max-width: 600px) {
+  .fields,
+  .adminGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .box {
+    padding: 14px;
+  }
+  .batchRow {
+    grid-template-columns: 56px minmax(0, 1fr);
+    img {
+      width: 56px;
+      height: 72px;
+    }
+  }
+}

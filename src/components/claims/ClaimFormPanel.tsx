@@ -73,6 +73,7 @@ import {
   type ProductDraft,
 } from "./ClaimProductSettings";
 import { ClaimSubmissionsView } from "./ClaimSubmissionsView";
+import { ClaimProcurementPanel } from "./ClaimProcurementPanel";
 
 function toLocalDateTimeInput(iso?: string) {
   if (!iso) return "";
@@ -930,7 +931,7 @@ export function ClaimFormPanel({
                 <span
                   className={`hidden shrink-0 whitespace-nowrap rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold sm:inline-flex md:px-2 md:text-[11px] ${activeTab === "submissions" ? "bg-white/25 text-white" : "bg-light text-muted"}`}
                 >
-                  {data.summary.customerCount}
+                  累計 {data.summary.customerCount}
                   <span className="hidden sm:inline"> 人</span>
                 </span>
               ) : null}
@@ -993,6 +994,22 @@ export function ClaimFormPanel({
           <ClaimSubmissionsView
             ownerId={ownerId}
             fixedView="procurement"
+            procurementContent={
+              <ClaimProcurementPanel
+                key={`${ownerId}:${currentForm.id}`}
+                ownerId={ownerId}
+                formId={currentForm.id}
+                formTitle={currentForm.title}
+                onClosed={async () => {
+                  await load(
+                    1,
+                    false,
+                    currentForm.id,
+                    customerPhone || undefined,
+                  );
+                }}
+              />
+            }
             products={products}
             data={data}
             loading={loading}

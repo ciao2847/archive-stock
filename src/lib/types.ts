@@ -1,5 +1,6 @@
 export type Status = "在庫" | "已預留" | "待出貨" | "售罄" | "已出貨";
 export type Product = {
+  inventoryKind?: "standard" | "fanmade";
   id: string;
   dbId?: string;
   name: string;
@@ -98,6 +99,7 @@ export type AccountData = {
 };
 
 export type DashboardView =
+  | "fanmade-management"
   | "dashboard"
   | "products"
   | "claims"

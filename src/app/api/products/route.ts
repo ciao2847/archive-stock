@@ -67,6 +67,17 @@ export async function GET() {
   );
 
   const db = auth.supabase as import("@supabase/supabase-js").SupabaseClient;
+  const fanmadeResult = await db.from("fanmade_details").select("product_id");
+  if (
+    fanmadeResult.error &&
+    !["42P01", "PGRST205"].includes(fanmadeResult.error.code)
+  )
+    return apiFailure("飯製商品分類讀取失敗，請重新載入", 503);
+  const fanmadeIds = new Set(
+    (fanmadeResult.data ?? []).map(
+      (item: { product_id: string }) => item.product_id,
+    ),
+  );
   const allocationResult = await db
     .from("product_location_stocks")
     .select(
@@ -93,6 +104,7 @@ export async function GET() {
     const image = imagePath ? signedUrls.get(imagePath) : undefined;
     return {
       id: row.sku,
+      inventoryKind: fanmadeIds.has(row.id) ? "fanmade" : "standard",
       dbId: row.id,
       name: row.name,
       ...(row.preorder_item_name === null ||

@@ -1,0 +1,157 @@
+.image {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-white);
+  color: var(--color-dark);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  img {
+    width: 72px;
+    height: 90px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-light);
+  }
+
+  > div {
+    min-width: 0;
+  }
+
+  h3 {
+    margin: 4px 0 6px;
+    color: var(--color-dark);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+}
+
+.editor {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 9px;
+  background: var(--color-primary-soft);
+
+  label {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+    color: var(--color-dark);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 90px;
+    padding: 10px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.6;
+    resize: vertical;
+  }
+}
+
+.help,
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.help {
+  color: var(--color-muted);
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.feedback {
+  display: grid;
+  gap: 6px;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  p {
+    min-width: 0;
+    flex: 1 1 200px;
+  }
+
+  button {
+    min-height: 44px;
+    justify-content: center;
+    font-size: 13px;
+  }
+}
+
+.rows {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 479px) {
+  .image {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .header {
+    align-items: flex-start;
+
+    img {
+      width: 56px;
+      height: 72px;
+    }
+
+    h3 {
+      font-size: 15px;
+    }
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}

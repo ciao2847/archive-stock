@@ -38,6 +38,7 @@ export function ClaimContactForm({
   submitting,
   onSubmittingChange,
   onSuccess,
+  formKind,
 }: {
   form: PublicClaimForm;
   token: string;
@@ -48,6 +49,7 @@ export function ClaimContactForm({
   submitting: boolean;
   onSubmittingChange: (submitting: boolean) => void;
   onSuccess: (result: PublicClaimSubmissionResult, phone: string) => void;
+  formKind?: "fanmade";
 }) {
   const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("");
@@ -81,6 +83,10 @@ export function ClaimContactForm({
         website,
         requestId,
         turnstileToken,
+        formKind,
+        ...(formKind === "fanmade"
+          ? { expectedPrice: selectedProducts[0]?.product.price }
+          : {}),
         items: selectedProducts.map(({ product, quantity }) => ({
           productId: product.id,
           quantity,

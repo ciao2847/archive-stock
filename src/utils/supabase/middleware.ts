@@ -64,10 +64,12 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/auth") ||
     request.nextUrl.pathname.startsWith("/qr/") ||
     request.nextUrl.pathname.startsWith("/form/") ||
+    request.nextUrl.pathname.startsWith("/fanmade/") ||
     request.nextUrl.pathname.startsWith("/claim/") ||
     request.nextUrl.pathname.startsWith("/bundle/") ||
     request.nextUrl.pathname.startsWith("/bundles/") ||
     request.nextUrl.pathname.startsWith("/api/public/claim-forms/") ||
+    request.nextUrl.pathname.startsWith("/api/public/fanmade-forms/") ||
     request.nextUrl.pathname.startsWith("/api/public/bundle-claims/") ||
     request.nextUrl.pathname.startsWith("/api/public/bundle-menus/") ||
     request.nextUrl.pathname.startsWith("/api/line/");

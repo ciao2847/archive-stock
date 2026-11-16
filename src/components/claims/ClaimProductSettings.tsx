@@ -175,7 +175,7 @@ export function ClaimProductSettings({
   // Map products by their dbId for quick lookup
   const productMap = useMemo(() => {
     const map = new Map<string, Product>();
-    for (const p of products) {
+    for (const p of products.filter((p) => p.inventoryKind !== "fanmade")) {
       if (p.dbId) map.set(p.dbId, p);
     }
     return map;
@@ -209,6 +209,7 @@ export function ClaimProductSettings({
   const filteredInventoryProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return products.filter((p) => {
+      if (p.inventoryKind === "fanmade") return false;
       if (!p.dbId) return false;
       const isSelected = selectedIds.has(p.dbId);
 

@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { buildPaidProcurementCsv } from "../src/lib/claim-procurement.ts";
+import { build } from "esbuild";
+
+const bundle = await build({
+  entryPoints: ["src/lib/claim-procurement.ts"],
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const { buildPaidProcurementCsv } = await import(
+  `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
+);
 
 test("procurement CSV exports only paid quantities and escapes spreadsheet content", () => {
   const csv = buildPaidProcurementCsv([

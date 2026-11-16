@@ -1,0 +1,367 @@
+.managementHeader {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-white);
+}
+
+.managementHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+
+  > div {
+    min-width: 0;
+  }
+
+  h2 {
+    margin: 2px 0 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  h3 {
+    margin: 8px 0 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+}
+
+.headingIcon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.formPicker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+
+  select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+  }
+
+  button {
+    min-height: 44px;
+    justify-content: center;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+}
+
+.navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    min-width: 0;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 150ms;
+
+    &:hover:not(:disabled) {
+      background: var(--color-light);
+      color: var(--color-dark);
+    }
+
+    &.activeTab,
+    &.activeTab:hover:not(:disabled) {
+      background: var(--color-primary);
+      color: var(--color-white);
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.tabCount {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--color-light);
+  color: var(--color-muted);
+  font-size: 11px;
+
+  .activeTab & {
+    background: rgb(255 255 255 / 25%);
+    color: white;
+  }
+}
+
+.formStatus {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.formSummary,
+.catalogHeader {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  > div {
+    min-width: 0;
+  }
+
+  h2 {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+    font-size: 20px;
+    font-weight: 700;
+  }
+}
+
+.formSummary {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--color-white);
+
+  p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+}
+
+.summaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  button,
+  a {
+    font-size: 13px;
+  }
+}
+
+.workflow {
+  padding: 20px;
+  border: 1px solid #cbdde9;
+  border-radius: 8px;
+  background: #eef5fa;
+
+  .headingIcon {
+    background: white;
+  }
+
+  h3 {
+    color: #29485f;
+  }
+
+  ol {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #29485f;
+    font-size: 13px;
+    line-height: 1.6;
+
+    span {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      place-items: center;
+      border-radius: 50%;
+      background: white;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  }
+
+  p {
+    margin: 12px 0 0;
+    color: #526f85;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+}
+
+.basicSettings {
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    list-style: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  &[open] > summary svg {
+    transform: rotate(180deg);
+  }
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.settingBlock {
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0 0 16px;
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  button {
+    align-self: end;
+    min-height: 44px;
+    justify-content: center;
+    font-size: 13px;
+  }
+}
+
+.availability {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+
+  span {
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+}
+
+.catalogHelp {
+  margin: 12px 0 20px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+@media (min-width: 1280px) {
+  .managementHeader {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .settingsGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .settingBlock + .settingBlock {
+    padding-top: 20px;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .workflow ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 479px) {
+  .managementHeader,
+  .formSummary,
+  .workflow {
+    padding: 16px;
+  }
+
+  .formPicker {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tabs {
+    width: 100%;
+
+    button {
+      flex: 1;
+      gap: 6px;
+      padding-inline: 8px;
+      font-size: 13px;
+    }
+  }
+
+  .tabCount {
+    display: none;
+  }
+
+  .catalogHeader > button {
+    width: 100%;
+    justify-content: center;
+  }
+}

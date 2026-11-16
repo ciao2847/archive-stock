@@ -13,7 +13,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:types": "npx supabase@2.116.0 gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/types/database.types.ts",
-    "test:bundle-ui": "node tests/browser/bundle-menu.browser.mjs"
+    "test:bundle-ui": "node tests/browser/bundle-menu.browser.mjs",
+    "test:fanmade-ui": "node tests/browser/fanmade.browser.mjs",
+    "test:procurement-ui": "node tests/browser/claim-procurement.browser.mjs",
+    "test:media": "node tests/media-transcode.mjs",
+    "media:worker": "node scripts/media-worker/run-local.mjs",
+    "media:check": "node scripts/media-worker/run-local.mjs --check"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -37,6 +42,7 @@
     "react-redux": "^9.3.0",
     "sweetalert": "^2.1.2",
     "tailwind-merge": "^3.3.1",
+    "tus-js-client": "4.3.1",
     "web-push": "3.6.7",
     "zod": "^4.1.11"
   },

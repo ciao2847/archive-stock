@@ -1,6 +1,7 @@
 import type { DashboardView } from "./types";
 
 export const DASHBOARD_PATHS: Record<DashboardView, string> = {
+  "fanmade-management": "/fanmade-management",
   dashboard: "/",
   products: "/products",
   claims: "/claims",
