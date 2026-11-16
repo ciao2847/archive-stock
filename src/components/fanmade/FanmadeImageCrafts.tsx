@@ -14,6 +14,7 @@ export function FanmadeImageCrafts({
   totalCount,
   disabled,
   dirty,
+  onTitleChange,
   onTextChange,
   onApply,
   children,
@@ -27,6 +28,7 @@ export function FanmadeImageCrafts({
   totalCount: number;
   disabled: boolean;
   dirty: boolean;
+  onTitleChange: (title: string) => void;
   onTextChange: (text: string) => void;
   onApply: () => void;
   children: ReactNode;
@@ -49,7 +51,16 @@ export function FanmadeImageCrafts({
         <img src={preview} alt={`${title}圖片`} width={72} height={90} />
         <div>
           <span className="eyebrow">圖{imageNumber}</span>
-          <h3>{title}</h3>
+          <label className={styles.nameField}>
+            海報名稱（本圖全部工藝共用）
+            <input
+              aria-label={`${title}海報名稱`}
+              value={title}
+              maxLength={200}
+              disabled={disabled || dirty}
+              onChange={(event) => onTitleChange(event.target.value)}
+            />
+          </label>
           <p>目前 {crafts.length} 種工藝，各自管理庫存與影片。</p>
         </div>
       </div>

@@ -49,6 +49,90 @@
   display: grid;
   gap: 12px;
 }
+.imageDropZone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 2px dashed var(--color-line);
+  border-radius: 12px;
+  background: var(--color-white);
+  min-width: 0;
+
+  > div {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+
+  b {
+    color: var(--color-dark);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  button {
+    min-height: 44px;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  > span {
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+
+  &[aria-disabled="true"] {
+    opacity: 0.65;
+  }
+}
+.imageDragOver {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.batchVariantHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  b {
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  span {
+    color: var(--color-muted);
+    font-size: 12px;
+  }
+}
+.batchAdvanced {
+  grid-column: 1 / -1;
+  min-width: 0;
+
+  summary {
+    cursor: pointer;
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  > div {
+    margin-top: 12px;
+  }
+}
 .craftDefaults {
   grid-column: 1 / -1;
   min-width: 0;
@@ -207,6 +291,9 @@
   padding: 0 14px 16px;
 }
 @media (max-width: 600px) {
+  .imageDropZone > button {
+    width: 100%;
+  }
   .fields,
   .adminGrid {
     grid-template-columns: minmax(0, 1fr);

@@ -73,7 +73,7 @@ const bundle = await build({
           [
             /fanmade\/upload$/,
             "video",
-            `export async function uploadFanmadeVideo(owner,file,progress){window.videoUploads=(window.videoUploads||0)+1;progress(100);return owner+'/00000000-0000-4000-8000-000000000099/source.mov'}`,
+            `export async function uploadFanmadeVideo(owner,file,progress){window.videoUploads=(window.videoUploads||0)+1;const path=owner+'/00000000-0000-4000-8000-'+String(9000+window.videoUploads).padStart(12,'0')+'/source.mov';window.uploadedVideoFiles=[...(window.uploadedVideoFiles||[]),{name:file.name,path}];progress(100);return path}`,
           ],
           [
             /claims\/TurnstileWidget$/,
@@ -908,6 +908,10 @@ try {
     });
     assert.equal(await customizedIp.inputValue(), "");
     await customizedStock.fill("7");
+    await customizedRow
+      .locator("summary")
+      .filter({ hasText: /個別修改.*IP.*名稱.*工藝/ })
+      .click();
     await customizedIp.fill("自訂 IP");
     await page
       .getByLabel("夜景 水波紋實拍影片", { exact: true })
@@ -1530,6 +1534,282 @@ try {
     assert.equal(
       ownActions.find((input) => input.action === "video").productId,
       id(704),
+    );
+    assert.equal(await batchCount.innerText(), "0 件商品");
+    await closeBatch.click();
+    // A single IP owns many images, which can be selected together, appended, or dropped.
+    await page.unroute("**/api/fanmade**");
+    const ipBatches = [],
+      ipActions = [];
+    let releaseIpBatch, notifyIpBatchStarted;
+    const ipBatchStarted = new Promise((done) => {
+      notifyIpBatchStarted = done;
+    });
+    await page.route("**/api/fanmade**", async (route) => {
+      if (route.request().method() === "GET")
+        return route.fulfill({
+          json: {
+            success: true,
+            data: {
+              price: 350,
+              forms: [{ id: 1, title: "飯製表單", token: id(2), isOpen: true }],
+              products: [],
+              total: 0,
+              variantTotal: 0,
+              legacy: [],
+            },
+          },
+        });
+      const input = route.request().postDataJSON();
+      ipActions.push(input);
+      if (input.action === "batch") {
+        ipBatches.push(input);
+        await new Promise((done) => {
+          releaseIpBatch = done;
+          notifyIpBatchStarted();
+        });
+        const productIds = input.items.map((_, index) => id(800 + index));
+        return route.fulfill({
+          json: {
+            success: true,
+            data: {
+              productIds,
+              versions: Object.fromEntries(
+                productIds.map((productId) => [
+                  productId,
+                  "2026-11-16T00:00:00Z",
+                ]),
+              ),
+            },
+          },
+        });
+      }
+      return route.fulfill({ json: { success: true, data: { saved: true } } });
+    });
+    await page.goto(`${base}/admin`);
+    await procurementPanel.waitFor();
+    await settingsTab.click();
+    await openBatch.click();
+    await batchIp.fill("");
+    await defaultStock.fill("9");
+    await craftText.fill("亮銀龍｜10\n水波紋｜6");
+    await batchDialog.getByLabel("批次上傳飯製圖片").setInputFiles([
+      { name: "蜘蛛夜景.png", mimeType: "image/png", buffer: png },
+      { name: "蜘蛛晨光.png", mimeType: "image/png", buffer: png },
+    ]);
+    const ipGroup = batchDialog.getByRole("region", {
+      name: "本批IP與海報",
+      exact: true,
+    });
+    await ipGroup
+      .getByRole("heading", { name: "尚未填寫IP", exact: true })
+      .waitFor();
+    assert.match(await ipGroup.innerText(), /2 張海報圖片.*4 件工藝商品/);
+    const firstIpVideo = row("蜘蛛夜景", "水波紋").getByLabel(
+      "蜘蛛夜景 水波紋實拍影片",
+      { exact: true },
+    );
+    await row("蜘蛛夜景", "水波紋")
+      .getByLabel("現貨庫存", { exact: true })
+      .fill("7");
+    await firstIpVideo.setInputFiles({
+      name: "蜘蛛夜景-water.mov",
+      mimeType: "video/quicktime",
+      buffer: Buffer.from("night water craft video"),
+    });
+    const firstIpPreview = await row("蜘蛛夜景", "水波紋")
+      .getByRole("img")
+      .getAttribute("src");
+    await batchIp.fill("蜘蛛人");
+    await ipGroup
+      .getByRole("heading", { name: "蜘蛛人", exact: true })
+      .waitFor();
+    assert.equal(
+      await firstIpVideo.evaluate((input) => input.files[0]?.name),
+      "蜘蛛夜景-water.mov",
+      "filling the shared IP must not remount selected video inputs",
+    );
+    await ownImage("蜘蛛夜景")
+      .getByLabel("蜘蛛夜景海報名稱", { exact: true })
+      .fill("蜘蛛夜景改名");
+    assert.equal(await row("蜘蛛夜景改名", "亮銀龍").count(), 1);
+    assert.equal(await row("蜘蛛夜景改名", "水波紋").count(), 1);
+    assert.equal(
+      await row("蜘蛛夜景改名", "水波紋")
+        .getByLabel("蜘蛛夜景改名 水波紋實拍影片", { exact: true })
+        .evaluate((input) => input.files[0]?.name),
+      "蜘蛛夜景-water.mov",
+      "renaming one poster must preserve the selected video for every craft",
+    );
+    assert.equal(
+      await row("蜘蛛夜景改名", "水波紋")
+        .getByLabel("現貨庫存", { exact: true })
+        .inputValue(),
+      "7",
+    );
+    await ownImage("蜘蛛夜景改名")
+      .getByLabel("蜘蛛夜景改名海報名稱", { exact: true })
+      .fill("蜘蛛夜景");
+    assert.equal(
+      await firstIpVideo.evaluate((input) => input.files[0]?.name),
+      "蜘蛛夜景-water.mov",
+    );
+    await imageText("蜘蛛晨光").fill("亮銀龍");
+    await applyImage("蜘蛛晨光").click();
+    const secondIpVideo = row("蜘蛛晨光", "亮銀龍").getByLabel(
+      "蜘蛛晨光 亮銀龍實拍影片",
+      { exact: true },
+    );
+    await secondIpVideo.setInputFiles({
+      name: "蜘蛛晨光-bright.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from("morning bright craft video"),
+    });
+    const addIpImages = ipGroup.getByRole("button", {
+      name: "繼續加入圖片",
+      exact: true,
+    });
+    const [appendChooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      addIpImages.click(),
+    ]);
+    await appendChooser.setFiles({
+      name: "蜘蛛屋頂.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    assert.equal(await batchCount.innerText(), "5 件商品");
+    assert.match(await ipGroup.innerText(), /3 張海報圖片.*5 件工藝商品/);
+    for (const [input, filename] of [
+      [firstIpVideo, "蜘蛛夜景-water.mov"],
+      [secondIpVideo, "蜘蛛晨光-bright.mp4"],
+    ])
+      assert.equal(
+        await input.evaluate((element) => element.files[0]?.name),
+        filename,
+        "appending more images must preserve existing craft video File objects",
+      );
+    assert.equal(
+      await row("蜘蛛夜景", "水波紋")
+        .getByLabel("現貨庫存", { exact: true })
+        .inputValue(),
+      "7",
+    );
+    assert.equal(
+      await row("蜘蛛夜景", "水波紋").getByRole("img").getAttribute("src"),
+      firstIpPreview,
+    );
+    for (const craft of ["亮銀龍", "水波紋"])
+      assert.equal(
+        await row("蜘蛛屋頂", craft)
+          .getByLabel(`蜘蛛屋頂 ${craft}實拍影片`, { exact: true })
+          .evaluate((input) => input.files.length),
+        0,
+        "new images must not inherit existing craft videos",
+      );
+    await craftText.fill("雷射｜2");
+    const ipDropZone = batchDialog.getByLabel("IP海報批量選圖", {
+      exact: true,
+    });
+    const dropImages = async (names) => {
+      const dataTransfer = await page.evaluateHandle(
+        ({ bytes, filenames }) => {
+          const transfer = new DataTransfer();
+          for (const filename of filenames)
+            transfer.items.add(
+              new File([new Uint8Array(bytes)], filename, {
+                type: "image/png",
+              }),
+            );
+          return transfer;
+        },
+        { bytes: [...png], filenames: names },
+      );
+      await ipDropZone.dispatchEvent("dragover", { dataTransfer });
+      await ipDropZone.dispatchEvent("drop", { dataTransfer });
+      await dataTransfer.dispose();
+    };
+    await dropImages(["蜘蛛街景.png", "蜘蛛天台.png"]);
+    assert.equal(await batchCount.innerText(), "7 件商品");
+    assert.match(await ipGroup.innerText(), /5 張海報圖片.*7 件工藝商品/);
+    assert.equal(
+      await firstIpVideo.evaluate((input) => input.files[0]?.name),
+      "蜘蛛夜景-water.mov",
+    );
+    assert.equal(
+      await secondIpVideo.evaluate((input) => input.files[0]?.name),
+      "蜘蛛晨光-bright.mp4",
+    );
+    assert.equal(await page.evaluate(() => window.imageUploads || 0), 0);
+    assert.equal(await page.evaluate(() => window.videoUploads || 0), 0);
+    await ipGroup.evaluate((element) =>
+      element.scrollIntoView({ block: "start" }),
+    );
+    assert.equal(
+      await batchDialog.evaluate((dialog) => {
+        const body = dialog.children[1];
+        return body.scrollWidth <= body.clientWidth;
+      }),
+      true,
+      "the shared IP and multiple images must fit the batch dialog",
+    );
+    await batchDialog.screenshot({
+      path: `/tmp/archive-fanmade-ip-batch-${width}.png`,
+      animations: "disabled",
+    });
+    await createBatch.click();
+    await ipBatchStarted;
+    assert.equal(await addIpImages.isDisabled(), true);
+    await dropImages(["busy-ignored.png"]);
+    assert.equal(await batchCount.innerText(), "7 件商品");
+    releaseIpBatch();
+    await batchDialog
+      .getByRole("status")
+      .filter({ hasText: "已建立 7 件獨立飯製商品" })
+      .waitFor();
+    assert.equal(ipBatches.length, 1);
+    assert.deepEqual(
+      ipBatches[0].items.map(({ ip, title, craft, stock }) => ({
+        ip,
+        title,
+        craft,
+        stock,
+      })),
+      [
+        { ip: "蜘蛛人", title: "蜘蛛夜景", craft: "亮銀龍", stock: 10 },
+        { ip: "蜘蛛人", title: "蜘蛛夜景", craft: "水波紋", stock: 7 },
+        { ip: "蜘蛛人", title: "蜘蛛晨光", craft: "亮銀龍", stock: 10 },
+        { ip: "蜘蛛人", title: "蜘蛛屋頂", craft: "亮銀龍", stock: 10 },
+        { ip: "蜘蛛人", title: "蜘蛛屋頂", craft: "水波紋", stock: 6 },
+        { ip: "蜘蛛人", title: "蜘蛛街景", craft: "雷射", stock: 2 },
+        { ip: "蜘蛛人", title: "蜘蛛天台", craft: "雷射", stock: 2 },
+      ],
+    );
+    assert.deepEqual(
+      ipBatches[0].items[0].imagePaths,
+      ipBatches[0].items[1].imagePaths,
+    );
+    assert.deepEqual(
+      ipBatches[0].items[3].imagePaths,
+      ipBatches[0].items[4].imagePaths,
+    );
+    assert.equal(await page.evaluate(() => window.imageUploads), 5);
+    assert.equal(await page.evaluate(() => window.videoUploads), 2);
+    const uploadedVideos = await page.evaluate(() => window.uploadedVideoFiles);
+    assert.deepEqual(
+      ipActions
+        .filter((input) => input.action === "video")
+        .map(({ productId, sourcePath }) => ({
+          productId,
+          filename: uploadedVideos.find((file) => file.path === sourcePath)
+            ?.name,
+        }))
+        .sort((a, b) => a.productId.localeCompare(b.productId)),
+      [
+        { productId: id(801), filename: "蜘蛛夜景-water.mov" },
+        { productId: id(802), filename: "蜘蛛晨光-bright.mp4" },
+      ],
+      "each craft must upload its own selected video and bind it to the correct created SKU",
     );
     assert.equal(await batchCount.innerText(), "0 件商品");
     await closeBatch.click();

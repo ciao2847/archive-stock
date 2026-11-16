@@ -36,6 +36,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { parseFanmadeCraftText } from "@/lib/fanmade/craft-text";
 import { ClaimProcurementPanel } from "@/components/claims/ClaimProcurementPanel";
 import { FanmadeBatchDialog } from "./FanmadeBatchDialog";
+import { FanmadeBatchIpGroup } from "./FanmadeBatchIpGroup";
 import { FanmadeImageCrafts } from "./FanmadeImageCrafts";
 import styles from "../../../styles/components/fanmade/Fanmade.module.scss";
 import managementStyles from "../../../styles/components/fanmade/FanmadeManagement.module.scss";
@@ -124,6 +125,7 @@ export function FanmadeManagement({
     [rows, setRows] = useState<Row[]>([]),
     [defaults, setDefaults] = useState({ ip: "", craft: "亮銀龍", stock: "0" });
   const [batchOpen, setBatchOpen] = useState(false);
+  const [draggingImages, setDraggingImages] = useState(false);
   const [imageCraftDrafts, setImageCraftDrafts] = useState<
     Record<string, string>
   >({});
@@ -307,6 +309,14 @@ export function FanmadeManagement({
       return next;
     });
   }
+  function changeImageTitle(imageKey: string, title: string) {
+    if (locked || dirtyImageKeys.has(imageKey)) return;
+    setRows((current) =>
+      current.map((row) =>
+        row.imageKey === imageKey ? { ...row, title } : row,
+      ),
+    );
+  }
   function applyImageCrafts(imageKey: string) {
     if (locked) return;
     const source = rows.filter((row) => row.imageKey === imageKey);
@@ -377,8 +387,9 @@ export function FanmadeManagement({
     );
   }
   function selectImages(files: FileList | null) {
-    if (!files) return;
+    if (!files || locked) return;
     const list = Array.from(files);
+    if (fileInput.current) fileInput.current.value = "";
     if (craftText.errors.length || !craftText.items.length) {
       setError(craftText.errors[0] || "請先填寫至少一種預設工藝");
       return;
@@ -426,7 +437,6 @@ export function FanmadeManagement({
         }));
       }),
     ]);
-    if (fileInput.current) fileInput.current.value = "";
     if (!rows.length) setAppliedCraftConfig(craftConfig);
     setError("");
   }
@@ -1511,10 +1521,15 @@ export function FanmadeManagement({
           <label>
             批次 IP
             <input
+              aria-label="批次 IP"
+              aria-describedby="fanmade-batch-ip-help"
               value={defaults.ip}
               onChange={(e) => changeBatchIp(e.target.value)}
               maxLength={200}
             />
+            <small id="fanmade-batch-ip-help">
+              例如「蜘蛛人」，只填一次，會自動帶入圖片。
+            </small>
           </label>
           <label>
             預設工藝（文字批量）
@@ -1612,21 +1627,55 @@ export function FanmadeManagement({
           <option value="燙金" />
           <option value="霧面" />
         </datalist>
-        <div className={styles.toolbar}>
-          <label className="outline">
+        <div
+          className={`${styles.imageDropZone} ${draggingImages ? styles.imageDragOver : ""}`}
+          role="group"
+          aria-label="IP海報批量選圖"
+          aria-disabled={locked}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!locked) setDraggingImages(true);
+          }}
+          onDragLeave={(event) => {
+            if (
+              !(event.relatedTarget instanceof Node) ||
+              !event.currentTarget.contains(event.relatedTarget)
+            )
+              setDraggingImages(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDraggingImages(false);
+            selectImages(event.dataTransfer.files);
+          }}
+        >
+          <div>
+            <b>
+              {defaults.ip.trim()
+                ? `加入「${defaults.ip.trim()}」的海報圖片`
+                : "一次加入多張海報圖片"}
+            </b>
+            <p>可多選、拖曳，或分次追加圖片；每張圖再各自設定工藝及影片。</p>
+          </div>
+          <button
+            className="primary"
+            type="button"
+            disabled={locked}
+            onClick={() => fileInput.current?.click()}
+          >
             <ImagePlus size={16} />
-            批次選擇圖片
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              aria-label="批次上傳飯製圖片"
-              disabled={locked}
-              onChange={(e) => selectImages(e.target.files)}
-              hidden
-            />
-          </label>
+            一次選擇多張圖片
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="批次上傳飯製圖片"
+            disabled={locked}
+            onChange={(e) => selectImages(e.target.files)}
+            hidden
+          />
           <span aria-label="本批商品數">
             {pending ? pending.items.length : rows.length} 件商品
           </span>
@@ -1636,7 +1685,31 @@ export function FanmadeManagement({
             本批已送出或待確認，重試會沿用同一批次，不重複建檔。若重新整理後影片尚未補齊，可在商品清單另外上傳。
           </p>
         )}
-        <div className={styles.batch}>
+        <FanmadeBatchIpGroup
+          ip={
+            defaults.ip ||
+            (pending &&
+            pending.items.every((item) => item.ip === pending.items[0].ip)
+              ? pending.items[0].ip
+              : pending
+                ? "多IP待確認批次"
+                : "")
+          }
+          imageCount={
+            imageCount ||
+            (pending
+              ? new Set(pending.items.map((item) => item.imagePaths[0])).size
+              : 0)
+          }
+          variantCount={pending?.items.length ?? rows.length}
+          customIpCount={
+            rows.filter(
+              (row) => row.ip.trim() && row.ip.trim() !== defaults.ip.trim(),
+            ).length
+          }
+          busy={locked}
+          onAddImages={() => fileInput.current?.click()}
+        >
           {imageGroups.map(([imageKey, source], imageIndex) => (
             <FanmadeImageCrafts
               key={imageKey}
@@ -1649,6 +1722,7 @@ export function FanmadeManagement({
               totalCount={rows.length}
               disabled={locked}
               dirty={dirtyImageKeys.has(imageKey)}
+              onTitleChange={(title) => changeImageTitle(imageKey, title)}
               onTextChange={(text) => changeImageCraftText(imageKey, text)}
               onApply={() => applyImageCrafts(imageKey)}
             >
@@ -1662,41 +1736,50 @@ export function FanmadeManagement({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={row.preview} alt={`${row.title}上架預覽`} />
                   <div className={styles.batchMeta}>
+                    <div className={styles.batchVariantHeading}>
+                      <b>{row.craft || "尚未填寫工藝"}</b>
+                      <span>本圖工藝專屬庫存與影片</span>
+                    </div>
                     <fieldset
                       className={styles.fields}
                       disabled={locked || dirtyImageKeys.has(row.imageKey)}
                     >
-                      <label>
-                        IP
-                        <input
-                          value={row.ip}
-                          onChange={(e) =>
-                            change(row.key, { ip: e.target.value })
-                          }
-                          maxLength={200}
-                        />
-                      </label>
-                      <label>
-                        商品名稱
-                        <input
-                          value={row.title}
-                          onChange={(e) =>
-                            change(row.key, { title: e.target.value })
-                          }
-                          maxLength={200}
-                        />
-                      </label>
-                      <label>
-                        工藝
-                        <input
-                          value={row.craft}
-                          list="fanmade-crafts"
-                          onChange={(e) =>
-                            change(row.key, { craft: e.target.value })
-                          }
-                          maxLength={100}
-                        />
-                      </label>
+                      <details className={styles.batchAdvanced}>
+                        <summary>個別修改IP、名稱或工藝</summary>
+                        <div className={styles.fields}>
+                          <label>
+                            IP
+                            <input
+                              value={row.ip}
+                              onChange={(e) =>
+                                change(row.key, { ip: e.target.value })
+                              }
+                              maxLength={200}
+                            />
+                          </label>
+                          <label>
+                            商品名稱
+                            <input
+                              value={row.title}
+                              onChange={(e) =>
+                                change(row.key, { title: e.target.value })
+                              }
+                              maxLength={200}
+                            />
+                          </label>
+                          <label>
+                            工藝
+                            <input
+                              value={row.craft}
+                              list="fanmade-crafts"
+                              onChange={(e) =>
+                                change(row.key, { craft: e.target.value })
+                              }
+                              maxLength={100}
+                            />
+                          </label>
+                        </div>
+                      </details>
                       <label>
                         現貨庫存
                         <input
@@ -1711,7 +1794,7 @@ export function FanmadeManagement({
                         />
                       </label>
                       <label>
-                        商品專屬實拍（選填，最多100MB）
+                        {row.craft || "本工藝"}實拍影片（選填，最多100MB）
                         <input
                           type="file"
                           accept="video/mp4,video/quicktime,video/webm"
@@ -1753,7 +1836,7 @@ export function FanmadeManagement({
               ))}
             </FanmadeImageCrafts>
           ))}
-        </div>
+        </FanmadeBatchIpGroup>
       </FanmadeBatchDialog>
     </div>
   );
