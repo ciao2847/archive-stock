@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ClipboardList, Download, History } from "lucide-react";
 import { RefreshButton } from "@/components/ui/RefreshButton";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
+import { ClaimProductTotals } from "./ClaimProductTotals";
 import { formatTaipeiDateTime } from "@/lib/claims";
 import {
   buildClaimProcurementCsv,
@@ -19,6 +20,7 @@ type Props = {
   ownerId: string;
   formId: number;
   formTitle: string;
+  showProductTotals?: boolean;
   onClosed?: () => Promise<void> | void;
 };
 const money = (value: number) =>
@@ -58,7 +60,13 @@ export function ClaimProcurementPanel(props: Props) {
     <ProcurementScope key={`${props.ownerId}:${props.formId}`} {...props} />
   );
 }
-function ProcurementScope({ ownerId, formId, formTitle, onClosed }: Props) {
+function ProcurementScope({
+  ownerId,
+  formId,
+  formTitle,
+  showProductTotals = false,
+  onClosed,
+}: Props) {
   const [data, setData] = useState<ClaimProcurementData | null>(null),
     [loading, setLoading] = useState(true),
     [closing, setClosing] = useState(false),
@@ -126,6 +134,14 @@ function ProcurementScope({ ownerId, formId, formTitle, onClosed }: Props) {
   }, [ownerId, formId, storageKey, load]);
   const selectedClosed = data?.selected.status === "closed";
   const selectedRound = selectedClosed ? data?.selected.id : undefined;
+  const productTotals =
+    data?.selected.productTotals ??
+    (selectedClosed
+      ? data?.selected.lines.map((line) => ({
+          ...line,
+          paidQuantity: line.quantity,
+        }))
+      : undefined);
   const history = useMemo(() => {
     if (!data) return [];
     if (
@@ -221,7 +237,7 @@ function ProcurementScope({ ownerId, formId, formTitle, onClosed }: Props) {
           </span>
           <h2>本次結單與叫貨</h2>
           <p>
-            只統計已付款訂單。每次結單保存明細，未付款或部分付款留到下一批，訂單與付款紀錄持續保留。
+            結單只納入已付款訂單。每次結單保存明細，未付款或部分付款留到下一批，訂單與付款紀錄持續保留。
           </p>
         </div>
         <RefreshButton
@@ -333,43 +349,72 @@ function ProcurementScope({ ownerId, formId, formTitle, onClosed }: Props) {
               。以下為結單當時保存的數量，後續更名、付款異動不會覆寫本批明細。
             </p>
           )}
-          {data.selected.lines.length ? (
-            <div className={styles.lines}>
-              {data.selected.lines.map((line, index) => (
-                <article
-                  className={styles.line}
-                  key={`${line.productId || line.sku}:${index}`}
-                >
-                  <div>
-                    <span className={styles.ip}>{line.ip || "未分類 IP"}</span>
-                    <h4>{line.name}</h4>
-                    {line.craft && (
-                      <span className={styles.craft}>{line.craft}</span>
-                    )}
-                    <small>{line.sku}</small>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>叫貨數量</dt>
-                      <dd>{line.quantity}</dd>
-                    </div>
-                    <div>
-                      <dt>訂購人數</dt>
-                      <dd>{line.customerCount} 人</dd>
-                    </div>
-                    <div>
-                      <dt>金額</dt>
-                      <dd>{money(line.amount)}</dd>
-                    </div>
-                  </dl>
-                </article>
-              ))}
+          {showProductTotals && (
+            <div
+              className={styles.statistics}
+              aria-label="本批商品統計"
+              role="region"
+            >
+              {productTotals ? (
+                <ClaimProductTotals
+                  products={productTotals}
+                  loading={disabled}
+                  description={`第 ${data.selected.number} 批的商品數量，依各工藝分開統計。`}
+                  hint={
+                    selectedClosed
+                      ? "這是本批結單時保存的已付款商品快照，總訂購數量等於已付款數量。未付款與部分付款已移到下一批，不會重複叫貨。"
+                      : "只統計本批訂單。未付款與部分付款列入未結清；結單只保存已付款商品，未結清訂單移到下一批，後續新訂單重新統計。"
+                  }
+                  emptyMessage="這一批目前尚無訂購商品。"
+                />
+              ) : (
+                <ErrorMessage>
+                  本批四項統計尚未安裝，請先套用最新的結單統計
+                  migration。既有結單與叫貨功能仍可使用。
+                </ErrorMessage>
+              )}
             </div>
-          ) : (
-            <p className={styles.empty}>
-              這一批目前沒有可結單的已付款商品。未付款訂單會保留，付款後再計入叫貨。
-            </p>
           )}
+          {(!showProductTotals || !productTotals) &&
+            (data.selected.lines.length ? (
+              <div className={styles.lines}>
+                {data.selected.lines.map((line, index) => (
+                  <article
+                    className={styles.line}
+                    key={`${line.productId || line.sku}:${index}`}
+                  >
+                    <div>
+                      <span className={styles.ip}>
+                        {line.ip || "未分類 IP"}
+                      </span>
+                      <h4>{line.name}</h4>
+                      {line.craft && (
+                        <span className={styles.craft}>{line.craft}</span>
+                      )}
+                      <small>{line.sku}</small>
+                    </div>
+                    <dl>
+                      <div>
+                        <dt>叫貨數量</dt>
+                        <dd>{line.quantity}</dd>
+                      </div>
+                      <div>
+                        <dt>訂購人數</dt>
+                        <dd>{line.customerCount} 人</dd>
+                      </div>
+                      <div>
+                        <dt>金額</dt>
+                        <dd>{money(line.amount)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.empty}>
+                這一批目前沒有可結單的已付款商品。未付款訂單會保留，付款後再計入叫貨。
+              </p>
+            ))}
         </>
       )}
     </section>

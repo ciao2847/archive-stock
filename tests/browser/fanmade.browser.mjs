@@ -525,11 +525,11 @@ try {
     const currentRound = {
       id: id(700),
       number: 1,
-      submissionCount: 0,
-      paidSubmissionCount: 0,
-      unpaidSubmissionCount: 0,
-      itemCount: 0,
-      totalAmount: 0,
+      submissionCount: 2,
+      paidSubmissionCount: 1,
+      unpaidSubmissionCount: 1,
+      itemCount: 5,
+      totalAmount: 1750,
     };
     await page.route("**/api/claim-procurement**", (route) =>
       route.fulfill({
@@ -542,8 +542,51 @@ try {
               status: "open",
               createdAt: "2026-11-15T00:00:00Z",
               closedAt: null,
-              customerCount: 0,
-              lines: [],
+              customerCount: 1,
+              lines: [
+                {
+                  productId: id(100),
+                  sku: "FM-0-0",
+                  name: "夜景0",
+                  ip: "蜘蛛人",
+                  craft: "亮銀龍",
+                  quantity: 2,
+                  customerCount: 1,
+                  amount: 700,
+                },
+                {
+                  productId: id(101),
+                  sku: "FM-0-1",
+                  name: "夜景0",
+                  ip: "蜘蛛人",
+                  craft: "水波紋",
+                  quantity: 3,
+                  customerCount: 1,
+                  amount: 1050,
+                },
+              ],
+              productTotals: [
+                {
+                  productId: id(100),
+                  sku: "FM-0-0",
+                  name: "夜景0",
+                  ip: "蜘蛛人",
+                  craft: "亮銀龍",
+                  quantity: 12,
+                  paidQuantity: 2,
+                  customerCount: 3,
+                },
+                {
+                  productId: id(101),
+                  sku: "FM-0-1",
+                  name: "夜景0",
+                  ip: "蜘蛛人",
+                  craft: "水波紋",
+                  quantity: 5,
+                  paidQuantity: 3,
+                  customerCount: 2,
+                },
+              ],
             },
             history: [],
             historyHasMore: false,
@@ -636,6 +679,44 @@ try {
     await procurementPanel
       .getByText("第 1 批 · 進行中", { exact: true })
       .waitFor();
+    const batchStatistics = procurementPanel.getByRole("region", {
+      name: "本批商品統計",
+      exact: true,
+    });
+    await batchStatistics.waitFor();
+    for (const [craft, people, quantity, unpaid, paid] of [
+      ["亮銀龍", 3, 12, 10, 2],
+      ["水波紋", 2, 5, 2, 3],
+    ]) {
+      const product = batchStatistics
+        .getByRole("article")
+        .filter({ hasText: craft });
+      assert.equal(
+        await product.count(),
+        1,
+        "same poster crafts have separate statistics",
+      );
+      for (const [label, value] of [
+        ["訂購人數", `${people} 人`],
+        ["總訂購數量", `${quantity} 件`],
+        ["未結清數量", `${unpaid} 件`],
+        ["已付款數量（叫貨依據）", `${paid} 件`],
+      ]) {
+        assert.equal(
+          await product
+            .getByText(label, { exact: true })
+            .locator("..")
+            .locator("dd")
+            .innerText(),
+          value,
+        );
+      }
+    }
+    assert.equal(
+      await procurementPanel.getByRole("article").count(),
+      2,
+      "fanmade management shows one full statistics card per craft",
+    );
     await page.waitForFunction(() =>
       Array.from(document.querySelectorAll("button")).some(
         (button) =>

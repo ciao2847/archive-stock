@@ -975,7 +975,7 @@ export function FanmadeManagement({
           <div>
             <span className="eyebrow">
               {visibleTab === "submissions"
-                ? "本次結單與叫貨數量"
+                ? "本批商品統計與結單"
                 : "訂購頁專用商品設定"}
             </span>
             <h2>{selectedForm.title}</h2>
@@ -1040,6 +1040,7 @@ export function FanmadeManagement({
             ownerId={ownerId}
             formId={selectedForm.id}
             formTitle={selectedForm.title}
+            showProductTotals
             onClosed={async () => {
               await load();
             }}

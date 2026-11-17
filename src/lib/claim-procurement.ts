@@ -11,6 +11,14 @@ export type ClaimProcurementLine = {
   customerCount: number;
   amount: number;
 };
+export type ClaimProcurementProductTotal = Omit<
+  ClaimProductTotal,
+  "productId"
+> & {
+  productId: string | null;
+  ip: string;
+  craft: string;
+};
 export type ClaimProcurementRound = {
   id: string;
   number: number;
@@ -22,6 +30,7 @@ export type ClaimProcurementRound = {
   itemCount: number;
   totalAmount: number;
   lines: ClaimProcurementLine[];
+  productTotals?: ClaimProcurementProductTotal[];
 };
 export type ClaimProcurementHistory = {
   id: string;
@@ -40,6 +49,7 @@ export type ClaimProcurementData = {
     unpaidSubmissionCount: number;
     itemCount: number;
     totalAmount: number;
+    productTotals?: ClaimProcurementProductTotal[];
   };
   selected: ClaimProcurementRound;
   history: ClaimProcurementHistory[];

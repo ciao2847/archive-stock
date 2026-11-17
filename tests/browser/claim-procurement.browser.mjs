@@ -14,14 +14,42 @@ const owner = id(1),
   other = id(20),
   old = id(9);
 const line = (quantity, craft = "亮銀龍") => ({
-  productId: id(quantity + 100),
-  sku: `SKU-${quantity}`,
+  productId: id(craft === "亮銀龍" ? 100 : 101),
+  sku: craft === "亮銀龍" ? "SKU-SILVER" : "SKU-WAVE",
   name: "夜景海報",
   ip: "蜘蛛人",
   craft,
   quantity,
   customerCount: 1,
   amount: quantity * 350,
+});
+const total = (quantity, paidQuantity, customerCount, craft = "亮銀龍") => {
+  const { productId, sku, name, ip } = line(quantity, craft);
+  return {
+    productId,
+    sku,
+    name,
+    ip,
+    craft,
+    quantity,
+    paidQuantity,
+    customerCount,
+  };
+};
+const initialTotals = [total(12, 2, 3), total(5, 3, 2, "水波紋")];
+async function assertCounts(scope, craft, counts) {
+  const article = scope.getByRole("article").filter({ hasText: craft });
+  assert.equal(await article.count(), 1, `${craft} keeps its own product row`);
+  for (const [label, value] of Object.entries(counts)) {
+    const metric = article.getByText(label, { exact: true }).locator("..");
+    assert.equal((await metric.locator("dd").innerText()).trim(), value);
+  }
+}
+const fourCounts = (people, totalQuantity, unpaid, paid) => ({
+  訂購人數: `${people} 人`,
+  總訂購數量: `${totalQuantity} 件`,
+  未結清數量: `${unpaid} 件`,
+  "已付款數量（叫貨依據）": `${paid} 件`,
 });
 const snapshot = {
   id: first,
@@ -34,6 +62,7 @@ const snapshot = {
   itemCount: 5,
   totalAmount: 1750,
   lines: [line(2), line(3, "水波紋")],
+  productTotals: [total(2, 2, 1), total(3, 3, 1, "水波紋")],
 };
 const history = {
   id: first,
@@ -66,7 +95,7 @@ const bundle = await build({
   stdin: {
     resolveDir: process.cwd(),
     loader: "tsx",
-    contents: `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{ClaimProcurementPanel}from'./src/components/claims/ClaimProcurementPanel';function App(){const[id,setId]=useState(1),[reload,setReload]=useState(0);return <div style={{maxWidth:1100,padding:16,margin:'auto'}}><button onClick={()=>setId(id===1?2:1)}>切換表單</button><output aria-label='父層重新載入次數'>{reload}</output><ClaimProcurementPanel ownerId='${owner}' formId={id} formTitle={id===1?'飯製訂購':'另一份預購'} onClosed={()=>{setReload(n=>n+1)}}/></div>}createRoot(document.getElementById('root')).render(<App/>);`,
+    contents: `import React,{useState}from'react';import{createRoot}from'react-dom/client';import{ClaimProcurementPanel}from'./src/components/claims/ClaimProcurementPanel';import{ClaimSubmissionsView}from'./src/components/claims/ClaimSubmissionsView';import{BackNavigationProvider}from'./src/components/navigation/BackNavigation';const noop=async()=>{};const management={forms:[],form:null,summary:{submissionCount:3,customerCount:3,itemCount:17,estimatedTotal:5950},productTotals:${JSON.stringify(initialTotals)},submissions:[],pagination:{page:1,pageSize:25,total:0,totalPages:0}};function App(){const[id,setId]=useState(1),[reload,setReload]=useState(0);return <div style={{maxWidth:1100,padding:16,margin:'auto'}}>{location.pathname==='/normal'?<BackNavigationProvider navigation={{view:"dashboard",setView:()=>{},goBack:()=>{}}}><ClaimSubmissionsView ownerId='${owner}' fixedView='procurement' data={management} loading={false} orders={[]} customerPhone='' publicPath='' isOpen={true} onToggleOpen={noop} onNavigateToSettings={()=>{}} onClearCustomerSearch={noop} onReload={noop} onDeleteSubmission={noop} onUpdatePaymentStatus={noop} onDownloadSummary={()=>{}} onRecordPayment={noop} procurementContent={<section aria-label='預購分批叫貨'>保留分批叫貨區</section>}/></BackNavigationProvider>:<><button onClick={()=>setId(id===1?2:1)}>切換表單</button><output aria-label='父層重新載入次數'>{reload}</output><ClaimProcurementPanel ownerId='${owner}' formId={id} formTitle={id===1?'飯製訂購':'另一份預購'} showProductTotals onClosed={()=>{setReload(n=>n+1)}}/></>}</div>}createRoot(document.getElementById('root')).render(<App/>);`,
   },
 });
 const css =
@@ -116,7 +145,8 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("dialog", (d) => d.accept());
     let closed = false,
-      newPaid = false;
+      newPaid = false,
+      oldServer = false;
     await page.route("**/api/claim-procurement**", async (route) => {
       const request = route.request(),
         url = new URL(request.url());
@@ -173,6 +203,14 @@ try {
               ? [line(4)]
               : snapshot.lines
           : [],
+        ...(!oldServer && {
+          productTotals:
+            form === 2
+              ? [total(7, 4, 2)]
+              : closed
+                ? [total(10, newPaid ? 10 : 0, 2), total(2, 0, 1, "水波紋")]
+                : initialTotals,
+        }),
       };
       return route.fulfill({
         json: {
@@ -181,7 +219,9 @@ try {
             current,
             selected:
               form === 1 && selected === first && closed
-                ? snapshot
+                ? oldServer
+                  ? { ...snapshot, productTotals: undefined }
+                  : snapshot
                 : currentSelected,
             history:
               form === 2
@@ -201,7 +241,13 @@ try {
       .getByRole("button", { name: "結單並產生叫貨單", exact: true })
       .waitFor();
     const current = page.getByLabel("目前進行中的結單批次");
+    const statistics = page.getByRole("region", {
+      name: "本批商品統計",
+      exact: true,
+    });
     assert.match(await current.innerText(), /第 1 批[\s\S]*5 件/);
+    await assertCounts(statistics, "亮銀龍", fourCounts(3, 12, 10, 2));
+    await assertCounts(statistics, "水波紋", fourCounts(2, 5, 2, 3));
     await page
       .getByRole("button", { name: "結單並產生叫貨單", exact: true })
       .click();
@@ -251,6 +297,24 @@ try {
       await page.locator("body").innerText(),
       /第 1 批 · 已結單叫貨明細/,
     );
+    await assertCounts(statistics, "亮銀龍", fourCounts(1, 2, 0, 2));
+    await assertCounts(statistics, "水波紋", fourCounts(1, 3, 0, 3));
+    await page.getByLabel("查看叫貨批次").selectOption("");
+    await page
+      .getByRole("heading", { name: "第 2 批 · 已付款叫貨預覽", exact: true })
+      .waitFor();
+    await assertCounts(statistics, "亮銀龍", fourCounts(2, 10, 10, 0));
+    await assertCounts(statistics, "水波紋", fourCounts(1, 2, 2, 0));
+    assert.equal(
+      await page
+        .getByRole("button", { name: "結單並產生叫貨單", exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.getByLabel("查看叫貨批次").selectOption(first);
+    await page
+      .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
+      .waitFor();
     newPaid = true;
     await page.getByRole("button", { name: "重新載入結單資料" }).click();
     await page
@@ -258,16 +322,25 @@ try {
       .getByText("10 件", { exact: true })
       .waitFor();
     assert.equal(await page.getByLabel("查看叫貨批次").inputValue(), first);
+    await assertCounts(statistics, "亮銀龍", fourCounts(1, 2, 0, 2));
+    await assertCounts(statistics, "水波紋", fourCounts(1, 3, 0, 3));
     await page.getByLabel("查看叫貨批次").selectOption("");
     await page
       .getByRole("heading", { name: "第 2 批 · 已付款叫貨預覽", exact: true })
       .waitFor();
-    assert.equal(await page.getByRole("article").count(), 1);
+    assert.equal(await statistics.getByRole("article").count(), 2);
+    await assertCounts(statistics, "亮銀龍", fourCounts(2, 10, 0, 10));
+    await assertCounts(statistics, "水波紋", fourCounts(1, 2, 2, 0));
+    assert.equal(
+      await page.getByRole("article").count(),
+      2,
+      "round totals replace duplicate paid-only cards",
+    );
     await page.getByLabel("查看叫貨批次").selectOption(first);
     await page
       .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
       .waitFor();
-    assert.equal(await page.getByRole("article").count(), 2);
+    assert.equal(await statistics.getByRole("article").count(), 2);
     const download = page.waitForEvent("download");
     await page
       .getByRole("button", { name: "下載本批叫貨 CSV", exact: true })
@@ -285,7 +358,7 @@ try {
     assert.equal(reads.at(-1).historyPage, "2");
     const description = await page
       .getByText(
-        "只統計已付款訂單。每次結單保存明細，未付款或部分付款留到下一批，訂單與付款紀錄持續保留。",
+        "結單只納入已付款訂單。每次結單保存明細，未付款或部分付款留到下一批，訂單與付款紀錄持續保留。",
         { exact: true },
       )
       .boundingBox();
@@ -308,9 +381,61 @@ try {
       path: `/tmp/archive-procurement-${width}.png`,
       fullPage: true,
     });
+    oldServer = true;
+    await page.getByLabel("查看叫貨批次").selectOption("");
+    await statistics.getByText(/本批四項統計尚未安裝/).waitFor();
+    assert.match(await statistics.innerText(), /migration/);
+    const paidFallback = page.getByRole("article");
+    assert.equal(await paidFallback.count(), 1);
+    assert.equal(
+      await paidFallback
+        .getByText("叫貨數量", { exact: true })
+        .locator("..")
+        .locator("dd")
+        .innerText(),
+      "10",
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "下載本次叫貨預覽", exact: true })
+        .isEnabled(),
+      true,
+    );
+    await page.getByLabel("查看叫貨批次").selectOption(first);
+    await page
+      .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
+      .waitFor();
+    await assertCounts(statistics, "亮銀龍", fourCounts(1, 2, 0, 2));
+    await page.goto(`${base}/normal`);
+    const cumulative = page.getByRole("region", {
+      name: "各商品訂購合計",
+      exact: true,
+    });
+    await cumulative.waitFor();
+    await assertCounts(cumulative, "亮銀龍", fourCounts(3, 12, 10, 2));
+    await assertCounts(cumulative, "水波紋", fourCounts(2, 5, 2, 3));
+    assert.equal(
+      await page
+        .getByRole("region", { name: "預購分批叫貨", exact: true })
+        .isVisible(),
+      true,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "下載採購 CSV", exact: true })
+        .isEnabled(),
+      true,
+    );
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+    );
+    assert.deepEqual(errors, []);
     await page.close();
     console.log(
-      `結單 UI ${width}px：已付款叫貨、固定批次重試、重載還原、表單隔離、下批重新統計、歷史及CSV通過`,
+      `結單 UI ${width}px：四項統計、工藝分開、未結清承接、付款後不重複叫貨、歷史快照、預購累計、舊版提示、固定批次重試及CSV通過`,
     );
   }
 } finally {

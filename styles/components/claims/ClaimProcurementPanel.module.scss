@@ -123,6 +123,10 @@
   gap: 12px;
   margin-top: 16px;
 }
+.statistics {
+  min-width: 0;
+  margin-top: 16px;
+}
 .line {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);

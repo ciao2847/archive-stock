@@ -13,6 +13,7 @@ type Line = {
   customerCount: number;
   amount: number;
 };
+type ProductTotal = Omit<Line, "amount"> & { paidQuantity: number };
 type Round = {
   id: string;
   number: number;
@@ -22,6 +23,7 @@ type Round = {
   itemCount: number;
   totalAmount: number;
   lines: Line[];
+  productTotals: ProductTotal[];
 };
 type Procurement = {
   current: {
@@ -32,6 +34,7 @@ type Procurement = {
     unpaidSubmissionCount: number;
     itemCount: number;
     totalAmount: number;
+    productTotals: ProductTotal[];
   };
   selected: Round;
   history: Array<Round>;
@@ -194,6 +197,35 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
           id(request),
         ])
       ).rows[0].data;
+    // An already-closed batch predates the new counters. The migration must
+    // derive its four counters from saved lines without rewriting any history.
+    const oldFanSource = await submit(990, item(101, 3), 1);
+    await setStatus(oldFanSource, "paid");
+    const oldFanRound = (await get(1)).current;
+    const oldFanClose = await close(oldFanRound.id, 1999, 1);
+    const oldFanSnapshot = (await get(1, oldFanClose.closedRoundId)).selected;
+    assert.equal(oldFanSnapshot.productTotals, undefined);
+    await db.exec("reset role");
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261117062627_claim_procurement_batch_product_totals.sql",
+        "utf8",
+      ),
+    );
+    await db.exec("set role authenticated");
+    const migratedOldFan = (await get(1, oldFanClose.closedRoundId)).selected;
+    assert.deepEqual(migratedOldFan.lines, oldFanSnapshot.lines);
+    assert.deepEqual(
+      migratedOldFan.productTotals.map((x) => [
+        x.craft,
+        x.customerCount,
+        x.quantity,
+        x.paidQuantity,
+      ]),
+      [["水波紋", 1, 3, 3]],
+      "pre-migration paid snapshots display all four counters",
+    );
+    assert.deepEqual((await get(1)).selected.productTotals, []);
     assert.equal(
       (await get()).current.paidSubmissionCount,
       1,
@@ -232,6 +264,23 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
     assert.equal(state.selected.submissionCount, 3);
     assert.equal(state.selected.customerCount, 2);
     assert.deepEqual(
+      state.selected.productTotals
+        .map((x) => [
+          x.craft,
+          x.customerCount,
+          x.quantity,
+          x.quantity - x.paidQuantity,
+          x.paidQuantity,
+        ])
+        .sort(),
+      [
+        ["亮銀龍", 2, 10, 6, 4],
+        ["水波紋", 1, 7, 4, 3],
+      ],
+      "four counters include unpaid/partial sources, prefer actual payment events, and exclude cancelled/deleted orders",
+    );
+    assert.deepEqual(state.current.productTotals, state.selected.productTotals);
+    assert.deepEqual(
       state.selected.lines.map((x) => [x.craft, x.quantity]).sort(),
       [
         ["亮銀龍", 4],
@@ -254,6 +303,31 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
     assert.equal(state.current.number, 2);
     assert.equal(state.current.itemCount, 0);
     assert.equal(state.current.unpaidSubmissionCount, 3);
+    assert.deepEqual(
+      state.selected.productTotals
+        .map((x) => [x.craft, x.quantity, x.paidQuantity])
+        .sort(),
+      [
+        ["亮銀龍", 6, 0],
+        ["水波紋", 4, 0],
+      ],
+      "next batch starts with only carried unpaid quantities, with no paid quantities duplicated",
+    );
+    assert.deepEqual(
+      frozen.productTotals
+        .map((x) => [x.craft, x.quantity, x.paidQuantity])
+        .sort(),
+      [
+        ["亮銀龍", 4, 4],
+        ["水波紋", 3, 3],
+      ],
+      "closed counters represent the immutable paid procurement snapshot",
+    );
+    assert.deepEqual(
+      (await get(0, firstId)).current.productTotals,
+      state.current.productTotals,
+      "viewing history does not change the current batch counters",
+    );
     await assert.rejects(close(state.current.id, 2002), /沒有已付款/);
     assert.equal(
       (
@@ -296,6 +370,11 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
       /permission denied/,
     );
     await assert.rejects(
+      db.query("select private.claim_procurement_payload($1)", [firstId]),
+      /permission denied/,
+      "replaced payload helper remains inaccessible to authenticated callers",
+    );
+    await assert.rejects(
       db.query("delete from claim_forms where id=$1", [forms[0].id]),
       /已有結單紀錄/,
     );
@@ -308,7 +387,25 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
     ).rows[0].id;
     await setStatus(unpaid, "paid");
     assert.equal((await get()).current.paidSubmissionCount, 1);
+    assert.deepEqual(
+      (await get()).selected.productTotals
+        .map((x) => [x.quantity, x.paidQuantity])
+        .sort((a, b) => a[0] - b[0]),
+      [
+        [4, 0],
+        [6, 1],
+      ],
+      "late payment moves carried quantity into the paid counter only in its current batch",
+    );
     const second = await close(firstClosed.nextRoundId, 2003);
+    assert.equal(
+      (await get()).selected.productTotals.reduce(
+        (sum, x) => sum + x.quantity,
+        0,
+      ),
+      9,
+      "second close carries only remaining unpaid quantities",
+    );
     assert.equal(
       (
         await db.query<{ id: string }>(
@@ -342,11 +439,28 @@ test("procurement closes paid orders once, carries unpaid orders, preserves snap
     const fanSource = await submit(1010, item(101, 2), 1);
     await setStatus(fanSource, "paid");
     const fanRound = (await get(1)).current;
-    assert.equal(fanRound.number, 1);
+    assert.equal(fanRound.number, 2);
     assert.equal(fanRound.itemCount, 2);
     const fanClose = await close(fanRound.id, 2010, 1);
-    assert.equal((await get(1)).current.number, 2);
+    assert.equal((await get(1)).current.number, 3);
     assert.equal((await get()).current.number, 3);
+    await db.query(
+      "update orders set status='cancelled',deleted_at=now() where claim_submission_id=$1",
+      [oldFanSource],
+    );
+    await db.query(
+      "update products set name='舊歷史商品已更名',poster_crafts=array['舊歷史商品新工藝'] where id=$1",
+      [id(101)],
+    );
+    await db.query(
+      "update fanmade_details set craft='舊歷史商品新工藝' where product_id=$1",
+      [id(101)],
+    );
+    assert.deepEqual(
+      (await get(1, oldFanClose.closedRoundId)).selected,
+      migratedOldFan,
+      "pre-migration counters stay frozen after source cancellation and later product/craft edits",
+    );
     assert.equal(
       (
         await db.query<{ is_open: boolean }>(
