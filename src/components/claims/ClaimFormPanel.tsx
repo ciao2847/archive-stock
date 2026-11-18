@@ -73,7 +73,6 @@ import {
   type ProductDraft,
 } from "./ClaimProductSettings";
 import { ClaimSubmissionsView } from "./ClaimSubmissionsView";
-import { ClaimProcurementPanel } from "./ClaimProcurementPanel";
 
 function toLocalDateTimeInput(iso?: string) {
   if (!iso) return "";
@@ -994,22 +993,6 @@ export function ClaimFormPanel({
           <ClaimSubmissionsView
             ownerId={ownerId}
             fixedView="procurement"
-            procurementContent={
-              <ClaimProcurementPanel
-                key={`${ownerId}:${currentForm.id}`}
-                ownerId={ownerId}
-                formId={currentForm.id}
-                formTitle={currentForm.title}
-                onClosed={async () => {
-                  await load(
-                    1,
-                    false,
-                    currentForm.id,
-                    customerPhone || undefined,
-                  );
-                }}
-              />
-            }
             products={products}
             data={data}
             loading={loading}

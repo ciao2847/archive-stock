@@ -1,6 +1,9 @@
 "use client";
 import { CustomerNameEditor } from "@/components/order-management/CustomerNameEditor";
-import { ClaimProductTotals } from "./ClaimProductTotals";
+import {
+  ClaimProductTotals,
+  type ClaimProductTotalsProduct,
+} from "./ClaimProductTotals";
 
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 
@@ -81,6 +84,22 @@ export interface ClaimSubmissionsViewProps {
     note: string;
   }) => Promise<void>;
   onNavigateToCustomerCheckout?: (phone: string) => void;
+}
+
+function productOrdersPath(
+  formId: number | undefined,
+  product: ClaimProductTotalsProduct,
+  payment: "all" | "unpaid" | "paid",
+) {
+  const params = new URLSearchParams({
+    source: "claim",
+    claimForm: String(formId ?? ""),
+    productId: product.productId ?? "",
+    sku: product.sku,
+    productName: product.name,
+    payment,
+  });
+  return `/orders?${params}`;
 }
 
 const PAYMENT_STATUS_ACTIVE_STYLES: Record<ClaimPaymentStatus, string> = {
@@ -535,6 +554,9 @@ export function ClaimSubmissionsView({
             products={data.productTotals}
             loading={loading}
             onDownload={onDownloadSummary}
+            getOrdersPath={(product, payment) =>
+              productOrdersPath(data.form?.id, product, payment)
+            }
           />
           {procurementContent}
         </>

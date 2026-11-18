@@ -33,3 +33,71 @@ test("all order lookup finds claim and bundle confirmation codes across activiti
   assert.equal(filterClaimOrders(rows, "all", "找不到").length, 0);
   assert.equal(filterClaimOrders(rows, "all", "")[0]?.source, "bundle");
 });
+
+test("商品訂購篩選限定表單、商品及全額付款狀態", async () => {
+  const { filterClaimProductOrders } = await import(
+    "../src/lib/order-search.ts"
+  );
+  const base = rows[0];
+  const item = {
+    id: 1,
+    productId: "p1",
+    sku: "SKU1",
+    name: "商品",
+    quantity: 2,
+    unitPrice: 100,
+  };
+  const submissions: ClaimSubmission[] = [
+    ...(["pending", "half_paid", "paid"] as const).map(
+      (paymentStatus, index) => ({
+        ...base,
+        id: index + 1,
+        paymentStatus,
+        items: [item],
+      }),
+    ),
+    { ...base, id: 4, formId: 2, items: [item] },
+    { ...base, id: 5, items: [{ ...item, productId: "other" }] },
+    { ...base, id: 6, source: "bundle", items: [item] },
+    { ...base, id: 7, items: [{ ...item, name: "其他名稱" }] },
+  ];
+  const filter = {
+    formId: "1",
+    productId: "p1",
+    sku: "SKU1",
+    name: "商品",
+    payment: "all",
+  };
+  assert.deepEqual(
+    filterClaimProductOrders(submissions, filter).map((row) => row.id),
+    [1, 2, 3, 7],
+  );
+  assert.deepEqual(
+    filterClaimProductOrders(submissions, { ...filter, payment: "unpaid" }).map(
+      (row) => row.id,
+    ),
+    [1, 2, 7],
+  );
+  assert.deepEqual(
+    filterClaimProductOrders(submissions, { ...filter, payment: "paid" }).map(
+      (row) => row.id,
+    ),
+    [3],
+  );
+  assert.equal(
+    filterClaimProductOrders(submissions, {
+      ...filter,
+      productId: "",
+      sku: "missing",
+    }).length,
+    0,
+  );
+  assert.deepEqual(
+    filterClaimProductOrders(submissions, {
+      ...filter,
+      productId: "",
+      payment: "paid",
+    }).map((row) => row.id),
+    [3],
+  );
+});

@@ -10,7 +10,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { fetchAllClaimSubmissions } from "@/lib/api/claims";
 import type { ClaimSubmission } from "@/lib/claims";
 import { ClaimOrderResults } from "./ClaimOrderResults";
-import { filterClaimOrders } from "@/lib/order-search";
+import {
+  filterClaimOrders,
+  filterClaimProductOrders,
+} from "@/lib/order-search";
 import styles from "../../../styles/components/orders/OrdersWorkspace.module.scss";
 import { useSearchParams } from "next/navigation";
 import { SearchField } from "@/components/ui/SearchField";
@@ -96,8 +99,21 @@ export function OrdersWorkspace({
       active = false;
     };
   }, [ownerId, refresh]);
+  const productFilter = params.has("claimForm")
+    ? {
+        formId: params.get("claimForm") ?? "",
+        productId: params.get("productId") ?? "",
+        sku: params.get("sku") ?? "",
+        name: params.get("productName") ?? "",
+        payment: params.get("payment") ?? "all",
+      }
+    : null;
+  const availableClaimRows =
+    claimData?.ownerId === ownerId ? claimData.rows : [];
   const claimRows = filterClaimOrders(
-    claimData?.ownerId === ownerId ? claimData.rows : [],
+    productFilter
+      ? filterClaimProductOrders(availableClaimRows, productFilter)
+      : availableClaimRows,
     source,
     query,
   );
@@ -159,6 +175,28 @@ export function OrdersWorkspace({
               label="搜尋訂單"
               placeholder="搜尋訂單編號、客人、電話或商品…"
             />,
+          )}
+          {productFilter && (
+            <div
+              className="mb-4 flex flex-wrap items-center gap-3"
+              role="status"
+            >
+              <span>
+                {productFilter.name} ·{" "}
+                {productFilter.payment === "paid"
+                  ? "已付款"
+                  : productFilter.payment === "unpaid"
+                    ? "未結清（含部分付款）"
+                    : "全部訂購人"}
+              </span>
+              <button
+                type="button"
+                className="outline"
+                onClick={() => selectSource("claim")}
+              >
+                清除商品篩選
+              </button>
+            </div>
           )}
           {showClaims && claimsError && (
             <ErrorMessage className="mb-4 text-danger" as="div">

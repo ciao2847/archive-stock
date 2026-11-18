@@ -240,6 +240,15 @@ try {
     await page
       .getByRole("button", { name: "結單並產生叫貨單", exact: true })
       .waitFor();
+    const batchCards = page.getByRole("group", {
+      name: "叫貨批次",
+      exact: true,
+    });
+    const activeBatch = batchCards.getByRole("button", { name: /第 1 批/ });
+    await activeBatch.waitFor();
+    assert.equal(await activeBatch.getAttribute("aria-pressed"), "true");
+    assert.equal(await page.getByRole("combobox", { name: "查看叫貨批次" }).count(), 0);
+    assert.equal(await page.getByText("查看批次", { exact: true }).count(), 0);
     const current = page.getByLabel("目前進行中的結單批次");
     const statistics = page.getByRole("region", {
       name: "本批商品統計",
@@ -289,8 +298,8 @@ try {
     assert.deepEqual(posts[0], posts[1]);
     assert.equal(await page.getByLabel("父層重新載入次數").innerText(), "1");
     assert.equal(
-      await page.getByLabel("查看叫貨批次").inputValue(),
-      first,
+      await batchCards.getByRole("button", { name: /第 1 批/ }).getAttribute("aria-pressed"),
+      "true",
       "parent refresh must preserve closed selection",
     );
     assert.match(
@@ -299,7 +308,7 @@ try {
     );
     await assertCounts(statistics, "亮銀龍", fourCounts(1, 2, 0, 2));
     await assertCounts(statistics, "水波紋", fourCounts(1, 3, 0, 3));
-    await page.getByLabel("查看叫貨批次").selectOption("");
+    await batchCards.getByRole("button", { name: /第 2 批/ }).click();
     await page
       .getByRole("heading", { name: "第 2 批 · 已付款叫貨預覽", exact: true })
       .waitFor();
@@ -311,7 +320,7 @@ try {
         .isDisabled(),
       true,
     );
-    await page.getByLabel("查看叫貨批次").selectOption(first);
+    await batchCards.getByRole("button", { name: /第 1 批/ }).click();
     await page
       .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
       .waitFor();
@@ -321,10 +330,10 @@ try {
       .getByLabel("目前進行中的結單批次")
       .getByText("10 件", { exact: true })
       .waitFor();
-    assert.equal(await page.getByLabel("查看叫貨批次").inputValue(), first);
+    assert.equal(await batchCards.getByRole("button", { name: /第 1 批/ }).getAttribute("aria-pressed"), "true");
     await assertCounts(statistics, "亮銀龍", fourCounts(1, 2, 0, 2));
     await assertCounts(statistics, "水波紋", fourCounts(1, 3, 0, 3));
-    await page.getByLabel("查看叫貨批次").selectOption("");
+    await batchCards.getByRole("button", { name: /第 2 批/ }).click();
     await page
       .getByRole("heading", { name: "第 2 批 · 已付款叫貨預覽", exact: true })
       .waitFor();
@@ -336,7 +345,7 @@ try {
       2,
       "round totals replace duplicate paid-only cards",
     );
-    await page.getByLabel("查看叫貨批次").selectOption(first);
+    await batchCards.getByRole("button", { name: /第 1 批/ }).click();
     await page
       .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
       .waitFor();
@@ -353,7 +362,7 @@ try {
       .getByRole("button", { name: "載入較早結單", exact: true })
       .click();
     await page
-      .getByRole("option", { name: /第 0 批/ })
+      .getByRole("button", { name: /第 0 批/ })
       .waitFor({ state: "attached" });
     assert.equal(reads.at(-1).historyPage, "2");
     const description = await page
@@ -382,7 +391,7 @@ try {
       fullPage: true,
     });
     oldServer = true;
-    await page.getByLabel("查看叫貨批次").selectOption("");
+    await batchCards.getByRole("button", { name: /第 2 批/ }).click();
     await statistics.getByText(/本批四項統計尚未安裝/).waitFor();
     assert.match(await statistics.innerText(), /migration/);
     const paidFallback = page.getByRole("article");
@@ -401,7 +410,7 @@ try {
         .isEnabled(),
       true,
     );
-    await page.getByLabel("查看叫貨批次").selectOption(first);
+    await batchCards.getByRole("button", { name: /第 1 批/ }).click();
     await page
       .getByRole("heading", { name: "第 1 批 · 已結單叫貨明細", exact: true })
       .waitFor();

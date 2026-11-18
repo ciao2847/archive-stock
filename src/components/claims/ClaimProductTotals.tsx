@@ -1,5 +1,7 @@
 "use client";
 
+import { pushDashboardPath } from "@/lib/dashboard-navigation";
+import type { ReactNode } from "react";
 import { Download, Info, ShoppingCart } from "lucide-react";
 import type { ClaimProductTotal } from "@/lib/claims";
 
@@ -18,6 +20,10 @@ export type ClaimProductTotalsProps = {
   downloadLabel?: string;
   onDownload?: () => void;
   loading?: boolean;
+  getOrdersPath?: (
+    product: ClaimProductTotalsProduct,
+    payment: "all" | "unpaid" | "paid",
+  ) => string;
 };
 
 export function ClaimProductTotals({
@@ -29,7 +35,37 @@ export function ClaimProductTotals({
   downloadLabel = "下載採購 CSV",
   onDownload,
   loading = false,
+  getOrdersPath,
 }: ClaimProductTotalsProps) {
+  function metric(
+    product: ClaimProductTotalsProduct,
+    payment: "all" | "unpaid" | "paid",
+    children: ReactNode,
+  ) {
+    if (!getOrdersPath) return children;
+    const href = getOrdersPath(product, payment);
+    return (
+      <a
+        href={href}
+        className="text-inherit underline decoration-dotted underline-offset-4 hover:decoration-solid"
+        aria-label={`查看 ${product.name} 的${payment === "paid" ? "已付款訂購人" : payment === "unpaid" ? "未結清訂購人" : "訂購人"}`}
+        onClick={(event) => {
+          if (
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          event.preventDefault();
+          pushDashboardPath(href);
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
     <section
       aria-label={heading}
@@ -105,7 +141,7 @@ export function ClaimProductTotals({
                     訂購人數
                   </dt>
                   <dd className="m-0 mt-1 text-[16px] font-bold text-dark">
-                    {product.customerCount} 人
+                    {metric(product, "all", `${product.customerCount} 人`)}
                   </dd>
                 </div>
                 <div className="min-w-0 rounded-[8px] bg-light/70 px-3 py-3 sm:px-4">
@@ -121,7 +157,11 @@ export function ClaimProductTotals({
                     未結清數量
                   </dt>
                   <dd className="m-0 mt-1 text-[16px] font-bold text-dark">
-                    {product.quantity - product.paidQuantity} 件
+                    {metric(
+                      product,
+                      "unpaid",
+                      `${product.quantity - product.paidQuantity} 件`,
+                    )}
                   </dd>
                 </div>
                 <div className="min-w-0 rounded-[8px] bg-accent-soft px-3 py-3 sm:px-4">
@@ -129,7 +169,7 @@ export function ClaimProductTotals({
                     已付款數量（叫貨依據）
                   </dt>
                   <dd className="m-0 mt-1 text-[16px] font-bold text-accent-strong">
-                    {product.paidQuantity} 件
+                    {metric(product, "paid", `${product.paidQuantity} 件`)}
                   </dd>
                 </div>
               </dl>

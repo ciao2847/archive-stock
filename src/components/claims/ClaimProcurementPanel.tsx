@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ClipboardList, Download, History } from "lucide-react";
+import { Check, ClipboardList, Download } from "lucide-react";
 import { RefreshButton } from "@/components/ui/RefreshButton";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { ClaimProductTotals } from "./ClaimProductTotals";
@@ -21,6 +21,7 @@ type Props = {
   formId: number;
   formTitle: string;
   showProductTotals?: boolean;
+  previewData?: ClaimProcurementData;
   onClosed?: () => Promise<void> | void;
 };
 const money = (value: number) =>
@@ -65,6 +66,7 @@ function ProcurementScope({
   formId,
   formTitle,
   showProductTotals = false,
+  previewData,
   onClosed,
 }: Props) {
   const [data, setData] = useState<ClaimProcurementData | null>(null),
@@ -83,6 +85,11 @@ function ProcurementScope({
   const storageKey = `archive-claim-procurement:${ownerId}:${formId}`;
   const load = useCallback(
     async (roundId?: string, page = 1, appendHistory = false) => {
+      if (previewData) {
+        setData(previewData);
+        setLoading(false);
+        return;
+      }
       const ticket = ++sequence.current;
       controller.current?.abort();
       const current = new AbortController();
@@ -120,18 +127,18 @@ function ProcurementScope({
           setLoading(false);
       }
     },
-    [ownerId, formId],
+    [ownerId, formId, previewData],
   );
   useEffect(() => {
     mounted.current = true;
-    const restored = readPending(storageKey, ownerId, formId);
+    const restored = previewData ? null : readPending(storageKey, ownerId, formId);
     setPending(restored);
     void load(restored?.roundId);
     return () => {
       mounted.current = false;
       controller.current?.abort();
     };
-  }, [ownerId, formId, storageKey, load]);
+  }, [ownerId, formId, storageKey, load, previewData]);
   const selectedClosed = data?.selected.status === "closed";
   const selectedRound = selectedClosed ? data?.selected.id : undefined;
   const productTotals =
@@ -158,7 +165,7 @@ function ProcurementScope({
     ];
   }, [data]);
   async function closeRound() {
-    if (closingRef.current || loading || !data) return;
+    if (previewData || closingRef.current || loading || !data) return;
     const input = pending || {
       ownerId,
       formId,
@@ -247,6 +254,7 @@ function ProcurementScope({
           onClick={() => void load(selectedRound)}
         />
       </div>
+      {previewData && <p className={styles.notice} role="status">示範假資料：飯製海報訂購。僅供排版預覽，不會建立訂單、扣庫存或執行結單。</p>}
       {error && <ErrorMessage className={styles.error}>{error}</ErrorMessage>}
       {message && (
         <p className={styles.notice} role="status">
@@ -262,14 +270,53 @@ function ProcurementScope({
       {!data && loading && <p role="status">正在載入本次叫貨數量…</p>}
       {data && (
         <>
+          <div className={styles.batches} role="group" aria-label="叫貨批次">
+            <button
+              type="button"
+              className={styles.batch}
+              aria-pressed={!selectedClosed}
+              disabled={disabled || Boolean(pending)}
+              onClick={() => void load()}
+            >
+              <strong>
+                <span className={styles.openDot} />第 {data.current.number} 批
+              </strong>
+              <small>進行中 · {data.current.itemCount} 件</small>
+            </button>
+            {history.map((round) => (
+              <button
+                key={round.id}
+                type="button"
+                className={styles.batch}
+                aria-pressed={selectedClosed && data.selected.id === round.id}
+                disabled={disabled || Boolean(pending)}
+                onClick={() => void load(round.id)}
+              >
+                <strong>
+                  <span className={styles.closedDot} />第 {round.number} 批
+                </strong>
+                <small>
+                  {new Intl.DateTimeFormat("zh-TW", {
+                    timeZone: "Asia/Taipei",
+                    month: "2-digit",
+                    day: "2-digit",
+                  }).format(new Date(round.closedAt))}{" "}
+                  結單 · {round.itemCount} 件
+                </small>
+              </button>
+            ))}
+          </div>
           <div className={styles.current} aria-label="目前進行中的結單批次">
-            <h3>第 {data.current.number} 批 · 進行中</h3>
+            <h3>
+              第 {data.current.number} 批{" "}
+              <span className={styles.status}>進行中</span>
+            </h3>
             <dl>
               <div>
                 <dt>本次已付款</dt>
                 <dd>{data.current.paidSubmissionCount} 筆</dd>
               </div>
-              <div>
+              <div className={styles.paidMetric}>
                 <dt>本次叫貨數量</dt>
                 <dd>{data.current.itemCount} 件</dd>
               </div>
@@ -281,7 +328,7 @@ function ProcurementScope({
             <button
               type="button"
               className="primary"
-              disabled={disabled || (!pending && data.current.itemCount === 0)}
+              disabled={Boolean(previewData) || disabled || (!pending && data.current.itemCount === 0)}
               onClick={() => void closeRound()}
             >
               {closing
@@ -291,35 +338,7 @@ function ProcurementScope({
                   : "結單並產生叫貨單"}
             </button>
           </div>
-          <div className={styles.toolbar}>
-            <label>
-              <History size={16} /> 查看批次
-              <select
-                aria-label="查看叫貨批次"
-                value={selectedClosed ? data.selected.id : ""}
-                disabled={disabled || Boolean(pending)}
-                onChange={(event) => void load(event.target.value || undefined)}
-              >
-                <option value="">
-                  第 {data.current.number} 批 · 本次已付款預覽
-                </option>
-                {history.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    第 {round.number} 批 · 已結單 ·{" "}
-                    {formatTaipeiDateTime(round.closedAt)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="outline"
-              disabled={disabled || !data.selected.lines.length}
-              onClick={download}
-            >
-              <Download size={15} />
-              {selectedClosed ? "下載本批叫貨 CSV" : "下載本次叫貨預覽"}
-            </button>
+          {data.historyHasMore && <div className={styles.toolbar}>
             {data.historyHasMore && (
               <button
                 type="button"
@@ -330,7 +349,7 @@ function ProcurementScope({
                 載入較早結單
               </button>
             )}
-          </div>
+          </div>}
           <div className={styles.detailHeading}>
             <h3>
               第 {data.selected.number} 批 ·{" "}
@@ -339,6 +358,15 @@ function ProcurementScope({
             <span>
               {data.selected.itemCount} 件 · {money(data.selected.totalAmount)}
             </span>
+            <button
+              type="button"
+              className="outline"
+              disabled={disabled || !data.selected.lines.length}
+              onClick={download}
+            >
+              <Download size={15} />
+              {selectedClosed ? "下載本批叫貨 CSV" : "下載本次叫貨預覽"}
+            </button>
           </div>
           {selectedClosed && (
             <p className={styles.hint}>
